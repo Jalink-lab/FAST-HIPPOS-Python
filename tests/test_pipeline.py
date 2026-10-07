@@ -130,3 +130,21 @@ def test_settings_override(tmp_path):
     assert s.screening.enabled and s.screening.baseline_calibration_diff is None
     assert [c.metric for c in s.screening.criteria] == ["response_max_diff"]  # lists are replaced
     assert s.input.files[0].name == "a.tif"  # untouched sections are kept
+
+
+def test_mixed_and_or_criteria():
+    df = pd.DataFrame({"baseline_mean": [2.0, 2.0, 2.0, 3.0], "calibration_diff": 0.7, "baseline_dev_pop": 0.0,
+                       "response_max_diff": [0.5, 0.1, 0.1, 0.5], "rise_time_frames": [9, 2, 9, 2]})
+    sc = ScreeningSettings(enabled=True, logic="OR", max_baseline_deviation=None, criteria=[
+        Criterion("baseline_mean", "<", 2.5, logic="AND"),
+        Criterion("response_max_diff", ">", 0.3), Criterion("rise_time_frames", "<", 5)])
+    out = screening.find_hits(df, sc, has_calibration=True)
+    # baseline required; then fast OR large response
+    assert out["hit"].tolist() == [True, True, False, False]
+
+
+def test_manual_hits(tmp_path):
+    f = tmp_path / "hits.tsv"
+    f.write_text("image\tcell\nimgA\t2\nimgB\t3\nimgA\t4\n")
+    hits = screening.manual_hits(f, "imgA", pd.Series([1, 2, 3, 4]))
+    assert hits.tolist() == [False, True, False, True]

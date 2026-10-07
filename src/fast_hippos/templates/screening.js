@@ -94,13 +94,15 @@ const FHScreen = (() => {
       if (dev !== null && dev !== undefined) ok = ok && Math.abs(cols.baseline_dev_pop[i]) <= dev;
       valid[i] = ok ? 1 : 0;
     }
-    const crits = (p.criteria || []).filter(c => c.metric in cols);
-    crits.forEach((c, k) => { const a = new Uint8Array(N); for (let i = 0; i < N; i++) a[i] = evaluate(c, cols[c.metric][i]) ? 1 : 0; pass[k] = a; });
+    // AND criteria must all pass; of the OR criteria at least one must pass (criterion.logic, default p.logic)
+    const crits = (p.criteria || []).map((c, k) => [c, k]).filter(([c]) => c.metric in cols);
+    const isAnd = (c) => String(c.logic || p.logic).toUpperCase() === "AND";
+    crits.forEach(([c, k]) => { const a = new Uint8Array(N); for (let i = 0; i < N; i++) a[i] = evaluate(c, cols[c.metric][i]) ? 1 : 0; pass[k] = a; });
     if (crits.length) {
-      const and = String(p.logic).toUpperCase() === "AND";
+      const ands = crits.filter(([c]) => isAnd(c)).map(([, k]) => pass[k]), ors = crits.filter(([c]) => !isAnd(c)).map(([, k]) => pass[k]);
       for (let i = 0; i < N; i++) {
-        let r = and;
-        for (let k = 0; k < crits.length; k++) r = and ? (r && pass[k][i] === 1) : (r || pass[k][i] === 1);
+        let r = ands.every(a => a[i] === 1);
+        if (ors.length) r = r && ors.some(a => a[i] === 1);
         hit[i] = valid[i] && r ? 1 : 0;
       }
     }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -129,21 +130,37 @@ def find_hits(df: pd.DataFrame, settings: ScreeningSettings, has_calibration: bo
         df.loc[df.index[hits], "hit"] = True
         log.info("Random hits: %d", df["hit"].sum())
         return df
-    passes = []
-    for crit in settings.criteria:
+    and_passes, or_passes = [], []
+    for k, crit in enumerate(settings.criteria):
         if crit.metric not in df.columns:
             known = ", ".join(METRICS)
             raise ValueError(f"Unknown or unavailable metric '{crit.metric}'. Known metrics: {known}")
-        col = f"pass_{crit.metric}"
-        df[col] = evaluate(crit, df[crit.metric]).fillna(False)  # NaN never passes
-        passes.append(df[col])
-    if not passes:
+        col = f"pass_{k + 1}_{crit.metric}"
+        df[col] = evaluate(crit, df[crit.metric]).fillna(False).astype(bool)  # NaN never passes
+        logic = (crit.logic or settings.logic).upper()
+        (and_passes if logic == "AND" else or_passes).append(df[col])
+    if not and_passes and not or_passes:
         df["hit"] = False
     else:
-        combined = pd.concat(passes, axis=1)
-        df["hit"] = df["valid"] & (combined.all(axis=1) if settings.logic.upper() == "AND" else combined.any(axis=1))
+        # AND criteria must all pass; of the OR criteria at least one must pass (issue I7: on booleans)
+        ok = pd.concat(and_passes, axis=1).all(axis=1) if and_passes else pd.Series(True, index=df.index)
+        if or_passes:
+            ok &= pd.concat(or_passes, axis=1).any(axis=1)
+        df["hit"] = df["valid"] & ok
     log.info("Screening: %d hits in %d cells (%.1f %%)", df["hit"].sum(), len(df), 100 * df["hit"].mean() if len(df) else 0)
     return df
+
+
+def manual_hits(path, image: str, cells: pd.Series) -> pd.Series:
+    """Hits from a hand-made list (TSV with 'cell' and optionally 'image'; rows of other images are ignored)."""
+    table = pd.read_csv(path, sep="\t")
+    if "cell" not in table.columns:
+        raise ValueError(f"{path}: a 'cell' column is required")
+    if "image" in table.columns:
+        table = table[table["image"].astype(str) == str(image)]
+    hits = cells.isin(table["cell"].astype(int))
+    log.info("Manual hits (%s): %d cells", Path(path).name, hits.sum())
+    return hits
 
 
 def classify_additional(intensity: pd.Series, threshold: float | None = None) -> tuple[pd.Series, float]:

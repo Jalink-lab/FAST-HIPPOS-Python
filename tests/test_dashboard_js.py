@@ -55,7 +55,7 @@ PARAMS = list(itertools.product(
     ["before_calibration", "after_stimulation"],
     [0, 2],                                     # response_window_margin
     [0, 2],                                     # smoothing radius
-    ["OR", "AND"],
+    ["OR", "AND", "mixed"],
 ))
 
 
@@ -65,11 +65,13 @@ def test_js_matches_python(js, data, ev, window, anchor, wmargin, smooth, logic)
     kymo, additional = data
     t, n = kymo.shape
     stim, cal, baseline_only = ev
+    per = ["AND", "OR", "OR"] if logic == "mixed" else [None, None, None]
+    logic = "OR" if logic == "mixed" else logic
     sc = ScreeningSettings(
         enabled=True, logic=logic, response_window=window, response_window_anchor=anchor,
         response_window_margin=wmargin, baseline_calibration_diff=(0.4, 1.0), max_baseline_deviation=0.15,
-        criteria=[Criterion("response_max_diff", ">", 0.2), Criterion("rise_time_frames", "<", 6),
-                  Criterion("additional_intensity", "between", 50, 1000)],
+        criteria=[Criterion("response_max_diff", ">", 0.2, logic=per[0]), Criterion("rise_time_frames", "<", 6, logic=per[1]),
+                  Criterion("additional_intensity", "between", 50, 1000, logic=per[2])],
     )
     e = events.Events(t, stim, cal, baseline_only, margin=1)
     ks = kymograph.smooth_time(kymo, smooth)
@@ -81,7 +83,7 @@ def test_js_matches_python(js, data, ev, window, anchor, wmargin, smooth, logic)
     p = {"response_window": window, "response_window_anchor": anchor, "response_window_margin": wmargin,
          "baseline_calibration_diff": [0.4, 1.0], "max_baseline_deviation": 0.15, "rise_time_fraction": 0.75,
          "additional_channel_metric": "mean", "logic": logic, "smooth_traces": smooth,
-         "criteria": [{"metric": c.metric, "op": c.op, "value": c.value, "value2": c.value2} for c in sc.criteria]}
+         "criteria": [{"metric": c.metric, "op": c.op, "value": c.value, "value2": c.value2, "logic": c.logic} for c in sc.criteria]}
     arg = {"K": [None if np.isnan(v) else float(v) for v in kymo.ravel()], "A": additional.ravel().tolist(),
            "T": t, "N": n, "ev": {"stimulation": stim, "calibration": cal, "baseline_only": baseline_only, "margin": 1}, "p": p}
     out = json.loads(js.call("run", arg))

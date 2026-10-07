@@ -252,7 +252,10 @@ def analyze(result: ImageResult, settings: Settings) -> None:
             cells["additional_intensity"], sc.classification_threshold
         )
     has_cal = ev.calibration_window.stop > ev.calibration_window.start
-    if sc.enabled:
+    if sc.enabled and sc.manual_hits:
+        cells["valid"] = screening.validity(cells, sc, has_cal)
+        cells["hit"] = screening.manual_hits(Path(sc.manual_hits), result.name, cells["cell"])
+    elif sc.enabled:
         cells = screening.find_hits(cells, sc, has_cal)
     else:
         cells["valid"] = screening.validity(cells, sc, has_cal)

@@ -118,6 +118,8 @@ class Criterion:
     op: str  # "<", ">" or "between"
     value: float
     value2: float | None = None
+    # "AND": must pass; "OR": at least one of the OR criteria must pass. None = screening.logic
+    logic: str | None = None
 
 
 @dataclass
@@ -138,6 +140,9 @@ class ScreeningSettings:
     classification_threshold: float | None = None  # manual linear threshold, overrides Otsu
     random_hits: int | None = None  # testing: pick N random cells instead of screening
     random_seed: int | None = None
+    # hits chosen by hand (e.g. exported from a dashboard selection): TSV with a 'cell' column and
+    # optionally an 'image' column; replaces the criteria
+    manual_hits: Path | None = None
     sort_by: str | None = None
     sort_descending: bool = True
     # stage positions
@@ -182,6 +187,7 @@ class Settings:
             (settings.segmentation, "cellpose4_python"),
             (settings.segmentation, "classifier"),
             (settings.screening, "stage_positions_file"),
+            (settings.screening, "manual_hits"),
         ]:
             value = getattr(section, name)
             if value is not None:
