@@ -1,15 +1,14 @@
 import numpy as np
 
-from fast_hippos import modalities, segmentation
-from fast_hippos.synthetic import make_timelapse
 from fast_hippos.viewer_data import TILE, ViewerData, prepare
 
 
 def test_pyramid_tiles(tmp_path):
-    image, truth = make_timelapse(size=1100, n_frames=3, stimulation=1, calibration=2, seed=5)
-    intensity, lifetime = modalities.tcspc(image.channel(1), image.channel(2), 0.6, 3.4)
-    proj = segmentation.projection(intensity)
-    v = prepare(intensity, lifetime, proj, truth.labels, (2.0, 3.4), 1, 0, max_size=300, tiles_dir=tmp_path / "tiles")
+    rng = np.random.default_rng(0)
+    intensity = rng.random((3, 1100, 1100), dtype=np.float32) * 100
+    lifetime = (2.5 + rng.random((3, 1100, 1100), dtype=np.float32)).astype(np.float32)
+    labels = (np.arange(1100)[:, None] // 50 * 30 + np.arange(1100)[None, :] // 50).astype(np.int32)
+    v = prepare(intensity, lifetime, intensity.sum(0), labels, (2.0, 3.4), 1, 0, max_size=300, tiles_dir=tmp_path / "tiles")
     # 1100 px -> overview at factor 4 (275 px); levels 0 and 1 are tiled
     assert v.factor == 4 and v.lifetime8.shape == (3, 275, 275)
     assert [lv["level"] for lv in v.tiles["levels"]] == [0, 1]
