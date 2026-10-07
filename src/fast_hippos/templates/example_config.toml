@@ -1,0 +1,82 @@
+# FAST-HIPPOS configuration. Relative paths are relative to this file.
+# Channels are 1-based (as in Fiji); frames are 0-based.
+
+[input]
+files = ["data/experiment.tif"]       # .tif, .lif (needs: uv sync --extra lif) or .npy
+output = "output"
+modality = "tcspc"                    # tcspc | fast_flim | tau_contrast | fd_flim | ratio | intensity
+intensity_channel = 1                 # first FLIM channel; the lifetime / second component is the next one
+tau1 = 0.6                            # ns (tcspc)
+tau2 = 3.4                            # ns (tcspc)
+default_frame_interval = 5.0          # s, if not in the metadata
+# pixel_size = 0.5                    # µm, overrides the metadata
+remove_last_frame = false
+# additional_channel = 3              # measure the mean intensity of this channel per cell
+
+[preprocess]
+correct_bidirectional = false
+correct_drift = false
+drift_reference = "first"             # first | last | previous
+drift_edge_detect = false
+
+[segmentation]
+method = "cellpose"                   # cellpose | labelmap | threshold
+cellpose_model = "cyto3"              # cyto3 | cyto2_cp3 | nuclei | cpsam | path to a custom model
+# cellpose_version = 3                # default: 4 for cpsam, else 3
+# Environments with Cellpose, used when it is not installed in this environment:
+cellpose3_python = "C:/PythonProjects/Cellpose3/.venv/Scripts/python.exe"
+cellpose4_python = "C:/PythonProjects/Cellpose4/.venv/Scripts/python.exe"
+diameter = 0                          # 0 = automatic (Cellpose 3 built-in models)
+flow_threshold = 1.0
+cellprob_threshold = 0.0
+# channel = 4                         # dedicated segmentation channel
+# labelmap = "labels.tif"             # for method = "labelmap"
+# gamma = 0.5                         # contrast enhancement before segmentation
+# start_frame = 0                     # projection range for segmentation (inclusive)
+# end_frame = 10
+min_cell_size = 50                    # pixels
+max_circularity = 1.0                 # < 1 removes round objects
+min_cell_intensity = 0
+# classifier = "nuclei.joblib"        # refine hit positions on nuclei (fast-hippos train-classifier)
+
+[display]
+lut = "turbo"                         # turbo | viridis | plasma | magma | inferno | cividis | gray
+min_lifetime = 2.0
+max_lifetime = 3.4
+smooth_traces = 0                     # temporal box radius (frames), used for traces and hit detection
+overlay_smooth_xy = 1.0
+overlay_smooth_t = 1.0
+dashboard = true
+dashboard_max_size = 1024             # longest image side in the dashboard
+
+[events]
+# Leave out for automatic detection. Frames are 0-based indices of the FIRST frame with the stimulus.
+# (Fiji manual frames "s,c" correspond to stimulation_frame = s + 1, calibration_frame = c + 1.)
+# stimulation_frame = 6
+# calibration_frame = 27
+baseline_only = false
+sensitivity = 5.0                     # robust noise sigmas of the 2nd derivative
+
+[screening]
+enabled = false
+logic = "OR"                          # OR | AND
+response_window = -1                  # frames for the 'mean' response metrics; -1 = full response
+response_window_anchor = "before_calibration"   # or after_stimulation
+response_window_margin = 0
+baseline_calibration_diff = [0.5, 1.0]          # gate: calibration - baseline (ns); [] = off
+max_baseline_deviation = 0.2                    # ("" = off) gate: |baseline - population baseline| (ns)
+classify_additional_channel = false
+sort_by = "response_max_diff"
+sort_descending = true
+# stage_positions_file = "experiment.lif"       # or a text file with x0 y0 x1 y1 ... (m)
+max_hits_per_rgn = 1000
+optimize_path = true
+max_optimization_time = 5.0
+
+# Metrics: baseline_mean, response_mean_abs, response_mean_diff, response_fraction, response_max_abs,
+# response_max_diff, response_max_diff_pop, rise_time_frames, rapid_response_ratio, calibration_mean,
+# calibration_diff, additional_intensity
+[[screening.criteria]]
+metric = "response_max_diff"
+op = ">"                              # < | > | between (with value2)
+value = 0.3

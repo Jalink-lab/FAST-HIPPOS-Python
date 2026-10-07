@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAST-HIPPOS run</title>
+<style>
+:root { --bg:#0f1216; --panel:#171b21; --panel2:#1d222a; --line:#2a313b; --text:#e6e9ee; --muted:#8b95a3; --accent:#4da3ff; --hit:#ff4fb0; --grid:rgba(255,255,255,.07); color-scheme: dark; }
+@media (prefers-color-scheme: light) { :root { --bg:#f3f5f8; --panel:#fff; --panel2:#f7f8fa; --line:#dde2e8; --text:#1b2330; --muted:#5d6877; --accent:#1f6fd1; --hit:#d0157f; --grid:rgba(0,0,0,.07); color-scheme: light; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 16px 16px 4px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+header h1 { margin: 0; font-size: 18px; } .brand { color: var(--accent); font-weight: 700; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; } .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; color: var(--muted); } .chip b { color: var(--text); } .chip.hit b { color: var(--hit); }
+main { display: grid; gap: 12px; padding: 12px 16px 24px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+@media (max-width: 980px) { main { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0; }
+.panel-h { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; color: var(--muted); }
+.panel-h h2 { margin: 0; font-size: 13px; color: var(--text); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th { background: var(--panel2); font-weight: 600; } th:first-child, td:first-child { text-align: left; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+.hits { color: var(--hit); font-weight: 600; }
+#map { position: relative; height: 560px; } #map canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#tip { position: fixed; pointer-events: none; display: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; z-index: 10; }
+.files { padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<header><span class="brand">FAST-HIPPOS</span><h1 id="title"></h1><div class="chips" id="chips"></div></header>
+<main>
+  <section class="panel"><div class="panel-h"><h2>Images</h2><span class="muted">open a dashboard for the interactive view</span></div><div id="images"></div></section>
+  <section class="panel" id="mappanel"><div class="panel-h"><h2>Hit positions</h2><span class="muted" id="mapinfo"></span></div><div id="map"><canvas id="mapc"></canvas></div></section>
+  <section class="panel" style="grid-column: 1 / -1"><div class="panel-h"><h2>Run files</h2></div><div class="files" id="files"></div></section>
+</main>
+<div id="tip"></div>
+<script id="fh-data" type="application/json">__FH_DATA__</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("fh-data").textContent);
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+$("title").textContent = D.title; document.title = `${D.title} · FAST-HIPPOS`;
+const nCells = D.images.reduce((s, i) => s + i.n_cells, 0), nHits = D.images.reduce((s, i) => s + i.n_hits, 0);
+$("chips").innerHTML = `<span class="chip"><b>${D.images.length}</b> image(s)</span><span class="chip"><b>${nCells}</b> cells</span>` +
+  (D.screening ? `<span class="chip hit"><b>${nHits}</b> hits (${(100 * nHits / Math.max(1, nCells)).toFixed(1)} %)</span>` : "");
+const fmt = (v, d = 2) => v === null || v === undefined ? "–" : (+v).toFixed(d);
+$("images").innerHTML = `<table><thead><tr><th>Image</th><th>cells</th>${D.screening ? "<th>hits</th>" : ""}<th>frames</th><th>stim</th><th>cal</th><th>median baseline</th><th></th></tr></thead><tbody>` +
+  D.images.map(im => `<tr><td><a href="${encodeURI(im.href)}">${im.name}</a></td><td>${im.n_cells}</td>${D.screening ? `<td class="hits">${im.n_hits}</td>` : ""}<td>${im.n_frames}</td><td>${im.stimulation ?? "–"}</td><td>${im.calibration ?? "–"}</td><td>${fmt(im.median_baseline, 3)}</td><td><a href="${encodeURI(im.folder)}/">folder</a></td></tr>`).join("") + "</tbody></table>";
+$("files").innerHTML = D.files.length ? D.files.map(f => `<a href="${encodeURI(f)}">${f}</a>`).join("") : '<span class="muted">none</span>';
+
+// ---------------------------------------------------------------- hit map (mm, y up = -abs_y as in Fiji)
+const pts = []; D.images.forEach((im, k) => im.hits.x.forEach((x, j) => { if (x !== null) pts.push({ x: x * 1e3, y: -im.hits.y[j] * 1e3, img: k, cell: im.hits.cell[j] }); }));
+const tiles = []; D.images.forEach(im => im.tiles.forEach(t => tiles.push({ x0: t[0] * 1e3, y0: -(t[1] + t[3]) * 1e3, w: t[2] * 1e3, h: t[3] * 1e3 })));
+const paths = D.chunks.map(c => c.image.map((name, j) => { const k = D.images.findIndex(i => i.name === name); const im = D.images[k]; const idx = im.hits.cell.indexOf(c.cell[j]); return idx < 0 ? null : { x: im.hits.x[idx] * 1e3, y: -im.hits.y[idx] * 1e3 }; }).filter(Boolean));
+if (!D.screening || (!pts.length && !tiles.length)) $("mappanel").style.display = "none";
+$("mapinfo").textContent = `${pts.length} hits` + (paths.length ? ` · ${paths.length} route(s)` : "");
+const cv = $("mapc"); let geo = null;
+function draw() {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr;
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height);
+  let xa = Infinity, xb = -Infinity, ya = Infinity, yb = -Infinity;
+  const ext = (x, y) => { xa = Math.min(xa, x); xb = Math.max(xb, x); ya = Math.min(ya, y); yb = Math.max(yb, y); };
+  tiles.forEach(t => { ext(t.x0, t.y0); ext(t.x0 + t.w, t.y0 + t.h); }); pts.forEach(p => ext(p.x, p.y));
+  if (!Number.isFinite(xa)) return; const pad = 0.05 * Math.max(xb - xa, yb - ya, 1e-3);
+  xa -= pad; xb += pad; ya -= pad; yb += pad;
+  const m = 46, s = Math.min((r.width - m - 10) / (xb - xa), (r.height - m - 10) / (yb - ya));
+  const X = (x) => m + (x - xa) * s, Y = (y) => r.height - m + 6 - (y - ya) * s; geo = { X, Y };
+  ctx.font = "11px system-ui"; ctx.fillStyle = css("--muted"); ctx.strokeStyle = css("--grid");
+  ctx.textAlign = "center"; ctx.fillText("X (mm)", (X(xa) + X(xb)) / 2, r.height - 4); ctx.save(); ctx.translate(12, (Y(ya) + Y(yb)) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("Y (mm)", 0, 0); ctx.restore();
+  const step = Math.pow(10, Math.floor(Math.log10((xb - xa) / 4)));
+  for (let v = Math.ceil(xa / step) * step; v <= xb; v += step) { ctx.beginPath(); ctx.moveTo(X(v), Y(ya)); ctx.lineTo(X(v), Y(yb)); ctx.stroke(); ctx.fillText(+v.toPrecision(6), X(v), r.height - m + 20); }
+  ctx.textAlign = "right"; for (let v = Math.ceil(ya / step) * step; v <= yb; v += step) { ctx.beginPath(); ctx.moveTo(X(xa), Y(v)); ctx.lineTo(X(xb), Y(v)); ctx.stroke(); ctx.fillText(+v.toPrecision(6), m - 4, Y(v) + 3); }
+  ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.2; tiles.forEach(t => ctx.strokeRect(X(t.x0), Y(t.y0 + t.h), t.w * s, t.h * s));
+  const colors = ["#4da3ff", "#ffb347", "#7bd389", "#c792ea", "#ff6b6b", "#5ad1d1"];
+  paths.forEach((p, k) => { ctx.strokeStyle = colors[k % colors.length]; ctx.globalAlpha = 0.6; ctx.lineWidth = 1; ctx.beginPath(); p.forEach((q, j) => j ? ctx.lineTo(X(q.x), Y(q.y)) : ctx.moveTo(X(q.x), Y(q.y))); ctx.stroke(); });
+  ctx.globalAlpha = 1; ctx.fillStyle = css("--hit"); pts.forEach(p => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), pts.length > 2000 ? 1.5 : 3, 0, 7); ctx.fill(); });
+}
+function nearest(e) { if (!geo) return null; const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; let best = null, bd = 64; for (const p of pts) { const d = (geo.X(p.x) - mx) ** 2 + (geo.Y(p.y) - my) ** 2; if (d < bd) { bd = d; best = p; } } return best; }
+cv.addEventListener("mousemove", (e) => { const p = nearest(e), tip = $("tip"); if (!p) { tip.style.display = "none"; return; } tip.innerHTML = `${D.images[p.img].name}<br>cell ${p.cell} · (${p.x.toFixed(3)}, ${(-p.y).toFixed(3)}) mm`; tip.style.display = "block"; tip.style.left = e.clientX + 12 + "px"; tip.style.top = e.clientY + 12 + "px"; });
+cv.addEventListener("mouseleave", () => $("tip").style.display = "none");
+cv.addEventListener("click", (e) => { const p = nearest(e); if (p) location.href = encodeURI(D.images[p.img].href) + `#cell=${p.cell}`; });
+new ResizeObserver(draw).observe(cv);
+</script>
+</body>
+</html>

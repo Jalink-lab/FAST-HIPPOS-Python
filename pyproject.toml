@@ -1,0 +1,56 @@
+[project]
+name = "fast-hippos"
+version = "0.1.0.dev0"
+description = "FLIM Analysis of Single-cell Traces for Hit Identification of Phenotypes in Pooled Optical Screening (Python port of the FAST-HIPPOS Fiji macro)"
+readme = "README.md"
+authors = [{ name = "Bram van den Broek", email = "b.vd.broek@nki.nl" }]
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.13",
+    "scikit-image>=0.24",
+    "tifffile>=2024.8",
+    "pandas>=2.2",
+    "matplotlib>=3.9",
+    "pillow>=10",
+    "scikit-learn>=1.5",
+    "joblib>=1.4",
+]
+
+[project.scripts]
+fast-hippos = "fast_hippos.cli:main"
+
+[project.optional-dependencies]
+# Cellpose in this environment (optional): either version. Both can also be used from other
+# environments via segmentation.cellpose3_python / cellpose4_python, without installing them here.
+cellpose3 = ["cellpose>=3.1,<4"]
+cellpose4 = ["cellpose>=4"]
+# Reading Leica .lif files (images + stage positions).
+lif = ["readlif"]
+# Interactive inspection of traces (replacement for Inspect_and_select_traces).
+viewer = ["napari[all]"]
+
+[dependency-groups]
+dev = [
+    "mini-racer>=0.14.1",
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fast_hippos"]
+
+[tool.uv]
+conflicts = [[{ extra = "cellpose3" }, { extra = "cellpose4" }]]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests"]
