@@ -17,7 +17,7 @@ _UNIT_TO_UM = {"micron": 1.0, "um": 1.0, "µm": 1.0, "\\u00B5m": 1.0, "mm": 1e3,
 
 @dataclass
 class ImageData:
-    """A time-lapse as a (T, C, Y, X) float32 array plus metadata."""
+    """A time-lapse as a (T, C, Y, X) array (native dtype, to save memory) plus metadata."""
 
     data: np.ndarray
     name: str
@@ -37,10 +37,10 @@ class ImageData:
         return self.data.shape[1]
 
     def channel(self, c: int) -> np.ndarray:
-        """1-based channel as a (T, Y, X) array."""
+        """1-based channel as a float32 (T, Y, X) array."""
         if not 1 <= c <= self.n_channels:
             raise ValueError(f"Channel {c} requested, but '{self.name}' has {self.n_channels} channel(s)")
-        return self.data[:, c - 1]
+        return self.data[:, c - 1].astype(np.float32)
 
 
 def iter_images(path: Path, series: list[int] | None = None) -> Iterator[ImageData]:
@@ -100,7 +100,7 @@ def _to_tcyx(arr: np.ndarray, axes: str) -> np.ndarray:
             arr = arr[np.newaxis]
             axes = ax + axes
     order = [axes.index(a) for a in "TCYX"]
-    return np.ascontiguousarray(np.transpose(arr, order)).astype(np.float32)
+    return np.ascontiguousarray(np.transpose(arr, order))  # native dtype; channel() converts
 
 
 def read_lif(path: Path, series: list[int] | None = None) -> Iterator[ImageData]:
@@ -123,7 +123,7 @@ def read_lif(path: Path, series: list[int] | None = None) -> Iterator[ImageData]
                 np.asarray(img.get_frame(z=t if nz > 1 else 0, t=t if nt > 1 else 0, c=c)) for c in range(nc)
             ]
             frames.append(np.stack(chans))
-        data = np.stack(frames).astype(np.float32)
+        data = np.stack(frames)
         pixel_size = 1.0 / img.scale[0] if img.scale and img.scale[0] else None  # scale is px/µm
         frame_interval = None
         if nt > 1 and len(img.scale) > 3 and img.scale[3]:

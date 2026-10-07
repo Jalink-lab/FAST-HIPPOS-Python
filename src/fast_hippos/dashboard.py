@@ -111,6 +111,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
             "projection": png_data_url(viewer.projection8),
             "labels": labels_url(viewer.labels),
             "size": [int(viewer.labels.shape[1]), int(viewer.labels.shape[0])],
+            "tiles": viewer.tiles,
         },
         "kymo": float_b64(result.kymo),
         "additional": float_b64(result.additional) if result.additional is not None else None,

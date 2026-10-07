@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -179,6 +180,7 @@ def process_image(
         "circularity": stats["circularity"].to_numpy(),
         "centroid_x": centroids[:, 0], "centroid_y": centroids[:, 1],
         "pos_x_px": positions[:, 0], "pos_y_px": positions[:, 1],
+        **{c: stats[c].to_numpy() for c in ("bbox_x0", "bbox_y0", "bbox_x1", "bbox_y1")},
     })
     if result.stage_xy is not None:
         absolute = stage.absolute_positions(positions, np.asarray(result.stage_xy), result.tile_size, pixel_size)
@@ -191,9 +193,14 @@ def process_image(
     save_image_outputs(result, labels, proj, lifetime, settings)
     from .dashboard import display_range
 
+    tiles_dir = out_dir / "tiles"
+    if tiles_dir.exists():
+        shutil.rmtree(tiles_dir)
+    big = max(height, width) > s_disp.dashboard_max_size
     viewer = prepare(
         intensity, lifetime, proj, labels, display_range(result, settings),
         s_disp.overlay_smooth_xy, s_disp.overlay_smooth_t, s_disp.dashboard_max_size, s_disp.dashboard_max_megapixels,
+        tiles_dir if (big and s_disp.dashboard and s_disp.dashboard_tiles) else None,
     )
     viewer.save(out_dir / "viewer.npz")
     _write_dashboard(result, viewer, settings)

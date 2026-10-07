@@ -69,6 +69,7 @@ def correct_bidirectional(data: np.ndarray, channels: list[int]) -> tuple[np.nda
     """Shift odd lines by +s/2 and even lines by -s/2 (cubic interpolation) to align both scan directions."""
     s = estimate_bidirectional_shift(registration_image(data, channels))
     log.info("Bidirectional phase correction: %.2f px", s)
+    data = data.astype(np.float32)  # interpolation
     out = data.copy()
     out[..., 0::2, :] = ndi.shift(data[..., 0::2, :], (0, 0, 0, -s / 2), order=3, mode="nearest")
     out[..., 1::2, :] = ndi.shift(data[..., 1::2, :], (0, 0, 0, s / 2), order=3, mode="nearest")

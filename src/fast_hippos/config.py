@@ -98,7 +98,8 @@ class DisplaySettings:
     histogram_bins: int = 50
     dashboard: bool = True
     dashboard_max_size: int = 1024  # longest image side in the dashboard (downsampled if larger)
-    dashboard_max_megapixels: float = 200.0  # total pixels x frames budget; frames are skipped beyond this
+    dashboard_max_megapixels: float = 200.0  # overview pixels x frames budget; frames are skipped beyond this
+    dashboard_tiles: bool = True  # larger images: full-resolution tiles loaded on zoom (folder 'tiles')
     save_png_plots: bool = True
     save_tables: bool = True  # per-frame trace tables (TSV)
 
