@@ -174,7 +174,12 @@ class Settings:
             data = tomllib.load(fh)
         for override in overrides:
             with Path(override).open("rb") as fh:
-                data = _merge(data, tomllib.load(fh))
+                extra = tomllib.load(fh)
+            # a hit list named in an override file lives next to that file
+            manual = extra.get("screening", {}).get("manual_hits")
+            if manual and not Path(manual).is_absolute():
+                extra["screening"]["manual_hits"] = str((Path(override).parent / manual).resolve())
+            data = _merge(data, extra)
         settings = _from_dict(cls, data)
         # relative paths in the config are relative to the config file
         base = path.parent

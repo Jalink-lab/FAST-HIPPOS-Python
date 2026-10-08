@@ -76,7 +76,20 @@ def display_range(result: ImageResult, settings: Settings) -> tuple[float, float
 
 def _embed(template: str, data: dict) -> str:
     payload = json.dumps(_clean(data), separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
-    return template.replace("/*__FH_SCREEN_JS__*/", _template("screening.js")).replace("__FH_DATA__", payload)
+    return template.replace("__FH_DATA__", payload)
+
+
+# dashboard modules, in load order (templates/dashboard); screening.js is shared with the tests
+DASHBOARD_JS = ["core.js", "plot.js", "viewer.js", "traces.js", "kymo.js", "dist.js", "scatter.js", "cellcard.js",
+                "table.js", "screenui.js", "export.js", "main.js"]
+
+
+def _dashboard_template() -> str:
+    base = resources.files("fast_hippos").joinpath("templates", "dashboard")
+    page = base.joinpath("page.html").read_text(encoding="utf-8")
+    css = base.joinpath("style.css").read_text(encoding="utf-8")
+    js = "\n".join([_template("screening.js")] + [base.joinpath(f).read_text(encoding="utf-8") for f in DASHBOARD_JS])
+    return page.replace("/*__CSS__*/", css).replace("/*__JS__*/", js)
 
 
 def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings) -> dict:
@@ -157,7 +170,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
 
 def write_image_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings) -> Path:
     path = result.out_dir / "dashboard.html"
-    path.write_text(_embed(_template("dashboard.html"), build_image_data(result, viewer, settings)), encoding="utf-8")
+    path.write_text(_embed(_dashboard_template(), build_image_data(result, viewer, settings)), encoding="utf-8")
     return path
 
 

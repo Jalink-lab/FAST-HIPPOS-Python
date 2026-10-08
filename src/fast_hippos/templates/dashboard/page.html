@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAST-HIPPOS dashboard</title>
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">FAST-HIPPOS</span>
+  <h1 id="title"></h1>
+  <div class="chips" id="chips"></div>
+</header>
+<div class="toolbar">
+  <span class="group"><button id="play" title="Play / pause (space)">▶</button>
+    <input id="frame" type="range" min="0" value="0" step="1"><span id="tlabel"></span></span>
+  <label>LUT <select id="lut"></select></label>
+  <label><span id="rangeName">Lifetime</span> <input id="dmin" type="number"> – <input id="dmax" type="number"></label>
+  <label>Traces <select id="tsrc"><option value="raw">raw</option><option value="smoothed">smoothed</option></select></label>
+  <label>Show <select id="show"><option value="all">all cells</option><option value="hits">hits</option><option value="sel">selection</option></select></label>
+  <label title="Shift+drag in the image or scatter plot selects cells (L toggles)">Select <span class="seg" id="tool"><button data-v="rect">▭ box</button><button data-v="lasso">✎ lasso</button></span></label>
+  <span class="sp"></span>
+  <button id="theme" title="Light / dark">◐</button>
+</div>
+<main>
+  <section class="panel screen">
+    <div class="panel-h"><button id="scrtoggle" class="icon" title="Show / hide">▾</button><h2>Screening</h2>
+      <div class="funnel" id="funnel"></div><span id="scrmod" class="modified"></span><span class="sp"></span>
+      <button id="scrreset" title="Back to the settings of the analysis run">Reset</button></div>
+    <div class="scrbody" id="scrbody">
+      <div class="card timing">
+        <h3>Timing <span class="hint">drag S and C · click to go to a frame</span></h3>
+        <canvas id="tl" class="timeline"></canvas>
+        <div class="row">
+          <label>stim <input id="evs" type="number" min="0" step="1" placeholder="–"></label>
+          <label>cal <input id="evc" type="number" min="0" step="1" placeholder="–"></label>
+          <label title="frames excluded before each transition">margin <input id="evm" type="number" min="0" step="1"></label>
+          <label><input id="evb" type="checkbox"> baseline only</label>
+          <button id="evauto" class="small" title="frames of the analysis run">reset</button>
+        </div>
+        <div class="row">
+          <span class="lbl">response window</span><span class="seg" id="winmode"><button data-v="full">full</button><button data-v="n">frames</button></span>
+          <input id="rw" type="number" min="1" step="1" class="w3">
+          <span class="seg" id="anchor"><button data-v="after_stimulation">after S</button><button data-v="before_calibration">before C</button></span>
+          <label>margin <input id="rm" type="number" min="0" step="1" class="w3"></label>
+        </div>
+        <div class="row">
+          <label class="slider">smoothing <input id="sm" type="range" min="0" max="10" step="1"><span id="smv" class="val"></span></label>
+          <label class="slider" title="rise time = frames until this fraction of the maximum response">rise <input id="rf" type="range" min="0.5" max="0.95" step="0.05"><span id="rfv" class="val"></span></label>
+        </div>
+      </div>
+      <div class="card gates">
+        <h3>Quality gates <span class="hint">every hit must pass</span></h3>
+        <div class="gate"><label><input id="g1" type="checkbox"> calibration − baseline</label><span class="n" id="g1n"></span>
+          <canvas id="g1h" class="hs"></canvas><span class="vals"><input id="g1a" type="number" step="0.05"> – <input id="g1b" type="number" step="0.05"> ns</span></div>
+        <div class="gate"><label><input id="g2" type="checkbox"> |baseline − population| ≤</label><span class="n" id="g2n"></span>
+          <canvas id="g2h" class="hs"></canvas><span class="vals"><input id="g2v" type="number" step="0.05" min="0"> ns</span></div>
+        <div class="gate" id="gate3"><label><input id="cls" type="checkbox"> classify additional channel</label><span class="n" id="cln"></span>
+          <canvas id="clh" class="hs"></canvas><span class="vals"><select id="am"><option value="mean">mean</option><option value="first">first frame</option></select> &gt; <input id="clt" type="number" step="any"> <button id="clotsu" class="small">Otsu</button></span></div>
+      </div>
+      <div class="card output">
+        <h3>Output</h3>
+        <div class="row"><label>sort hits by <select id="sortby"></select></label><select id="sortdir"><option value="1">highest first</option><option value="0">lowest first</option></select></div>
+        <div class="row"><label>.rgn chunks of <input id="chunk" type="number" min="1" step="100" class="w5"></label><label><input id="optpath" type="checkbox"> optimize path</label></div>
+        <div class="row"><button id="route">Compute route</button><span id="routeinfo" class="muted"></span><label><input id="vroute2" type="checkbox"> show in image</label></div>
+        <div class="row exports"><button id="hitsrgn">Hits → .rgn</button><button id="hitstsv">Hits → TSV</button>
+          <button id="scrtoml" title="Apply to the whole run: fast-hippos reapply config.toml --override screening.toml">Settings → TOML</button></div>
+      </div>
+      <div class="card crits">
+        <h3>Hits from <span class="seg" id="hitsrc"><button data-v="criteria">criteria</button><button data-v="selection">selection</button></span>
+          <span class="hint"><span class="pill and">AND</span> required · <span class="pill or">OR</span> at least one of these</span><span class="sp"></span><button id="addcrit">+ criterion</button></h3>
+        <div id="manualbox" class="manual">Hits chosen by hand: <b id="mancount"></b>
+          <button id="usesel">Use selection</button><button id="addsel">Add selection</button><button id="clearmanual">Clear</button></div>
+        <div id="crits"></div>
+      </div>
+    </div>
+  </section>
+  <section class="panel viewer">
+    <div class="panel-h"><h2>Image</h2><span id="vinfo" class="muted"></span><span class="sp"></span>
+      <button id="vzsel" title="Zoom to the selection, or to the hits (Z)">Zoom to selection</button><button id="vzout" class="icon" title="Zoom out (Ctrl+wheel)">−</button><button id="vzin" class="icon" title="Zoom in (Ctrl+wheel)">+</button><button id="vfit" title="Fit (F)">Fit</button></div>
+    <div id="vwrap"><canvas id="vimg"></canvas><canvas id="vsel"></canvas><canvas id="vhov"></canvas><svg id="vsvg" class="selsvg"></svg>
+      <div id="vbar"><div id="vbarname"></div><canvas id="vbarc" width="256" height="1"></canvas><div class="ends"><span id="vbar0"></span><span id="vbar1"></span></div></div>
+      <div id="loading"></div></div>
+    <div class="panel-f">
+      <label>Outlines <select id="outl"><option value="none">selection only</option><option value="hits">hits</option><option value="all">all cells</option></select></label>
+      <label>Intensity <select id="isrc"><option value="movie">movie</option><option value="projection">projection</option></select></label>
+      <label class="slider">Brightness <input id="bright" type="range" min="-1" max="1.2" step="0.01" value="0.2"></label>
+      <label><input id="vroute" type="checkbox"> route</label><label><input id="vscale" type="checkbox"> scale bar</label>
+    </div>
+  </section>
+  <section class="panel traces">
+    <div class="panel-h"><h2>Traces</h2><span id="trinfo" class="muted"></span><span class="sp"></span>
+      <label class="muted">View <select id="tmode"><option value="lines">lines</option><option value="bands">bands</option><option value="density">density</option></select></label>
+      <label class="muted">Color <select id="tcol"><option value="cell">per cell</option><option value="hit">hits</option><option value="gray">gray</option></select></label></div>
+    <div class="stack"><canvas id="trb"></canvas><canvas id="trs"></canvas><canvas id="trh"></canvas></div>
+  </section>
+  <section class="panel kymo">
+    <div class="panel-h"><h2>Kymograph</h2><span class="muted">time ↓ · shift+drag selects a range</span><span class="sp"></span>
+      <label class="muted"><input type="checkbox" id="ksort" checked> sorted on response</label></div>
+    <div class="stack"><canvas id="kyb"></canvas><canvas id="kyo"></canvas><svg id="ksvg" class="selsvg"></svg></div>
+  </section>
+  <section class="panel dist">
+    <div class="panel-h"><h2>Distribution</h2><span id="distinfo" class="muted"></span></div>
+    <div class="stack"><canvas id="hib"></canvas></div>
+  </section>
+  <section class="panel scatter">
+    <div class="panel-h"><h2>Scatter</h2><span class="sp"></span>
+      <label class="muted">x <select id="sx"></select></label><label class="muted"><input type="checkbox" id="slogx"> log</label>
+      <label class="muted">y <select id="sy"></select></label><label class="muted"><input type="checkbox" id="slogy"> log</label></div>
+    <div class="stack"><canvas id="scb"></canvas><canvas id="scs"></canvas><canvas id="sch"></canvas><svg id="ssvg" class="selsvg"></svg></div>
+  </section>
+  <section class="panel cellp">
+    <div class="panel-h"><h2 id="cctitle">Cell</h2><span class="sp"></span><span class="muted">hover or click a cell</span></div>
+    <div id="ccbody" class="ccbody empty">
+      <canvas id="cccrop"></canvas>
+      <div class="ccright"><div class="stack"><canvas id="cctr"></canvas></div><table class="cclist"><tbody id="cclist"></tbody></table></div>
+      <div class="ccempty muted">Hover over or click a cell in any view to inspect it.</div>
+    </div>
+  </section>
+  <section class="panel tablep">
+    <div class="panel-h"><h2>Cells</h2><span id="tinfo" class="muted"></span><span class="sp"></span>
+      <label class="muted">Rows <select id="rows"><option value="all">all</option><option value="hits">hits</option><option value="sel">selection</option><option value="valid">valid</option></select></label>
+      <button id="clearsel" title="Clear selection (Esc)">Clear selection</button><button id="selhits">Select hits</button>
+      <button id="csv">Rows → TSV</button><button id="rgn">Selection → .rgn</button></div>
+    <div id="tbl"></div>
+  </section>
+</main>
+<p class="help">Click a cell, trace, kymograph column, point or row to select it; <kbd>Ctrl</kbd>+click adds/removes;
+<kbd>Shift</kbd>+drag selects a box or lasso (image, scatter) or a range (kymograph). Drag to pan, <kbd>Ctrl</kbd>+scroll to zoom,
+double-click a cell to zoom to it. <kbd>Space</kbd> play, <kbd>←</kbd>/<kbd>→</kbd> frames, <kbd>Z</kbd> zoom to selection, <kbd>F</kbd> fit,
+<kbd>L</kbd> box/lasso, <kbd>Esc</kbd> clear. <span id="ver"></span></p>
+<div id="tip"></div>
+<script id="fh-data" type="application/json">__FH_DATA__</script>
+<script>
+"use strict";
+/*__JS__*/
+</script>
+</body>
+</html>
