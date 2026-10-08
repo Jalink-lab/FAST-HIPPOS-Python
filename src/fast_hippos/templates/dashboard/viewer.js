@@ -4,7 +4,7 @@ const VW = V.size[0], VH = V.size[1];
 const TLEVELS = (V.tiles && V.tiles.levels) || [];   // finer levels (factor 1, 2, ...), loaded on demand
 const TSIZE = (V.tiles && V.tiles.tile) || 512;
 const vwrap = $("vwrap"), vimg = $("vimg"), vsel = $("vsel"), vhov = $("vhov"), vsvg = $("vsvg");
-const view = { s: 1, tx: 0, ty: 0, fitted: false };  // s = screen px per full-resolution px
+const view = { s: 1, tx: 0, ty: 0, fitted: false, auto: true };  // s = screen px per full-resolution px; auto = keep fitting
 let renderVersion = 0, outlineVersion = 0;
 
 // ---- caches (Map keeps insertion order -> simple LRU)
@@ -249,10 +249,10 @@ function imageChanged() { renderVersion++; lastComp.clear(); invalidate("viewer"
 // ---- navigation
 function fitView(redraw = true) {
   const r = vwrap.getBoundingClientRect(); if (!r.width) return;
-  view.s = Math.min(r.width / W0, r.height / H0); view.tx = (r.width - W0 * view.s) / 2; view.ty = (r.height - H0 * view.s) / 2; view.fitted = true;
+  view.s = Math.min(r.width / W0, r.height / H0); view.tx = (r.width - W0 * view.s) / 2; view.ty = (r.height - H0 * view.s) / 2; view.fitted = true; view.auto = true;
   if (redraw) invalidate("viewer");
 }
-function zoomAt(mx, my, f) { const s = Math.max(0.01, Math.min(32, view.s * f)); view.tx = mx - (mx - view.tx) * s / view.s; view.ty = my - (my - view.ty) * s / view.s; view.s = s; invalidate("viewer"); }
+function zoomAt(mx, my, f) { view.auto = false; const s = Math.max(0.01, Math.min(32, view.s * f)); view.tx = mx - (mx - view.tx) * s / view.s; view.ty = my - (my - view.ty) * s / view.s; view.s = s; invalidate("viewer"); }
 function cellBox(i) {
   if (C.bbox_x0 && C.bbox_x0[i] !== null) return [C.bbox_x0[i], C.bbox_y0[i], C.bbox_x1[i], C.bbox_y1[i]];
   const r = Math.sqrt((C.area_px[i] || 100) / Math.PI) * 1.2; return [POSX[i] - r, POSY[i] - r, POSX[i] + r, POSY[i] + r];
@@ -262,7 +262,7 @@ function zoomTo(ids) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const i of ids) { const b = cellBox(i); x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]); }
   const pad = Math.max(20, 0.15 * Math.max(x1 - x0, y1 - y0)); x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
-  const r = vwrap.getBoundingClientRect();
+  const r = vwrap.getBoundingClientRect(); view.auto = false;
   view.s = Math.min(32, Math.min(r.width / (x1 - x0), r.height / (y1 - y0)));
   view.tx = r.width / 2 - (x0 + x1) / 2 * view.s; view.ty = r.height / 2 - (y0 + y1) / 2 * view.s; invalidate("viewer");
 }
@@ -284,7 +284,7 @@ function initViewer() {
   vwrap.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const r = vwrap.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.004)); }, { passive: false });
   vwrap.addEventListener("pointerdown", (e) => { if (e.shiftKey) return; vwrap.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty, moved: false }; });
   vwrap.addEventListener("pointermove", (e) => {
-    if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; if (drag.moved) { view.tx = drag.tx + dx; view.ty = drag.ty + dy; invalidate("viewer"); } return; }
+    if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; if (drag.moved) { view.auto = false; view.tx = drag.tx + dx; view.ty = drag.ty + dy; invalidate("viewer"); } return; }
     const [x, y] = imgCoords(e); setHover(labelAt(x, y), e);
   });
   vwrap.addEventListener("pointerup", (e) => { const d = drag; drag = null; if (d && !d.moved) { const [x, y] = imgCoords(e); select(labelAt(x, y), e); } });
@@ -307,5 +307,5 @@ function initViewer() {
   fm.onchange = () => { S.fillMetric = fm.value; fillsChanged(); };
   $("vscale").checked = S.scalebar; $("vscale").onchange = () => { S.scalebar = $("vscale").checked; invalidate("viewerHov"); };
   hitRGB = hexToRgb(css("--hit"));
-  new ResizeObserver(() => { if (!view.fitted) fitView(false); invalidate("viewer"); }).observe(vwrap);
+  new ResizeObserver(() => { if (!view.fitted || view.auto) fitView(false); invalidate("viewer"); }).observe(vwrap);
 }

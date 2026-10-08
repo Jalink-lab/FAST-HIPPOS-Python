@@ -25,8 +25,11 @@ function drawKymoOvl() {
   const ctx = KP.clear(1); if (!KP.cols) return; const n = KP.cols.length, w = KP.pw / Math.max(1, n);
   const y = KP.m.t + (S.frame + 0.5) / T * KP.ph; ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(KP.m.l, y); ctx.lineTo(KP.m.l + KP.pw, y); ctx.stroke();
   // selected columns: semi-transparent wash plus a tick below the axis
-  ctx.fillStyle = withAlpha(css("--sel"), 0.35); ctx.strokeStyle = css("--sel");
-  for (const i of S.sel) { const c = KP.pos.get(i); if (c === undefined) continue; const x = KP.m.l + c * w; ctx.fillRect(x, KP.m.t, Math.max(1, w), KP.ph); ctx.fillRect(x, KP.m.t + KP.ph + 1, Math.max(1, w), 4); }
+  ctx.fillStyle = withAlpha(css("--accent"), S.sel.size > 50 ? 0.22 : 0.4); ctx.strokeStyle = css("--sel");
+  // mark per screen pixel and fill runs, so that overlapping narrow columns do not stack up their alpha
+  const pw = Math.ceil(KP.pw), mark = new Uint8Array(pw + 1);
+  for (const i of S.sel) { const c = KP.pos.get(i); if (c === undefined) continue; const a = Math.floor(c * w), b = Math.max(a + 1, Math.ceil((c + 1) * w)); mark.fill(1, a, Math.min(pw, b)); }
+  for (let x = 0; x < pw;) { if (!mark[x]) { x++; continue; } let e = x; while (e < pw && mark[e]) e++; ctx.fillRect(KP.m.l + x, KP.m.t, e - x, KP.ph); ctx.fillRect(KP.m.l + x, KP.m.t + KP.ph + 1, e - x, 4); x = e; }
   const hc = KP.pos.get(S.hover); if (hc !== undefined) { ctx.strokeStyle = css("--hover"); ctx.lineWidth = 2; ctx.strokeRect(KP.m.l + hc * w, KP.m.t, Math.max(2, w), KP.ph); }
 }
 layer("kymo", drawKymo); layer("kymoOvl", drawKymoOvl);
