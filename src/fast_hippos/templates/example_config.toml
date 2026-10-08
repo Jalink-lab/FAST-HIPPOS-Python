@@ -47,7 +47,8 @@ smooth_traces = 0                     # temporal box radius (frames), used for t
 overlay_smooth_xy = 1.0
 overlay_smooth_t = 1.0
 dashboard = true
-dashboard_max_size = 1024             # longest image side in the dashboard
+dashboard_max_size = 1024             # longest side of the embedded overview
+dashboard_tiles = true                # larger images: full-resolution tiles loaded while zooming
 
 [events]
 # Leave out for automatic detection. Frames are 0-based indices of the FIRST frame with the stimulus.
@@ -59,7 +60,8 @@ sensitivity = 5.0                     # robust noise sigmas of the 2nd derivativ
 
 [screening]
 enabled = false
-logic = "OR"                          # OR | AND
+logic = "OR"                          # default for criteria without their own 'logic'
+# manual_hits = "hits.tsv"            # hand-picked hits (columns: image, cell) instead of the criteria
 response_window = -1                  # frames for the 'mean' response metrics; -1 = full response
 response_window_anchor = "before_calibration"   # or after_stimulation
 response_window_margin = 0
@@ -76,7 +78,9 @@ max_optimization_time = 5.0
 # Metrics: baseline_mean, response_mean_abs, response_mean_diff, response_fraction, response_max_abs,
 # response_max_diff, response_max_diff_pop, rise_time_frames, rapid_response_ratio, calibration_mean,
 # calibration_diff, additional_intensity
+# Each criterion: AND = required; OR = at least one of the OR criteria must pass.
 [[screening.criteria]]
 metric = "response_max_diff"
 op = ">"                              # < | > | between (with value2)
 value = 0.3
+logic = "AND"

@@ -27,7 +27,7 @@ const S = {
   isrc: "movie", outl: D.screening.enabled ? "hits" : "selection", tsrc: SCR.params.smooth_traces > 0 ? "smoothed" : "raw",
   show: "all", tcol: D.screening.enabled && D.screening.n_hits ? "hit" : "cell", tmode: N > 300 ? "bands" : "lines",
   sorted: true, rows: "all", sortCol: null, sortDir: 1, sx: "mean_intensity", sy: "@value", slogx: false, slogy: false,
-  tool: "rect", showRoute: true, scalebar: true,
+  tool: "rect", showRoute: true, scalebar: true, fillMetric: "",
 };
 const K = () => (S.tsrc === "smoothed" ? KS : KR);
 const val = (t, i) => K()[t * N + i];

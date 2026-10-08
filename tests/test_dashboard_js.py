@@ -96,3 +96,41 @@ def test_js_matches_python(js, data, ev, window, anchor, wmargin, smooth, logic)
     assert out["order"] == order.tolist()
     _, thr = screening.classify_additional(df["additional_intensity"])
     assert out["otsu"] == pytest.approx(thr, rel=1e-9)
+
+
+def test_dashboard_javascript_compiles():
+    """All dashboard modules together must parse (catches syntax errors and duplicate declarations)."""
+    from fast_hippos.dashboard import _dashboard_template
+
+    html = _dashboard_template()
+    src = html[html.index('"use strict";'):html.rindex("</script>")]
+    py_mini_racer.MiniRacer().eval(f"new Function({json.dumps(src)}); 0")
+
+
+def test_dashboard_payload_reproduces_python_hits(js, tmp_path):
+    """The screening parameters embedded in a dashboard must give the pipeline's hits in the browser."""
+    from fast_hippos.config import Settings
+    from fast_hippos.dashboard import build_image_data
+    from fast_hippos.pipeline import run
+    from fast_hippos.synthetic import save_tiff
+    from fast_hippos.viewer_data import ViewerData
+
+    image, _ = make_timelapse(seed=6, size=192, n_frames=30, stimulation=8, calibration=22)
+    s = Settings()
+    s.input.files = [save_tiff(image, tmp_path / "img.tif")]
+    s.input.output = tmp_path / "out"
+    s.input.additional_channel = 3
+    s.segmentation.method = "threshold"
+    s.segmentation.diameter = 18
+    s.display.smooth_traces = 1
+    s.screening.enabled = True
+    s.screening.logic = "OR"
+    s.screening.criteria = [Criterion("response_max_diff", ">", 0.2, logic="AND"),
+                            Criterion("rise_time_frames", "<", 4), Criterion("additional_intensity", ">", 50)]
+    r = run(s)[0]
+    d = build_image_data(r, ViewerData.load(r.out_dir / "viewer.npz"), s)
+    arg = {"K": [None if np.isnan(v) else float(v) for v in r.kymo.ravel()], "A": r.additional.ravel().tolist(),
+           "T": d["n_frames"], "N": d["n_cells"], "ev": d["screen"]["events"], "p": d["screen"]["params"]}
+    out = json.loads(js.call("run", arg))
+    assert out["hit"] == r.cells["hit"].astype(int).tolist()
+    assert 0 < sum(out["hit"]) < len(out["hit"])

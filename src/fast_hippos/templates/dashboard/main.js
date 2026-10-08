@@ -19,9 +19,11 @@ function togglePlay() {
   else clearTimeout(playTimer);
 }
 function drawColorbar() {
-  const c = $("vbarc"), x = c.getContext("2d"), img = x.createImageData(256, 1), L = LUTS[S.lut];
+  const fill = S.fillMetric && C[S.fillMetric];
+  const c = $("vbarc"), x = c.getContext("2d"), img = x.createImageData(256, 1), L = LUTS[fill ? "viridis" : S.lut];
   for (let i = 0; i < 256; i++) { img.data[i * 4] = L[i * 3]; img.data[i * 4 + 1] = L[i * 3 + 1]; img.data[i * 4 + 2] = L[i * 3 + 2]; img.data[i * 4 + 3] = 255; }
   x.putImageData(img, 0, 0);
+  if (fill) { $("vbarname").textContent = S.fillMetric; $("vbar0").textContent = (+fillRange[0]).toPrecision(3); $("vbar1").textContent = (+fillRange[1]).toPrecision(3); return; }
   $("vbarname").textContent = D.is_lifetime ? "Lifetime (ns)" : D.unit; $("vbar0").textContent = (+S.dmin).toPrecision(3); $("vbar1").textContent = (+S.dmax).toPrecision(3);
 }
 function initControls() {

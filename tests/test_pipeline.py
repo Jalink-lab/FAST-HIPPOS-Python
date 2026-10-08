@@ -148,3 +148,11 @@ def test_manual_hits(tmp_path):
     f.write_text("image\tcell\nimgA\t2\nimgB\t3\nimgA\t4\n")
     hits = screening.manual_hits(f, "imgA", pd.Series([1, 2, 3, 4]))
     assert hits.tolist() == [False, True, False, True]
+
+
+def test_example_config_loads():
+    from importlib import resources
+
+    path = resources.files("fast_hippos").joinpath("templates", "example_config.toml")
+    s = Settings.from_toml(path)
+    assert s.screening.criteria[0].logic == "AND" and s.display.dashboard_tiles

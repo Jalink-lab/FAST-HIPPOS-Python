@@ -28,7 +28,7 @@ function recompute() {
   SCR.population_baseline = m.population_baseline;
   if (SCR.route) SCR.route.stale = SCR.route.sig !== hitSignature();
   $("tsrc").disabled = !(p.smooth_traces > 0); if (!(p.smooth_traces > 0)) { S.tsrc = "raw"; $("tsrc").value = "raw"; }
-  updateChips(); updateScreenUI(); outlinesChanged();
+  updateChips(); updateScreenUI(); outlinesChanged(); if (S.fillMetric) fillsChanged();
   invalidate(...ON.hits, "tracesHov");
 }
 let recomputeTimer = null;

@@ -13,7 +13,8 @@ function lru(max) {
   return { get(k) { const v = m.get(k); if (v !== undefined) { m.delete(k); m.set(k, v); } return v; },
     set(k, v) { m.set(k, v); while (m.size > max) m.delete(m.keys().next().value); }, has: (k) => m.has(k), clear: () => m.clear() };
 }
-const rawCache = lru(240), labCache = lru(160), compCache = lru(160), outCache = lru(160), lastComp = new Map();
+const rawCache = lru(150), labCache = lru(120), compCache = lru(100), outCache = lru(100), fillCache = lru(60), lastComp = new Map();  // ~1 MB per 512² tile
+let fillVersion = 0, fillRange = [0, 1];
 const inflight = new Set(); let active = 0; const queue = [];
 
 function decodeURL(url) {
@@ -139,6 +140,28 @@ function outlineImage(t) {
   x.putImageData(img, 0, 0); outCache.set(key, c); return c;
 }
 
+// cells filled with the colour of a per-cell metric (spatial pattern of responses / hits)
+function fillImage(t) {
+  const lk = labKey(t), key = `${lk}|${fillVersion}`;
+  let c = fillCache.get(key); if (c) return c;
+  const le = request(lk); if (!le) return null;
+  c = document.createElement("canvas"); c.width = le.w; c.height = le.h;
+  const x = c.getContext("2d"), img = x.createImageData(le.w, le.h), d = img.data, vals = C[S.fillMetric], Lv = LUTS.viridis;
+  const [lo, hi] = fillRange, cache = new Map();
+  for (let p = 0; p < le.lab.length; p++) {
+    const l = le.lab[p]; if (!l || l > N) continue;
+    let k = cache.get(l);
+    if (k === undefined) { const v = vals[l - 1]; k = v === null || !Number.isFinite(v) ? -1 : Math.round(Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1))) * 255) * 3; cache.set(l, k); }
+    if (k < 0) continue;
+    const q = p * 4; d[q] = Lv[k]; d[q + 1] = Lv[k + 1]; d[q + 2] = Lv[k + 2]; d[q + 3] = 200;
+  }
+  x.putImageData(img, 0, 0); fillCache.set(key, c); return c;
+}
+function fillsChanged() {
+  if (S.fillMetric) { const q = quantiles(Array.from(C[S.fillMetric], v => v ?? NaN), [0.02, 0.98]); fillRange = Number.isFinite(q[0]) ? q : [0, 1]; }
+  fillVersion++; invalidate("viewerSel"); drawColorbar();
+}
+
 // generic renderer (used for the main view and for the cell card crop)
 function renderImage(ctx, cw, ch, vw, then) {
   const vf = vfIndex(S.frame), L = chooseLevel(vw.s);
@@ -153,12 +176,13 @@ function renderImage(ctx, cw, ch, vw, then) {
     if (c) ctx.drawImage(c, vw.tx + t.x * t.f * vw.s, vw.ty + t.y * t.f * vw.s, c.width * t.f * vw.s, c.height * t.f * vw.s);
   }
 }
-function renderOutlines(ctx, cw, ch, vw) {
+function renderOutlines(ctx, cw, ch, vw, make = outlineImage) {
   const L = chooseLevel(vw.s); ctx.imageSmoothingEnabled = false;
   const tiles = L === OVERVIEW ? [{ L: null, x: 0, y: 0, f: F0 }] : tilesInView(L, cw, ch, vw);
+  let fallback = false;
   for (const t of tiles) {
-    let c = outlineImage(t);
-    if (!c && t.L) { const ov = outlineImage({ L: null }); if (ov) { ctx.drawImage(ov, vw.tx, vw.ty, VW * F0 * vw.s, VH * F0 * vw.s); } continue; }
+    const c = make(t);
+    if (!c && t.L && !fallback) { const ov = make({ L: null }); if (ov) ctx.drawImage(ov, vw.tx, vw.ty, VW * F0 * vw.s, VH * F0 * vw.s); fallback = true; continue; }
     if (c) ctx.drawImage(c, vw.tx + t.x * t.f * vw.s, vw.ty + t.y * t.f * vw.s, c.width * t.f * vw.s, c.height * t.f * vw.s);
   }
 }
@@ -191,7 +215,7 @@ function prefetch() {
   if (L === OVERVIEW) request(frameKey({ L: null }, next), []);
   else for (const t of tilesInView(L, r.width, r.height, view)) request(frameKey(t, next), []);
 }
-function drawViewerSel() { const [x, w, h] = canvasSize(vsel); renderOutlines(x, w, h, view); }
+function drawViewerSel() { const [x, w, h] = canvasSize(vsel); if (S.fillMetric && C[S.fillMetric]) renderOutlines(x, w, h, view, fillImage); renderOutlines(x, w, h, view); }
 function drawViewerHov() {
   const [x, w, h] = canvasSize(vhov);
   if (S.hover >= 0) { x.fillStyle = css("--hover"); for (const [px, py, sz] of cellBoundary(S.hover, w, h, view)) x.fillRect(px, py, Math.max(1, sz), Math.max(1, sz)); }
@@ -279,6 +303,8 @@ function initViewer() {
   $("isrc").onchange = () => { S.isrc = $("isrc").value; imageChanged(); };
   $("bright").oninput = () => { S.bright = Math.pow(10, +$("bright").value); imageChanged(); };
   $("vroute").checked = S.showRoute; $("vroute").onchange = () => { S.showRoute = $("vroute").checked; invalidate("viewerHov"); };
+  const fm = $("vfill"); fm.add(new Option("lifetime image", "")); METRIC_KEYS.forEach(k => fm.add(new Option(k, k)));
+  fm.onchange = () => { S.fillMetric = fm.value; fillsChanged(); };
   $("vscale").checked = S.scalebar; $("vscale").onchange = () => { S.scalebar = $("vscale").checked; invalidate("viewerHov"); };
   hitRGB = hexToRgb(css("--hit"));
   new ResizeObserver(() => { if (!view.fitted) fitView(false); invalidate("viewer"); }).observe(vwrap);

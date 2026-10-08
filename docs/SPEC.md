@@ -178,6 +178,11 @@ Settings come from a second dialog and are persisted in IJ Prefs.
 Plus **random hits** mode (N random cells) for testing.
 
 AND logic: a hit is kept only if *all* criterion columns between `Cell` and `Tile` are non-zero (I7).
+
+**Python port:** every criterion has its own logic (`logic = "AND"` or `"OR"`, default `screening.logic`):
+hit = valid AND (all AND criteria pass) AND (at least one OR criterion passes, if there are any). With a
+single global logic this reduces to the Fiji behaviour. `screening.manual_hits` (TSV with `cell` and
+optionally `image`) replaces the criteria by a hand-picked list (e.g. exported from a dashboard selection).
 Sorting on a chosen column, "highest first" via table reversal.
 
 ### 6.4 Additional-channel classification (new, `classifyCellsUsingAdditionalChannel = true`, hardcoded)
@@ -321,6 +326,31 @@ Cellpose 3 (cyto3) and Cellpose 4 (cpsam) run from the existing environments in 
 | `dashboard`, `viewer_data`, `templates/` | self-contained HTML dashboards + run index | all image/plot windows, Inspect_and_select_traces |
 | `cli` | `fast-hippos run / reapply / init-config / train-classifier / demo` | - |
 
+Dashboard (`templates/dashboard/*`, assembled into one self-contained HTML by `dashboard.py`):
+`core.js` (state, layered redraw scheduling, selection), `plot.js`, `viewer.js` (overview + lazily loaded
+tile pyramid; tiles are `.js` files calling `FHTile(key, dataURL)` so they load from `file://`),
+`traces.js` (lines / quantile bands / density), `kymo.js`, `dist.js`, `scatter.js`, `cellcard.js`,
+`table.js`, `screenui.js` (live screening panel, histogram sliders, timeline, route), `export.js`,
+`main.js`. Every panel draws on separate canvas layers (base / selection / hover) so hover stays cheap with
+thousands of selected cells.
+
 Still open: `.fli` reader; StarDist nuclei route (macro "to do"); manual segmentation (draw in napari or
 Fiji and load as labelmap); dashboard size for long/large data (frames are lossless PNG: ~1.4 MB per
 1024^2 frame on noisy data).
+
+## 12. Large images (tested on the full data set)
+
+`Allchannels_merged_50_50.tif`: 4089 × 2556 px, 30 frames, 3 channels, 1.9 GB; Fiji labelmap (10239 cells).
+
+| Step | Result |
+|---|---|
+| `fast-hippos run` (labelmap, screening, tiles) | 2.5 min |
+| `fast-hippos reapply` (screening + dashboards, no segmentation) | 30 s |
+| dashboard.html (overview 1:4, all 30 frames embedded) | 45 MB |
+| tiles (levels 1:1 and 1:2, 512² px, 1280 + 360 files) | 526 MB |
+| browser: zoom to full resolution, step 10 frames | ~55 ms per frame including tile loading; 160 MB JS heap |
+| hover with all 1066 cells selected (crop data set) | 3 ms (was 78 ms before layering) |
+
+Tiles are only written when the image is larger than `display.dashboard_max_size`; `dashboard_tiles = false`
+skips them (the dashboard then shows the overview only).
+
