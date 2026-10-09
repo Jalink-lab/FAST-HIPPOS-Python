@@ -9,6 +9,15 @@
   <b>P</b>henotypes in <b>P</b>ooled <b>O</b>ptical <b>S</b>creening
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/status-unverified%20test%20version-orange" alt="Status: unverified test version">
+</p>
+
+> [!WARNING]
+> **Unverified test version.** This Python version is under development and has not yet been validated for
+> production screening. Results, settings and file formats may change. For experiments, use the
+> [FAST-HIPPOS Fiji plugin](https://imagej.net/plugins/fast-hippos), or check the results carefully against it.
+
 FAST-HIPPOS analyzes multi-cell time-lapse experiments: it segments the cells, measures a fluorescence
 lifetime (or ratio, or intensity) trace for every cell, finds the cells with the kinetic behaviour you are
 looking for, and writes their stage coordinates as a Leica LAS X `.rgn` file. You can then revisit exactly
