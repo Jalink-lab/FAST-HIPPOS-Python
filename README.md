@@ -16,9 +16,8 @@ those cells for photoactivation, high-resolution imaging, FRAP, and so on. Outsi
 useful for single-cell trace analysis, visualization and inspection.
 
 This is the Python version of the [FAST-HIPPOS Fiji plugin](https://imagej.net/plugins/fast-hippos)
-([GitHub](https://github.com/Jalink-lab/FAST-HIPPOS)). It follows the Fiji macro v0.9.5 step by step,
-fixes its known bugs, and replaces the many Fiji image windows and tables with **one interactive HTML
-dashboard per image**. In that dashboard you can also change the hit criteria after the analysis and see
+([GitHub](https://github.com/Jalink-lab/FAST-HIPPOS)). It follows the workflow of the Fiji macro v0.9.5
+and brings all results together in **one interactive HTML dashboard per image**. In that dashboard you can also change the hit criteria after the analysis and see
 the result immediately.
 
 <p align="center">
@@ -32,7 +31,7 @@ the result immediately.
 - **One command, one config file.** `fast-hippos run experiment.toml` runs the whole pipeline. Settings are
   stored in a readable TOML file instead of dialogs, so every analysis is reproducible.
 - **FLIM-aware cell lifetimes.** For two-component TCSPC data the fitted amplitudes of all pixels in a cell are
-  pooled, giving an unbiased cell lifetime Σ(A₁τ₁ + A₂τ₂) / Σ(A₁ + A₂), also for dim cells.
+  pooled, giving a robust cell lifetime Σ(A₁τ₁ + A₂τ₂) / Σ(A₁ + A₂), also for dim cells.
 - **Cellpose 3 and 4** (Cellpose-SAM), used in-process or from their own Python environments. You can also use
   your own label image or a simple threshold.
 - **Interactive dashboard**: a time-lapse viewer with full-resolution tiles for very large stitched images,
@@ -217,17 +216,14 @@ visible area. On a 1.9 GB stitched data set (4089 × 2556 px, 30 frames, 10 239 
 - Settings in a TOML file instead of dialogs. Frames are 0-based and denote the *first* frame with the stimulus:
   Fiji manual frames "s,c" become `stimulation_frame = s + 1` and `calibration_frame = c + 1`.
 - Stimulation and calibration detection uses a robust (MAD) noise estimate; the default is `sensitivity = 5`.
-- TCSPC cell lifetimes pool the fitted amplitudes of all pixels, whereas Fiji averaged per-pixel lifetimes
-  weighted by intensity. Fiji's estimate is biased upward for dim cells, so Fiji thresholds do not transfer 1:1.
+- TCSPC cell lifetimes pool the fitted amplitudes of all pixels; the Fiji version averages per-pixel lifetimes
+  weighted by intensity. The values differ slightly, most for dim cells, so thresholds do not transfer 1:1.
 - The Labkit step that refines positions on nuclei is replaced by a scikit-learn pixel classifier
   (`fast-hippos train-classifier`).
-- Known macro bugs are fixed, including hit positions that pointed at the wrong cells after position
-  refinement and route optimization that reordered coordinates but not the rest of the hit list.
 - Stitching tiles is still done with the Fiji *Stitch tiles* command; FAST-HIPPOS reads the stage metadata it
   stores in the stitched `.tif`, or a positions file.
 
-The full specification, the list of fixed issues and the validation against Fiji are in
-[`docs/SPEC.md`](docs/SPEC.md). The reference macro is in [`reference/fiji_v0.9.5`](reference/fiji_v0.9.5).
+The full specification and the validation against Fiji are in [`docs/SPEC.md`](docs/SPEC.md). The reference macro is in [`reference/fiji_v0.9.5`](reference/fiji_v0.9.5).
 
 ## Development
 
