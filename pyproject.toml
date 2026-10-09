@@ -50,7 +50,9 @@ conflicts = [[{ extra = "cellpose3" }, { extra = "cellpose4" }]]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-p no:cacheprovider"  # no .pytest_cache in the (synced) project folder
 
 [tool.ruff]
+cache-dir = "~/.cache/ruff/fast-hippos"  # keep the cache out of the synced project folder
 line-length = 110
 src = ["src", "tests"]
