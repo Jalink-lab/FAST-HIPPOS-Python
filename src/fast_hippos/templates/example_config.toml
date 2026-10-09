@@ -24,8 +24,8 @@ method = "cellpose"                   # cellpose | labelmap | threshold
 cellpose_model = "cyto3"              # cyto3 | cyto2_cp3 | nuclei | cpsam | path to a custom model
 # cellpose_version = 3                # default: 4 for cpsam, else 3
 # Environments with Cellpose, used when it is not installed in this environment:
-cellpose3_python = "C:/PythonProjects/Cellpose3/.venv/Scripts/python.exe"
-cellpose4_python = "C:/PythonProjects/Cellpose4/.venv/Scripts/python.exe"
+# cellpose3_python = "path/to/Cellpose3/.venv/Scripts/python.exe"   # Windows; .venv/bin/python elsewhere
+# cellpose4_python = "path/to/Cellpose4/.venv/Scripts/python.exe"
 diameter = 0                          # 0 = automatic (Cellpose 3 built-in models)
 flow_threshold = 1.0
 cellprob_threshold = 0.0

@@ -66,7 +66,7 @@ class SegmentationSettings:
     cellpose_model: str = "cyto3"  # cyto3, cyto2_cp3, nuclei, cpsam, or a path to a custom model
     cellpose_version: int | None = None  # 3 or 4; None = 4 for 'cpsam', else 3
     # Python executables of environments with Cellpose 3 / 4, used when the requested version is not
-    # installed in the current environment (e.g. C:/PythonProjects/Cellpose4/.venv/Scripts/python.exe)
+    # installed in the current environment (e.g. <path to env>/.venv/Scripts/python.exe)
     cellpose3_python: Path | None = None
     cellpose4_python: Path | None = None
     diameter: float = 0.0  # 0 = automatic

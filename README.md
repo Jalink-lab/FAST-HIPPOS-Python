@@ -92,7 +92,7 @@ uv run fast-hippos --help
 ```
 
 > If the project folder is in a synchronized folder (OneDrive, SURFdrive, Dropbox), keep the environment out of
-> it: `$env:UV_PROJECT_ENVIRONMENT = "C:\PythonProjects\FAST-HIPPOS\.venv"` before calling `uv`.
+> it: `$env:UV_PROJECT_ENVIRONMENT = "D:\envs\FAST-HIPPOS\.venv"` (any local, non-synchronized folder) before calling `uv`.
 
 **Cellpose.** You don't need to install Cellpose here. Point the config to existing Cellpose environments
 (`segmentation.cellpose3_python` / `cellpose4_python`), and FAST-HIPPOS runs Cellpose there. To install one

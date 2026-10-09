@@ -1,6 +1,6 @@
 # FAST-HIPPOS — behaviour specification for the Python port
 
-Reference: Fiji macro **v0.9.5** as installed in `C:\Fiji\Plugins\Macros\FAST-HIPPOS`
+Reference: Fiji macro **v0.9.5** as installed in Fiji (`Fiji.app/plugins/Macros/FAST-HIPPOS`)
 (copied to `reference/fiji_v0.9.5/`). Line numbers below refer to
 `reference/fiji_v0.9.5/FAST-HIPPOS_.ijm`. User documentation: <https://imagej.net/plugins/fast-hippos>;
 workflow background: <https://github.com/Jalink-lab/dynamic-pooled-screening>.
@@ -283,7 +283,7 @@ Decision (2026-10-08): fix all bugs in the port. Fiji line numbers refer to `ref
 | I11 | `Y (um)` uses `pixelWidth` | L3001 | fixed |
 | I12 | Only rising responses (rise time, gates) | - | kept, documented (the baseline-deviation gate is now two-sided: abs(cell - population) <= X) |
 | I13 | ImageJ string `==` is case-insensitive | various | fixed (enum) |
-| I14 | Position refinement: coordinate rows misaligned with labels. **Observed in real Fiji output** (`Sra/.../output_50-50`): only 70 of 4935 hits (1.4 %) have their `.rgn` position inside their own cell; e.g. hit "Cell 9" carries the position of label 10, "Cell 11" of label 13. Lifetime criteria are evaluated on the correct cell, so the coordinates point at different cells. Without refinement (centroids) positions are correct. Probable cause: the CLIJ2 erodeLabels / statistics step renumbers or drops labels (not verified in Fiji). | L2338-2400 | fixed: positions indexed by label id; vanished labels fall back to the centroid |
+| I14 | Position refinement: coordinate rows misaligned with labels. **Observed in real Fiji output** (Fiji output of the `Allchannels_merged_50_50` data set): only 70 of 4935 hits (1.4 %) have their `.rgn` position inside their own cell; e.g. hit "Cell 9" carries the position of label 10, "Cell 11" of label 13. Lifetime criteria are evaluated on the correct cell, so the coordinates point at different cells. Without refinement (centroids) positions are correct. Probable cause: the CLIJ2 erodeLabels / statistics step renumbers or drops labels (not verified in Fiji). | L2338-2400 | fixed: positions indexed by label id; vanished labels fall back to the centroid |
 | I15 | "Smooth traces" is documented to apply to hit detection, but `find_hits` receives the unsmoothed kymograph | L923 | fixed: smoothed kymograph used for metrics when `smooth_traces > 0` |
 | I16 | Separate tile files without stitched metadata: tile size = single-tile width / number of tiles -> wrong tile offset | L1293ff | fixed: one image = one tile |
 | I17 | Stim/cal detection threshold = sensitivity x std(d2); std is dominated by the transitions, so a large calibration step hides a clear stimulation (seen on synthetic data: stimulation peak 20x noise, missed) | L3073 | changed: robust noise sigma (MAD); default sensitivity 5. Fiji sensitivity values do not transfer |
@@ -292,7 +292,7 @@ Decision (2026-10-08): fix all bugs in the port. Fiji line numbers refer to `ref
 
 ## 10. Validation against Fiji (real data)
 
-`Allchannels_merged_50_50.tif` (Sra), 1024 x 1024 centre crop, Fiji labelmap cropped identically,
+`Allchannels_merged_50_50.tif` (TCSPC, 2 lifetime components + additional channel), 1024 x 1024 centre crop, Fiji labelmap cropped identically,
 manual frames Fiji "5,26" = Python 6/27. 976 cells fully inside the crop. The lifetime comparison
 was made with the Fiji estimator (`kymograph.weighted_lifetime`, still used for Fast FLIM / TauContrast);
 the default TCSPC estimator is now the pooled one (I19), which deliberately differs:
@@ -305,7 +305,7 @@ the default TCSPC estimator is now the pooled one (I19), which deliberately diff
 | centroid | 0.005 px |
 | absolute stage position (centroid) | 0.12 um (pixel = 1.52 um) |
 
-Cellpose 3 (cyto3) and Cellpose 4 (cpsam) run from the existing environments in C:/PythonProjects
+Cellpose 3 (cyto3) and Cellpose 4 (cpsam) run from their own separate Python environments
 (1037 and 1106 cells on the crop, ~45 s each including model loading).
 
 ## 11. Python design (as implemented)
