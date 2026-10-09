@@ -114,8 +114,11 @@ def test_full_run(tmp_path, synthetic):
     assert (r.out_dir / "dashboard.html").exists()
     # re-apply with a different criterion uses the saved data
     settings.screening.criteria = [Criterion("response_max_diff", ">", 0.6)]
+    stale = out / "HITS_synthetic_9001-9999.rgn"
+    stale.write_text("")
     again = run(settings, reapply=True)
     assert again[0].cells["hit"].sum() < cells["hit"].sum()
+    assert not stale.exists()  # chunk files of an earlier run are removed
 
 
 def test_settings_override(tmp_path):

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -348,6 +349,11 @@ def _write_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings
 
 def write_screening_outputs(results: list[ImageResult], settings: Settings, out: Path) -> pd.DataFrame:
     sc = settings.screening
+    # remove hit files of an earlier run/reapply, so that no stale chunks remain next to the new ones
+    stale = re.compile(r"(hits_\d+-\d+\.tsv|HITS_.*\.rgn|hit_positions\.png)")
+    for p in out.iterdir():
+        if p.is_file() and stale.fullmatch(p.name):
+            p.unlink()
     all_cells = pd.concat([r.cells for r in results], ignore_index=True)
     coord_cols = [c for c in BASE_COLUMNS if c in all_cells.columns] + (
         ["additional_intensity"] if "additional_intensity" in all_cells else []
