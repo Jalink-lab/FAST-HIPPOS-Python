@@ -74,9 +74,15 @@ def display_range(result: ImageResult, settings: Settings) -> tuple[float, float
     return settings.display.min_lifetime, settings.display.max_lifetime
 
 
+def _png_url(name: str) -> str:
+    raw = resources.files("fast_hippos").joinpath("templates", name).read_bytes()
+    return "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
+
+
 def _embed(template: str, data: dict) -> str:
     payload = json.dumps(_clean(data), separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
-    return template.replace("__FH_DATA__", payload)
+    page = template.replace("__FH_LOGO__", _png_url("logo.png")).replace("__FH_ICON__", _png_url("favicon.png"))
+    return page.replace("__FH_DATA__", payload)
 
 
 # dashboard modules, in load order (templates/dashboard); screening.js is shared with the tests

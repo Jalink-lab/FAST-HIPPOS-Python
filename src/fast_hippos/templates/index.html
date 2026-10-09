@@ -4,12 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FAST-HIPPOS run</title>
+<link rel="icon" type="image/png" href="__FH_ICON__">
 <style>
 :root { --bg:#0f1216; --panel:#171b21; --panel2:#1d222a; --line:#2a313b; --text:#e6e9ee; --muted:#8b95a3; --accent:#4da3ff; --hit:#ff4fb0; --grid:rgba(255,255,255,.07); color-scheme: dark; }
 @media (prefers-color-scheme: light) { :root { --bg:#f3f5f8; --panel:#fff; --panel2:#f7f8fa; --line:#dde2e8; --text:#1b2330; --muted:#5d6877; --accent:#1f6fd1; --hit:#d0157f; --grid:rgba(0,0,0,.07); color-scheme: light; } }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-header { padding: 16px 16px 4px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+header { padding: 12px 16px 4px; display: flex; gap: 14px; align-items: center; }
+header .logo { width: 72px; height: 72px; flex: none; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--line); }
+header .htext { display: flex; gap: 6px 14px; align-items: baseline; flex-wrap: wrap; min-width: 0; }
 header h1 { margin: 0; font-size: 18px; } .brand { color: var(--accent); font-weight: 700; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; } .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; color: var(--muted); } .chip b { color: var(--text); } .chip.hit b { color: var(--hit); }
 main { display: grid; gap: 12px; padding: 12px 16px 24px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
@@ -29,7 +32,7 @@ a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: un
 </style>
 </head>
 <body>
-<header><span class="brand">FAST-HIPPOS</span><h1 id="title"></h1><div class="chips" id="chips"></div></header>
+<header><img class="logo" src="__FH_LOGO__" alt="FAST-HIPPOS" title="FAST-HIPPOS"><div class="htext"><h1 id="title"></h1><div class="chips" id="chips"></div></div></header>
 <main>
   <section class="panel"><div class="panel-h"><h2>Images</h2><span class="muted">open a dashboard for the interactive view</span></div><div id="images"></div></section>
   <section class="panel" id="mappanel"><div class="panel-h"><h2>Hit positions</h2><span class="muted" id="mapinfo"></span></div><div id="map"><canvas id="mapc"></canvas></div></section>
