@@ -201,10 +201,16 @@ def test_bidirectional_correction():
     img = scene(0)
     img[1::2] = scene(1.6)[1::2]  # the return scan lines are displaced by 1.6 px
     data = np.stack([img, img])[:, None].repeat(2, axis=1)  # (T, C, Y, X)
-    out, s = correct_bidirectional(data, [1, 2])
+    out, s = correct_bidirectional(data, [1, 2], axis="x")
     assert abs(s - 1.6) < 0.1 or abs(s + 1.6) < 0.1
-    assert abs(estimate_bidirectional_shift(registration_image(out, [1, 2]))) < 0.1  # aligned after correction
-    unchanged, s0 = correct_bidirectional(np.stack([scene(0)] * 2)[:, None], [1])
+    assert abs(estimate_bidirectional_shift(registration_image(out, [1, 2]), "x")) < 0.1  # aligned after correction
+    # the same, with a vertical fast scan axis: scan lines are columns, offset along y
+    vert = np.ascontiguousarray(np.swapaxes(data, -1, -2))
+    out_v, s_v = correct_bidirectional(vert, [1, 2], axis="y")
+    assert abs(abs(s_v) - 1.6) < 0.1
+    assert abs(estimate_bidirectional_shift(registration_image(out_v, [1, 2]), "y")) < 0.1
+    assert np.allclose(np.swapaxes(out_v, -1, -2), out, atol=1e-3)  # same correction, transposed
+    unchanged, s0 = correct_bidirectional(np.stack([scene(0)] * 2)[:, None], [1], axis="x")
     assert abs(s0) < 0.05 and unchanged.dtype == np.float32 and np.array_equal(unchanged[0, 0], scene(0))
 
 

@@ -71,8 +71,9 @@ def summed_image(data: np.ndarray, channels: list[int]) -> np.ndarray:
     return img
 
 
-def estimate_bidirectional_shift(reg: np.ndarray) -> float:
-    """Horizontal offset (pixels, subpixel) between odd and even scan lines of a (Y, X) image or (T, Y, X) stack."""
+def estimate_bidirectional_shift(reg: np.ndarray, axis: str = "y") -> float:
+    """Offset (pixels, subpixel) between the even and odd scan lines of a (Y, X) image or (T, Y, X) stack.
+    axis "y": the fast scan axis is vertical, so the scan lines are columns, offset along y; "x": rows, along x."""
     img = reg if reg.ndim == 2 else np.nansum(reg, axis=0, dtype=np.float32)
     img = np.nan_to_num(img.astype(np.float32, copy=False))
     # one common factor for all lines (does not change the offset): keeps the products in scikit-image's error
@@ -80,6 +81,8 @@ def estimate_bidirectional_shift(reg: np.ndarray) -> float:
     mean = float(np.abs(img).mean())
     if mean > 0:
         img = img / mean
+    if axis == "y":
+        img = img.T  # columns become rows
     rows = (img.shape[0] // 2) * 2
     even, odd = img[0:rows:2], img[1:rows:2]
     shift, _, _ = phase_cross_correlation(even, odd, upsample_factor=20, normalization=None)
@@ -90,8 +93,14 @@ MIN_BIDIRECTIONAL_SHIFT = 0.05  # px; smaller phase shifts are left alone
 
 
 def shift_x(a: np.ndarray, d: float) -> np.ndarray:
-    """out[..., x] = a[..., x - d]: subpixel shift along the last axis only, by cubic (Catmull-Rom) interpolation
-    with 4 taps; edges are extended. (ndi.shift on the 4-D stack interpolated over all axes: 4^4 taps, minutes.)"""
+    """out[..., x] = a[..., x - d]: subpixel shift along the last axis only."""
+    return shift_along(a, d, -1)
+
+
+def shift_along(a: np.ndarray, d: float, axis: int) -> np.ndarray:
+    """out = a shifted by d pixels along one axis only, by cubic (Catmull-Rom) interpolation with 4 taps; edges
+    are extended. (ndi.shift on the 4-D stack interpolated over all axes: 4^4 taps, minutes.)"""
+    a = np.moveaxis(a, axis, -1)
     t = -d
     n = int(np.floor(t))
     u = t - n
@@ -103,22 +112,27 @@ def shift_x(a: np.ndarray, d: float) -> np.ndarray:
     for m, wm in zip(range(-1, 3), w, strict=True):
         start = p + n + m
         out += np.float32(wm) * padded[..., start : start + width]
-    return out
+    return np.moveaxis(out, -1, axis)
 
 
-def correct_bidirectional(data: np.ndarray, channels: list[int]) -> tuple[np.ndarray, float]:
-    """Shift even lines by -s/2 and odd lines by +s/2 along x to align both scan directions."""
-    s = estimate_bidirectional_shift(summed_image(data, channels))
+def correct_bidirectional(data: np.ndarray, channels: list[int], axis: str = "y") -> tuple[np.ndarray, float]:
+    """Shift the even scan lines by -s/2 and the odd ones by +s/2 to align both scan directions. axis "y": the
+    scan lines are columns (fast scan axis vertical), shifted along y; "x": rows, shifted along x.
+    (Stitched images: tiles with an odd width swap even and odd lines, so their offsets cancel out here;
+    tile-by-tile correction belongs to the stitching.)"""
+    s = estimate_bidirectional_shift(summed_image(data, channels), axis)
     if abs(s) < MIN_BIDIRECTIONAL_SHIFT:
-        log.info("Bidirectional phase correction: %.2f px, not applied", s)
+        log.info("Bidirectional phase correction (along %s): %.2f px, not applied", axis, s)
         return data, s
-    log.info("Bidirectional phase correction: %.2f px", s)
+    log.info("Bidirectional phase correction (along %s): %.2f px", axis, s)
     out = np.empty(data.shape, np.float32)
+    lines = (lambda k: (..., slice(None), slice(k, None, 2))) if axis == "y" else (lambda k: (..., slice(k, None, 2), slice(None)))
+    along = -2 if axis == "y" else -1
 
     def frame(t):  # per frame (in threads; NumPy releases the GIL): little extra memory
         f = data[t].astype(np.float32)
-        out[t, ..., 0::2, :] = shift_x(f[..., 0::2, :], -s / 2)
-        out[t, ..., 1::2, :] = shift_x(f[..., 1::2, :], s / 2)
+        out[t][lines(0)] = shift_along(f[lines(0)], -s / 2, along)
+        out[t][lines(1)] = shift_along(f[lines(1)], s / 2, along)
 
     with ThreadPoolExecutor(min(8, os.cpu_count() or 4)) as pool:
         list(pool.map(frame, range(data.shape[0])))

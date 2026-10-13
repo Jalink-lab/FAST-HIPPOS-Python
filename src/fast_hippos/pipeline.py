@@ -127,7 +127,7 @@ def process_image(
     c = s_in.intensity_channel
     reg_channels = [c, c + 1] if s_in.modality in (Modality.TCSPC, Modality.RATIO) else [c]
     if settings.preprocess.correct_bidirectional:
-        image.data, _ = preprocess.correct_bidirectional(image.data, reg_channels)
+        image.data, _ = preprocess.correct_bidirectional(image.data, reg_channels, settings.preprocess.bidirectional_axis)
     if settings.preprocess.correct_drift and image.n_frames > 1:
         p = settings.preprocess
         image.data, _ = preprocess.correct_drift(image.data, reg_channels, p.drift_reference, p.drift_edge_detect, p.drift_blur_sigma)

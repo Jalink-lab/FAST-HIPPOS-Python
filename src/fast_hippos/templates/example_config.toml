@@ -15,6 +15,7 @@ remove_last_frame = false
 
 [preprocess]
 correct_bidirectional = false
+bidirectional_axis = "y"              # y: fast scan axis vertical (scan lines are columns); x: horizontal
 correct_drift = false
 drift_reference = "first"             # first | last | previous
 drift_edge_detect = false

@@ -52,6 +52,9 @@ class FDFLIMSettings:
 @dataclass
 class PreprocessSettings:
     correct_bidirectional: bool = False
+    # direction of the offset between the two scan directions: "y" when the fast scan axis is vertical (the scan
+    # lines are columns), "x" when it is horizontal. Fixed for a given microscope.
+    bidirectional_axis: str = "y"
     correct_drift: bool = False
     drift_reference: str = "first"  # "first", "last" or "previous"
     drift_edge_detect: bool = False

@@ -82,6 +82,9 @@ FIELDS: dict[str, dict] = {
     "fdflim.lifetime_from": {"choices": {"phase": "phase", "modulation": "modulation"}},
     # ---- pre-processing
     "preprocess.correct_bidirectional": {"label": "Correct bidirectional scanning phase"},
+    "preprocess.bidirectional_axis": {"label": "Bidirectional offset along", "choices": {
+        "y": "y (fast scan axis vertical)", "x": "x (fast scan axis horizontal)"},
+        "help": "Depends on the microscope, not on the experiment"},
     "preprocess.correct_drift": {"label": "Correct drift"},
     "preprocess.drift_reference": {"label": "Drift reference frame",
         "choices": {"first": "first", "last": "last", "previous": "previous"}},
@@ -179,7 +182,7 @@ LAYOUT = [
      "advanced": [
          ("Channels and metadata", ["input.intensity_channel", "input.pixel_size", "input.default_frame_interval",
                                     "input.remove_last_frame", "input.series"]),
-         ("Pre-processing", ["preprocess.correct_bidirectional", "preprocess.correct_drift", "preprocess.drift_reference",
+         ("Pre-processing", ["preprocess.correct_bidirectional", "preprocess.bidirectional_axis", "preprocess.correct_drift", "preprocess.drift_reference",
                              "preprocess.drift_edge_detect", "preprocess.drift_blur_sigma"]),
          ("Frequency-domain FLIM", ["fdflim.reference", "fdflim.background", "fdflim.phases", "fdflim.frequency_mhz",
                                     "fdflim.tau_ref", "fdflim.lifetime_from"], FD),
@@ -231,6 +234,7 @@ ENABLE = {
     "events.stimulation_frame": {"events.baseline_only": [False]},
     "events.calibration_frame": {"events.baseline_only": [False]},
     "events.sensitivity": {"events.baseline_only": [False], "events.stimulation_frame": {"set": False}},
+    "preprocess.bidirectional_axis": {"preprocess.correct_bidirectional": [True]},
     "preprocess.drift_reference": {"preprocess.correct_drift": [True]},
     "preprocess.drift_edge_detect": {"preprocess.correct_drift": [True]},
     "preprocess.drift_blur_sigma": {"preprocess.correct_drift": [True]},
@@ -256,6 +260,7 @@ REASONS = {  # why a condition on this field disables others
     "events.baseline_only": "'Baseline only' is on",
     "events.stimulation_frame": "only for automatic detection (no stimulation frame set)",
     "preprocess.correct_drift": "drift correction is off",
+    "preprocess.correct_bidirectional": "bidirectional correction is off",
     "screening.enabled": "screening is off",
     "screening.manual_hits": "replaced by the hand-picked hits",
     "screening.random_hits": "replaced by random hits",
