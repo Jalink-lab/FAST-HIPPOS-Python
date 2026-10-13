@@ -89,7 +89,9 @@ def run_cellpose(img: np.ndarray, settings: SegmentationSettings) -> np.ndarray:
         from . import _cellpose_runner
 
         log.info("Running Cellpose %d in-process (model %s)", version, settings.cellpose_model)
-        return _cellpose_runner.run(img, params)
+        masks, info = _cellpose_runner.run(img, params)
+        _log_cellpose_info(info)
+        return masks
 
     python = settings.cellpose4_python if version == 4 else settings.cellpose3_python
     if python is None:
@@ -107,7 +109,19 @@ def run_cellpose(img: np.ndarray, settings: SegmentationSettings) -> np.ndarray:
         )
         if result.returncode != 0 or not dst.exists():
             raise RuntimeError(f"Cellpose failed:\n{result.stderr[-3000:]}")
+        for line in result.stdout.splitlines():
+            if line.startswith("FH_INFO "):
+                _log_cellpose_info(json.loads(line[8:]))
         return np.load(dst).astype(np.int32)
+
+
+def _log_cellpose_info(info: dict) -> None:
+    on_gpu = info.get("device", "").startswith(("cuda", "mps"))
+    log.info("Cellpose %s on %s%s: model loading %.1f s, segmentation %.1f s", info.get("version"),
+             info.get("device"), f" ({info['gpu_name']})" if on_gpu and "gpu_name" in info else "",
+             info.get("load_s", float("nan")), info.get("eval_s", float("nan")))
+    if info.get("gpu_requested") and not on_gpu:
+        log.warning("use_gpu = true, but Cellpose ran on the CPU (no CUDA-enabled PyTorch in its environment?)")
 
 
 def _installed_cellpose_major() -> int | None:
