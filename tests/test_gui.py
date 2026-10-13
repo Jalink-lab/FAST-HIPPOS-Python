@@ -125,3 +125,12 @@ def test_served_files_stay_in_output_folders(tmp_path):
     assert gui._served(job, url(out / "img" / "dashboard.html")) == (out / "img" / "dashboard.html").resolve()
     assert gui._served(job, url(tmp_path / "secret.txt")) is None
 
+
+
+def test_gui_is_the_default_command(monkeypatch):
+    from fast_hippos import cli
+
+    calls = []
+    monkeypatch.setattr(gui, "serve", lambda port, open_browser: calls.append((port, open_browser)))
+    assert cli.main([]) == 0
+    assert calls == [(0, True)]

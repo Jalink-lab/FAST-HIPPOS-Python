@@ -117,7 +117,7 @@ uv run fast-hippos run experiment.toml           # full analysis
 Or use the graphical interface, which opens in the browser:
 
 ```powershell
-uv run fast-hippos gui
+uv run fast-hippos            # or: fast-hippos gui, or double-click fast-hippos.exe in the environment's Scripts folder
 ```
 
 Each section shows the settings needed for a typical run; the others are in an expanding **Advanced

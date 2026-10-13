@@ -10,8 +10,10 @@ from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="fast-hippos", description="FAST-HIPPOS single-cell FLIM trace analysis and screening")
-    sub = p.add_subparsers(dest="command", required=True)
+    p = argparse.ArgumentParser(
+        prog="fast-hippos", description="FAST-HIPPOS single-cell FLIM trace analysis and screening. "
+        "Without a command (e.g. when fast-hippos.exe is double-clicked) the graphical interface opens.")
+    sub = p.add_subparsers(dest="command")
 
     r = sub.add_parser("run", help="analyze the images listed in a config file")
     r.add_argument("config", type=Path)
@@ -35,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     d = sub.add_parser("demo", help="analyze a synthetic data set and open the dashboard")
     d.add_argument("output", type=Path, nargs="?", default=Path("fast_hippos_demo"))
     args = p.parse_args(argv)
+    if args.command is None:  # default: the GUI
+        args = p.parse_args(["gui"])
 
     if args.command in ("run", "reapply"):
         from .config import Settings

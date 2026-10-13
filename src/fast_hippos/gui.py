@@ -652,7 +652,8 @@ def serve(port: int = 0, open_browser: bool = True) -> None:
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(token, Job(), ctx))
     ctx["base"] = f"http://127.0.0.1:{server.server_address[1]}"
     url = ctx["base"] + "/"
-    print(f"FAST-HIPPOS GUI at {url}  (Ctrl+C to stop)")
+    print(f"FAST-HIPPOS {__version__}: the interface runs in your browser at {url}")
+    print("Keep this window open while you use it; close it (or press Ctrl+C) to stop FAST-HIPPOS.")
     if open_browser:
         webbrowser.open(url)
     try:
