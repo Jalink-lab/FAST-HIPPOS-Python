@@ -206,3 +206,15 @@ def test_bidirectional_correction():
     assert abs(estimate_bidirectional_shift(registration_image(out, [1, 2]))) < 0.1  # aligned after correction
     unchanged, s0 = correct_bidirectional(np.stack([scene(0)] * 2)[:, None], [1])
     assert abs(s0) < 0.05 and unchanged.dtype == np.float32 and np.array_equal(unchanged[0, 0], scene(0))
+
+
+def test_summed_image():
+    from fast_hippos.preprocess import registration_image, summed_image
+
+    rng = np.random.default_rng(2)
+    ints = rng.integers(0, 4000, size=(5, 3, 16, 20), dtype=np.uint16)
+    assert np.array_equal(summed_image(ints, [1, 2]), registration_image(ints, [1, 2]).sum(axis=0))
+    floats = ints.astype(np.float32)
+    floats[0, 0, 3, 4] = np.nan  # NaN gaps are ignored
+    expected = np.nansum(registration_image(floats, [1, 3]), axis=0)
+    assert np.allclose(summed_image(floats, [1, 3]), expected)
