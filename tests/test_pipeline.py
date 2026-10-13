@@ -225,8 +225,11 @@ def test_bidirectional_estimate_large_values_no_overflow():
 
     from fast_hippos.preprocess import estimate_bidirectional_shift
 
+    from scipy import ndimage as ndi
+
     rng = np.random.default_rng(3)
-    img = (rng.random((256, 512)) * 4e6).astype(np.float32)  # e.g. 60 summed frames of 16-bit data
+    img = ndi.gaussian_filter(rng.random((256, 512)), 3)  # structure shared by even and odd lines, no offset
+    img = (img / img.max() * 4e6).astype(np.float32)  # values as in e.g. 60 summed frames of 16-bit data
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        assert abs(estimate_bidirectional_shift(img)) <= 1
+        assert abs(estimate_bidirectional_shift(img)) < 0.1
