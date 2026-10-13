@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import base64
 import io
+import itertools
 import json
 import logging
 import math
+import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,6 +26,22 @@ from scipy import ndimage as ndi
 
 log = logging.getLogger(__name__)
 TILE = 512
+PNG_LEVEL = 3  # zlib level: 3 encodes ~25 % faster than 6 for ~2 % larger tiles
+WORKERS = min(16, os.cpu_count() or 4)
+
+
+def _map(fn, items) -> list:
+    """fn over items in threads; NumPy, SciPy and Pillow release the GIL in the heavy parts."""
+    items = list(items)
+    if len(items) < 2:
+        return [fn(x) for x in items]
+    with ThreadPoolExecutor(min(WORKERS, len(items))) as pool:
+        return list(pool.map(fn, items))
+
+
+def _chunks(n: int, parts: int) -> list[slice]:
+    edges = np.linspace(0, n, min(n, parts) + 1).round().astype(int)
+    return [slice(int(a), int(b)) for a, b in itertools.pairwise(edges) if b > a]
 
 
 @dataclass
@@ -54,6 +72,8 @@ class ViewerData:
 
 def _half(stack: np.ndarray) -> np.ndarray:
     """NaN-aware 2x2 block mean over the last two axes (odd edges dropped)."""
+    if stack.ndim == 3 and len(stack) > 1:
+        return np.stack(_map(_half, stack))
     h, w = stack.shape[-2] // 2 * 2, stack.shape[-1] // 2 * 2
     s = stack[..., :h, :w]
     blocks = s.reshape(s.shape[:-2] + (h // 2, 2, w // 2, 2))
@@ -69,22 +89,65 @@ def _nan_box(stack: np.ndarray, rxy: float, rt: float) -> np.ndarray:
     size = (2 * round(rt) + 1, 2 * round(rxy) + 1, 2 * round(rxy) + 1)
     if size == (1, 1, 1):
         return stack
-    finite = np.isfinite(stack)
-    total = ndi.uniform_filter(np.where(finite, stack, 0).astype(np.float32), size, mode="nearest")
-    count = ndi.uniform_filter(finite.astype(np.float32), size, mode="nearest")
-    with np.errstate(invalid="ignore", divide="ignore"):
-        out = np.where(count > 0.2, total / count, np.nan).astype(np.float32)
-    out[~finite & (count <= 0.5)] = np.nan
+    finite = np.empty(stack.shape, bool)
+    total = np.empty(stack.shape, np.float32)
+    count = np.empty(stack.shape, np.float32)
+
+    def init(i):
+        np.isfinite(stack[i], out=finite[i])
+        total[i] = np.where(finite[i], stack[i], 0)
+        count[i] = finite[i]
+
+    _map(init, range(len(stack)))
+    _uniform_filter3(total, size)
+    _uniform_filter3(count, size)
+
+    def finish(i):  # total becomes the output
+        c = count[i]
+        with np.errstate(invalid="ignore", divide="ignore"):
+            np.divide(total[i], c, out=total[i])
+        total[i][(c <= 0.2) | (~finite[i] & (c <= 0.5))] = np.nan
+
+    _map(finish, range(len(stack)))
+    return total
+
+
+def _uniform_filter3(x: np.ndarray, size: tuple[int, int, int]) -> np.ndarray:
+    """ndi.uniform_filter(x, size, mode="nearest") for a (T, H, W) float32 stack, in place and in threads. Each
+    1-D pass filters whole lines, in the same axis order as SciPy, so the result is identical."""
+    out = x
+    for axis, n in enumerate(size):
+        if n == 1:
+            continue
+        # split along an axis other than the one being filtered
+        split = 1 if axis == 0 else 0
+
+        def run(sl, axis=axis, n=n, split=split):
+            idx = (slice(None),) * split + (sl,)
+            out[idx] = ndi.uniform_filter1d(out[idx], n, axis=axis, mode="nearest")
+
+        _map(run, _chunks(out.shape[split], 4 * WORKERS))
     return out
 
 
 def _to8(x: np.ndarray, lo: float, hi: float, reserve_zero: bool) -> np.ndarray:
+    if x.ndim == 3 and len(x) > 1:
+        return np.stack(_map(lambda frame: _to8(frame, lo, hi, reserve_zero), x))
+    # in place, few passes: (x - lo) / (hi - lo), clipped to [0, 1], NaN -> 0 (clip maps +-inf to 1 / 0).
+    # Python floats keep float32 input in float32 (half the memory traffic of float64).
+    lo, hi = float(lo), float(hi)
     scaled = (x - lo) / (hi - lo) if hi > lo else np.zeros_like(x)
-    scaled = np.clip(np.nan_to_num(scaled, nan=0), 0, 1)
+    np.clip(scaled, 0, 1, out=scaled)
+    scaled[np.isnan(scaled)] = 0
     if reserve_zero:
-        out = 1 + np.round(scaled * 254)
-        return np.where(np.isfinite(x), out, 0).astype(np.uint8)
-    return np.round(scaled * 255).astype(np.uint8)
+        np.multiply(scaled, 254, out=scaled)
+        np.round(scaled, out=scaled)
+        scaled += 1
+        scaled[~np.isfinite(x)] = 0
+    else:
+        np.multiply(scaled, 255, out=scaled)
+        np.round(scaled, out=scaled)
+    return scaled.astype(np.uint8)
 
 
 def _percentiles(x: np.ndarray, q, step: int):
@@ -113,10 +176,16 @@ def prepare(
     stride = max(1, math.ceil((h // f) * (w // f) * t / 1e6 / max_megapixels))
     frames = np.arange(0, t, stride)
 
-    tau = lifetime[frames].astype(np.float32)
-    tau[~np.isfinite(tau) | (tau == 0)] = np.nan
+    tau = np.empty((len(frames), h, w), np.float32)
+    inten = np.empty((len(frames), h, w), np.float32)
+
+    def copy(i):
+        tau[i] = lifetime[frames[i]]
+        tau[i][~np.isfinite(tau[i]) | (tau[i] == 0)] = np.nan
+        inten[i] = intensity[frames[i]]
+
+    _map(copy, range(len(frames)))
     tau = _nan_box(tau, smooth_xy, smooth_t / stride)
-    inten = intensity[frames].astype(np.float32)
     proj = projection.astype(np.float32)
     step = max(1, int(math.sqrt(h * w / 1e6)))
     dmin, dmax = display_range
@@ -155,19 +224,24 @@ def _write_level(tiles_dir: Path, level: int, tau, inten, proj, lab, trange, ira
     nf, h, w = tau.shape
     ny, nx = math.ceil(h / TILE), math.ceil(w / TILE)
     tau8, int8, proj8 = _to8(tau, *trange, True), _to8(inten, *irange, False), _to8(proj, *prange, False)
-    jobs = []
+    jobs = []  # (file, key, function returning the tile image), evaluated in the worker threads
     for ty in range(ny):
         for tx in range(nx):
             sl = (slice(ty * TILE, (ty + 1) * TILE), slice(tx * TILE, (tx + 1) * TILE))
-            jobs.append((d / f"lab_{ty}_{tx}.js", f"L{level}/lab_{ty}_{tx}", _label_rgb(lab[sl])))
-            jobs.append((d / f"p_{ty}_{tx}.js", f"L{level}/p_{ty}_{tx}", proj8[sl]))
+            jobs.append((d / f"lab_{ty}_{tx}.js", f"L{level}/lab_{ty}_{tx}", lambda sl=sl: _label_rgb(lab[sl])))
+            jobs.append((d / f"p_{ty}_{tx}.js", f"L{level}/p_{ty}_{tx}", lambda sl=sl: proj8[sl]))
             for fi in range(nf):
-                r, g = tau8[fi][sl], int8[fi][sl]
-                jobs.append((d / f"t{fi}_{ty}_{tx}.js", f"L{level}/t{fi}_{ty}_{tx}", np.dstack([r, g, np.zeros_like(r)])))
-    with ThreadPoolExecutor(8) as pool:
-        list(pool.map(lambda job: job[0].write_text(f'FHTile("{job[1]}","{png_data_url(job[2])}");', encoding="ascii"), jobs))
+                jobs.append((d / f"t{fi}_{ty}_{tx}.js", f"L{level}/t{fi}_{ty}_{tx}",
+                             lambda sl=sl, fi=fi: _rg(tau8[fi][sl], int8[fi][sl])))
+    _map(lambda job: job[0].write_text(f'FHTile("{job[1]}","{png_data_url(job[2]())}");', encoding="ascii"), jobs)
     log.info("Viewer tiles: level %d, %d x %d tiles x %d frames", level, nx, ny, nf)
     return {"level": level, "factor": 2**level, "width": w, "height": h, "nx": nx, "ny": ny}
+
+
+def _rg(r: np.ndarray, g: np.ndarray) -> np.ndarray:
+    out = np.zeros(r.shape + (3,), np.uint8)
+    out[..., 0], out[..., 1] = r, g
+    return out
 
 
 def _label_rgb(labels: np.ndarray) -> np.ndarray:
@@ -177,14 +251,14 @@ def _label_rgb(labels: np.ndarray) -> np.ndarray:
 
 def png_data_url(arr: np.ndarray) -> str:
     buf = io.BytesIO()
-    Image.fromarray(arr).save(buf, format="PNG", compress_level=6)
+    Image.fromarray(arr).save(buf, format="PNG", compress_level=PNG_LEVEL)
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def frame_urls(v: ViewerData) -> list[str]:
     """One RGB PNG per frame: R = lifetime code, G = intensity, B = 0."""
     zeros = np.zeros_like(v.lifetime8[0])
-    return [png_data_url(np.dstack([v.lifetime8[i], v.intensity8[i], zeros])) for i in range(len(v.frames))]
+    return _map(lambda i: png_data_url(np.dstack([v.lifetime8[i], v.intensity8[i], zeros])), range(len(v.frames)))
 
 
 def labels_url(labels: np.ndarray) -> str:
