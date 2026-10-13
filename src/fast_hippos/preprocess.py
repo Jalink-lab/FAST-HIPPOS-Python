@@ -75,6 +75,11 @@ def estimate_bidirectional_shift(reg: np.ndarray) -> float:
     """Horizontal offset (pixels, subpixel) between odd and even scan lines of a (Y, X) image or (T, Y, X) stack."""
     img = reg if reg.ndim == 2 else np.nansum(reg, axis=0, dtype=np.float32)
     img = np.nan_to_num(img.astype(np.float32, copy=False))
+    # one common factor for all lines (does not change the offset): keeps the products in scikit-image's error
+    # estimate of large summed images from overflowing
+    mean = float(np.abs(img).mean())
+    if mean > 0:
+        img = img / mean
     rows = (img.shape[0] // 2) * 2
     even, odd = img[0:rows:2], img[1:rows:2]
     shift, _, _ = phase_cross_correlation(even, odd, upsample_factor=20, normalization=None)

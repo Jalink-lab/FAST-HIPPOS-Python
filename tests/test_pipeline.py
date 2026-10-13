@@ -218,3 +218,15 @@ def test_summed_image():
     floats[0, 0, 3, 4] = np.nan  # NaN gaps are ignored
     expected = np.nansum(registration_image(floats, [1, 3]), axis=0)
     assert np.allclose(summed_image(floats, [1, 3]), expected)
+
+
+def test_bidirectional_estimate_large_values_no_overflow():
+    import warnings
+
+    from fast_hippos.preprocess import estimate_bidirectional_shift
+
+    rng = np.random.default_rng(3)
+    img = (rng.random((256, 512)) * 4e6).astype(np.float32)  # e.g. 60 summed frames of 16-bit data
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert abs(estimate_bidirectional_shift(img)) <= 1
