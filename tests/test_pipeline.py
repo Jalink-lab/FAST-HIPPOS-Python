@@ -112,6 +112,11 @@ def test_full_run(tmp_path, synthetic):
     for name in ["hits.tsv", "cell_coordinates.tsv", "index.html", "HITS_synthetic.rgn", "hit_positions.png"]:
         assert (out / name).exists(), name
     assert (r.out_dir / "dashboard.html").exists()
+    # the dashboard gets the route of the .rgn files: every hit once, as row indices of the cell table
+    from fast_hippos.pipeline import _routes
+
+    route = _routes(results, out)[r.name]
+    assert sorted(i for chunk in route for i in chunk) == np.flatnonzero(cells["hit"].to_numpy()).tolist()
     # re-apply with a different criterion uses the saved data
     settings.screening.criteria = [Criterion("response_max_diff", ">", 0.6)]
     stale = out / "HITS_synthetic_9001-9999.rgn"

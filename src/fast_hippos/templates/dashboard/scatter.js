@@ -1,6 +1,7 @@
 // ---------------------------------------------------------------- scatter plot of any two per-cell quantities
 const SP = new Plot([$("scb"), $("scs"), $("sch")], { l: 56, r: 12, t: 10, b: 32 });
-const SKIP = ["image", "cell", "tile", "hit", "valid", "response_rank", "bbox_x0", "bbox_y0", "bbox_x1", "bbox_y1"];
+// not useful as an axis; class_additional is shown as an outline instead
+const SKIP = ["image", "cell", "tile", "hit", "valid", "response_rank", "bbox_x0", "bbox_y0", "bbox_x1", "bbox_y1", "class_additional"];
 const NUMERIC = Object.keys(C).filter(k => !SKIP.includes(k) && C[k].some(v => typeof v === "number"));
 const VALUE_LABEL = D.is_lifetime ? "lifetime @ frame" : "value @ frame";
 function scatterValues(key) {
@@ -30,6 +31,10 @@ function drawScatter() {
     const x = SP.X(xv), y = SP.Y(yv); SP.pts.push([i, x, y]);
     ctx.fillStyle = HIT[i] ? hit : base; ctx.globalAlpha = HIT[i] ? 0.9 : 0.5; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
   }
+  if (S.sclass && C.class_additional) {  // outline the additional-channel positive cells
+    ctx.globalAlpha = 0.95; ctx.strokeStyle = css("--class-pos"); ctx.lineWidth = r > 2 ? 1.3 : 1;
+    for (const [i, x, y] of SP.pts) if (C.class_additional[i] === 1) { ctx.beginPath(); ctx.arc(x, y, r + 1.6, 0, 7); ctx.stroke(); }
+  }
   ctx.restore(); ctx.globalAlpha = 1;
   SP.map = new Map(SP.pts.map(p => [p[0], p]));
 }
@@ -51,6 +56,10 @@ function initScatter() {
   $("sx").onchange = () => { S.sx = $("sx").value; invalidate("scatter", "scatterSel", "scatterHov"); };
   $("sy").onchange = () => { S.sy = $("sy").value; invalidate("scatter", "scatterSel", "scatterHov"); };
   $("slogx").onchange = () => { S.slogx = $("slogx").checked; invalidate("scatter", "scatterSel", "scatterHov"); };
+  if (C.class_additional) {
+    $("sclassl").hidden = false;
+    $("sclass").onchange = () => { S.sclass = $("sclass").checked; invalidate("scatter"); };
+  }
   $("slogy").onchange = () => { S.slogy = $("slogy").checked; invalidate("scatter", "scatterSel", "scatterHov"); };
   const c = $("sch");
   c.addEventListener("pointermove", (e) => {

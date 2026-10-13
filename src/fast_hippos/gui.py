@@ -551,6 +551,7 @@ class Job:
     def status(self, since: int) -> dict:
         with self.lock:
             out = {"state": self.state, "lines": self.lines[since:], "n": len(self.lines), "output": self.output,
+                   "output_key": _key(self.output) if self.output else None,
                    "run_id": self.run_id, "source": self.source,
                    "settings": self.settings if self.source == "dashboard" else None}
         if self.output and self.state == "done":
@@ -591,6 +592,40 @@ def _page(token: str) -> bytes:
     html = resources.files("fast_hippos").joinpath("templates", "gui.html").read_text(encoding="utf-8")
     html = html.replace("__FH_LOGO__", _png_url("logo.png")).replace("__FH_ICON__", _png_url("favicon.png"))
     return html.replace("__FH_TOKEN__", token).encode("utf-8")
+
+
+def _key(path: str | Path) -> str:
+    """Comparable form of a folder path."""
+    return os.path.normcase(str(Path(path).resolve()))
+
+
+# Added to pages served by the GUI: reload when a run or re-apply of their output folder has finished (e.g. one
+# started from another dashboard or from the GUI), with a small banner while it runs.
+_WATCH = """<script>
+window.FH_GUI = { token: "__TOKEN__", output: "__OUTPUT__", run: __RUN__ };
+(function () {
+  let banner = null;
+  const show = (text) => {
+    if (!banner) { banner = document.createElement("div"); document.body.appendChild(banner);
+      banner.style.cssText = "position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:99;padding:6px 14px;" +
+        "border-radius:8px;background:#1f6fd1;color:#fff;font:13px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3)"; }
+    banner.textContent = text;
+  };
+  async function watch() {
+    try {
+      const r = await fetch("/api/status", { method: "POST", headers: { "Content-Type": "application/json", "X-FH-Token": window.FH_GUI.token }, body: '{"since": 1e9}' });
+      const st = await r.json();
+      if (st.run_id > window.FH_GUI.run && st.output_key === window.FH_GUI.output) {
+        if (st.state === "running") show("FAST-HIPPOS is updating these results… this page reloads when it is done");
+        else if (st.state === "done") { show("Updated: reloading…"); location.reload(); return; }
+        else if (banner) show("The update " + st.state + "; this page shows the previous results");
+      }
+    } catch (e) { /* GUI not reachable: keep the page as it is */ }
+    setTimeout(watch, 2500);
+  }
+  setTimeout(watch, 2500);
+})();
+</script></head>"""
 
 
 def _served(job: Job, url_path: str) -> Path | None:
@@ -680,7 +715,9 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
             body = p.read_bytes()
             ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
             if p.suffix.lower() == ".html":  # lets the dashboard talk to this server
-                inject = f'<script>window.FH_GUI = {{ token: "{token}" }};</script></head>'
+                root = p.parent if p.name == "index.html" else p.parent.parent
+                inject = (_WATCH.replace("__TOKEN__", token).replace("__RUN__", str(job.run_id))
+                          .replace("__OUTPUT__", json.dumps(_key(root))[1:-1]))
                 body = body.decode("utf-8").replace("</head>", inject, 1).encode("utf-8")
                 ctype = "text/html; charset=utf-8"
             elif p.suffix.lower() == ".js":

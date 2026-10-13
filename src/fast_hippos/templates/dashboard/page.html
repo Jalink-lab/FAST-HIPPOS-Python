@@ -111,8 +111,9 @@
   </section>
   <section class="panel scatter">
     <div class="panel-h"><h2>Scatter</h2><span class="sp"></span>
-      <label class="muted">x <select id="sx"></select></label><label class="muted"><input type="checkbox" id="slogx"> log</label>
-      <label class="muted">y <select id="sy"></select></label><label class="muted"><input type="checkbox" id="slogy"> log</label></div>
+      <label class="muted" id="sclassl" hidden title="Outline the cells that are positive in the additional channel (class_additional = 1)"><input type="checkbox" id="sclass"> outline <span class="swatch"></span> additional-channel positive</label></div>
+    <div class="axisrow"><span class="muted">x</span><select id="sx"></select><label class="muted"><input type="checkbox" id="slogx"> log</label></div>
+    <div class="axisrow"><span class="muted">y</span><select id="sy"></select><label class="muted"><input type="checkbox" id="slogy"> log</label></div>
     <div class="stack"><canvas id="scb"></canvas><canvas id="scs"></canvas><canvas id="sch"></canvas><svg id="ssvg" class="selsvg"></svg></div>
   </section>
   <section class="panel cellp">

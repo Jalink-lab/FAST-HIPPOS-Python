@@ -112,7 +112,7 @@ def _dashboard_template() -> str:
     return page.replace("/*__CSS__*/", css).replace("/*__JS__*/", js)
 
 
-def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings) -> dict:
+def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> dict:
     ev = result.events
     sc = settings.screening
     cells = result.cells
@@ -183,15 +183,17 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
             },
             "metrics": METRICS,
         },
+        # visiting order of the hits per .rgn chunk, as optimized by the run (row indices); None = not computed
+        "route": route if route and any(route) else None,
         "population_baseline": cells.attrs.get("population_baseline") if hasattr(cells, "attrs") else None,
         "cells": _columns(cells),
         "luts": _luts(),
     }
 
 
-def write_image_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings) -> Path:
+def write_image_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> Path:
     path = result.out_dir / "dashboard.html"
-    path.write_text(_embed(_dashboard_template(), build_image_data(result, viewer, settings)), encoding="utf-8")
+    path.write_text(_embed(_dashboard_template(), build_image_data(result, viewer, settings, route)), encoding="utf-8")
     return path
 
 

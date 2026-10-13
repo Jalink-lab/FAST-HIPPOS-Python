@@ -227,7 +227,7 @@ function updateScreenUI() {
   $("mancount").textContent = `${SCR.manual.size} cells`; $("usesel").textContent = `Use selection (${S.sel.size})`;
   [...$("crits").children].forEach(row => { const pass = SCR.pass[row._k]; row.querySelector(".n").textContent = pass ? `${pass.reduce((s, v) => s + v, 0)} pass` : "—"; });
   const r = SCR.route;
-  $("routeinfo").textContent = SCR.routeBusy ? "computing…" : r ? `${r.chunks.length} chunk${r.chunks.length > 1 ? "s" : ""} · ${r.n} positions · ${(r.length * 1e3).toFixed(1)} ${r.unit}` + (r.stale ? " · outdated" : "") : (nh ? "not computed" : "no hits");
+  $("routeinfo").textContent = SCR.routeBusy ? "computing…" : r ? `${r.chunks.length} chunk${r.chunks.length > 1 ? "s" : ""} · ${r.n} positions · ${(r.length * 1e3).toFixed(1)} ${r.unit}` + (r.stale ? " · outdated" : r.fromRun ? " · from the run" : "") : (nh ? "not computed" : "no hits");
   if ($("scrbody").classList.contains("closed")) return;
   drawTimeline(); sliders.forEach(s => s.draw()); [...$("crits").children].forEach(row => row._slider.draw());
 }
@@ -259,6 +259,20 @@ async function optimizeAsync(pts, maxMs) {
   }
   return order;
 }
+function routeLength(chunks) {
+  const useAbs = HAS_ABS && chunks.every(ch => ch.every(i => C.abs_x_m[i] !== null));
+  const pt = (i) => useAbs ? [C.abs_x_m[i], C.abs_y_m[i]] : [POSX[i], POSY[i]];
+  let length = 0;
+  for (const ch of chunks) for (let j = 1; j < ch.length; j++) { const [x0, y0] = pt(ch[j - 1]), [x1, y1] = pt(ch[j]); length += Math.hypot(x1 - x0, y1 - y0); }
+  return useAbs ? length : length * D.pixel_size * 1e-6;
+}
+// the route of the run's .rgn files (only this image's hits of each chunk); outdated as soon as the hits change
+function routeFromRun() {
+  if (!D.route) return;
+  const chunks = D.route.filter(ch => ch.length);
+  SCR.route = { chunks, sig: hitSignature(), n: chunks.reduce((s, ch) => s + ch.length, 0), length: routeLength(chunks), unit: "mm", stale: false, fromRun: true };
+  updateScreenUI();
+}
 async function computeRoute() {
   if (SCR.routeBusy) return SCR.route;
   const ids = sortedHits(); if (!ids.length) { SCR.route = null; updateScreenUI(); return null; }
@@ -273,7 +287,7 @@ async function computeRoute() {
     for (let j = 1; j < chunk.length; j++) { const [x0, y0] = pt(chunk[j - 1]), [x1, y1] = pt(chunk[j]); length += Math.hypot(x1 - x0, y1 - y0); }
     chunks.push(chunk);
   }
-  SCR.route = { chunks, sig: hitSignature(), n: ids.length, length: useAbs ? length : length * D.pixel_size * 1e-6, unit: "mm", stale: false };
+  SCR.route = { chunks, sig: hitSignature(), n: ids.length, length: useAbs ? length : length * D.pixel_size * 1e-6, unit: "mm", stale: false, fromRun: false };
   SCR.routeBusy = false; S.showRoute = true; $("vroute").checked = $("vroute2").checked = true;
   updateScreenUI(); invalidate("viewerHov");
   return SCR.route;

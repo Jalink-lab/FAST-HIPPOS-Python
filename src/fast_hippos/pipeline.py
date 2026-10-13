@@ -73,7 +73,6 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
             result = load_result(meta.parent)
             analyze(result, settings)
             save_tables(result, settings)
-            _write_dashboard(result, ViewerData.load(result.out_dir / "viewer.npz"), settings)
             results.append(result)
         results.sort(key=lambda r: r.index)
     else:
@@ -93,6 +92,10 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
         return results
     if settings.screening.enabled:
         write_screening_outputs(results, settings, out)
+    # dashboards last, so that they can show the route of the .rgn files
+    routes = _routes(results, out) if settings.screening.enabled else {}
+    for result in results:
+        _write_dashboard(result, ViewerData.load(result.out_dir / "viewer.npz"), settings, routes.get(result.name))
     from .dashboard import write_index
 
     write_index(results, settings, out)
@@ -203,8 +206,7 @@ def process_image(
         s_disp.overlay_smooth_xy, s_disp.overlay_smooth_t, s_disp.dashboard_max_size, s_disp.dashboard_max_megapixels,
         tiles_dir if (big and s_disp.dashboard and s_disp.dashboard_tiles) else None,
     )
-    viewer.save(out_dir / "viewer.npz")
-    _write_dashboard(result, viewer, settings)
+    viewer.save(out_dir / "viewer.npz")  # the dashboard is written at the end of the run
     return result
 
 
@@ -338,11 +340,25 @@ def load_result(d: Path) -> ImageResult:
     )
 
 
-def _write_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings) -> None:
+def _write_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> None:
     if settings.display.dashboard:
         from .dashboard import write_image_dashboard
 
-        write_image_dashboard(result, viewer, settings)
+        write_image_dashboard(result, viewer, settings, route)
+
+
+def _routes(results: list[ImageResult], out: Path) -> dict[str, list[list[int]]]:
+    """Visiting order of the .rgn chunks per image, as row indices into result.cells (from hit_chunks.json)."""
+    path = out / "hit_chunks.json"
+    if not path.exists():
+        return {}
+    chunks = json.loads(path.read_text())
+    routes = {}
+    for r in results:
+        index = {int(c): i for i, c in enumerate(r.cells["cell"])}
+        routes[r.name] = [[index[int(c)] for im, c in zip(ch["image"], ch["cell"], strict=True)
+                           if str(im) == r.name and int(c) in index] for ch in chunks]
+    return routes
 
 
 # ---------------------------------------------------------------- screening output (all images)
