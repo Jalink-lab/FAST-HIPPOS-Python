@@ -1,7 +1,7 @@
 :root {
   --bg: #0f1216; --panel: #171b21; --panel2: #1d222a; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
   --accent: #4da3ff; --hit: #ff4fb0; --sel: #ffffff; --hover: #ffd23f; --ok: #3fbf7f; --grid: rgba(255,255,255,0.07);
-  --trace-gray: rgba(150,160,175,0.35); --trace-gray-solid: #8f99a8; --mean: #ffffff;
+  --trace-gray: rgba(150,160,175,0.35); --trace-gray-solid: #8f99a8; --mean: #c3c9d2;
   --base-win: rgba(77,163,255,0.10); --resp-win: rgba(255,170,60,0.12); --cal-win: rgba(63,191,127,0.10);
   --resp-solid: #f0962e; --cal-solid: #2fa66c; --class-pos: #39d98a;
   color-scheme: dark;
@@ -9,14 +9,14 @@
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
   --bg: #f3f5f8; --panel: #ffffff; --panel2: #f6f7f9; --line: #dde2e8; --text: #1b2330; --muted: #5d6877;
   --accent: #1f6fd1; --hit: #d0157f; --sel: #111111; --hover: #e69500; --ok: #1f9d5c; --grid: rgba(0,0,0,0.07);
-  --trace-gray: rgba(110,120,135,0.35); --trace-gray-solid: #8a94a3; --mean: #111111;
+  --trace-gray: rgba(110,120,135,0.35); --trace-gray-solid: #8a94a3; --mean: #4a5361;
   --base-win: rgba(31,111,209,0.08); --resp-win: rgba(230,130,20,0.10); --cal-win: rgba(31,157,92,0.08);
   --class-pos: #0f8a4f; color-scheme: light;
 } }
 :root[data-theme="light"] {
   --bg: #f3f5f8; --panel: #ffffff; --panel2: #f6f7f9; --line: #dde2e8; --text: #1b2330; --muted: #5d6877;
   --accent: #1f6fd1; --hit: #d0157f; --sel: #111111; --hover: #e69500; --ok: #1f9d5c; --grid: rgba(0,0,0,0.07);
-  --trace-gray: rgba(110,120,135,0.35); --trace-gray-solid: #8a94a3; --mean: #111111;
+  --trace-gray: rgba(110,120,135,0.35); --trace-gray-solid: #8a94a3; --mean: #4a5361;
   --base-win: rgba(31,111,209,0.08); --resp-win: rgba(230,130,20,0.10); --cal-win: rgba(31,157,92,0.08);
   --class-pos: #0f8a4f; color-scheme: light;
 }
@@ -135,8 +135,11 @@ canvas.hs { width: 100%; height: 34px; display: block; cursor: ew-resize; }
 #tbl td { padding: 0 8px; height: 24px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
 #tbl tr.r:hover td { background: var(--panel2); }
 #tbl tr.sel td { background: color-mix(in srgb, var(--accent) 22%, transparent); }
-#tbl tr.hov td { outline: 1px solid var(--hover); }
+#tbl tr.hov td { background: color-mix(in srgb, var(--hover) 16%, transparent); }
+#tbl tr.hov td:first-child { box-shadow: inset 3px 0 0 var(--hover); }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--hit); }
 .muted { color: var(--muted); }
 .help { color: var(--muted); font-size: 12px; padding: 0 16px 16px; }
 kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; font: 11px ui-monospace, monospace; }
+
+#trinfo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }

@@ -122,16 +122,23 @@ function tileImage(t, vf, then) {
   c = composite(fr, pr); compCache.set(key, c); return c;
 }
 let hitRGB = [255, 79, 176], selRGB = [255, 255, 255];
+const cellRGBCache = new Map();
+function cellRGB(i) {  // the colour of cellColor(i) (hsl), as [r, g, b]
+  let c = cellRGBCache.get(i); if (c) return c;
+  const h = ((i * 137.508) % 360) / 360, s = 0.72, l = 0.58, q = l + s - l * s, p = 2 * l - q;
+  const f = (t) => { t = (t + 1) % 1; return Math.round(255 * (t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p)); };
+  c = [f(h + 1 / 3), f(h), f(h - 1 / 3)]; cellRGBCache.set(i, c); return c;
+}
 function outlineImage(t) {
   const lk = labKey(t), key = `${lk}|${outlineVersion}`;
   let c = outCache.get(key); if (c) return c;
   const le = request(lk); if (!le) return null;
   c = document.createElement("canvas"); c.width = le.w; c.height = le.h;
-  const x = c.getContext("2d"), img = x.createImageData(le.w, le.h), d = img.data, mode = S.outl;
+  const x = c.getContext("2d"), img = x.createImageData(le.w, le.h), d = img.data, mode = S.outl, perCell = S.tcol === "cell";
   for (const p of le.bnd) {
     const i = le.lab[p] - 1; if (i < 0 || i >= N) continue;
     let rgb = null, a = 255;
-    if (S.sel.has(i)) rgb = selRGB;
+    if (S.sel.has(i)) rgb = perCell ? cellRGB(i) : selRGB;  // the selection is always shown, whatever the mode
     else if ((mode === "hits" || mode === "all") && HIT[i]) rgb = hitRGB;
     else if (mode === "all") { rgb = [200, 200, 200]; a = 110; }
     if (!rgb) continue;

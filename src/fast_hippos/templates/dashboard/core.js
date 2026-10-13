@@ -24,7 +24,7 @@ let KS = KR, HIT = C.hit.map(Boolean), ORDER = D.order, EV = D.events;
 const S = {
   frame: 0, hover: -1, sel: new Set(), lastClicked: -1, playing: false,
   lut: D.display.lut, dmin: D.display.min, dmax: D.display.max, bright: Math.pow(10, 0.2),
-  isrc: "movie", outl: D.screening.enabled ? "hits" : "selection", tsrc: SCR.params.smooth_traces > 0 ? "smoothed" : "raw",
+  isrc: "movie", outl: "all", tsrc: SCR.params.smooth_traces > 0 ? "smoothed" : "raw",
   show: "all", tcol: D.screening.enabled && D.screening.n_hits ? "hit" : "cell", tmode: N > 300 ? "bands" : "lines",
   sorted: true, rows: "all", sortCol: null, sortDir: 1, sx: "mean_intensity", sy: "@value", slogx: false, slogy: false, sclass: false,
   tool: "rect", showRoute: false, scalebar: true, fillMetric: "",
@@ -86,6 +86,7 @@ function select(i, ev) {
 }
 function selectMany(list, add) { if (!add) S.sel.clear(); list.forEach(i => S.sel.add(i)); selectionChanged(); }
 function selectionChanged() {
+  outlinesChanged();
   invalidate(...ON.selection);
   if (S.show === "sel") invalidate("traces", "hist", "scatter", "kymo");
   if (S.rows === "sel") invalidate("table");

@@ -32,7 +32,7 @@ function drawCell() {
   const area = (lo, hi) => { c.fillStyle = withAlpha(css("--muted"), 0.18); c.beginPath(); for (let t = 0; t < T; t++) c.lineTo(xs[t], CP.Y(hi[t])); for (let t = T - 1; t >= 0; t--) c.lineTo(xs[t], CP.Y(lo[t])); c.fill(); };
   area(popBand[1], popBand[3]);
   const line = (arr, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); let pen = false; for (let t = 0; t < T; t++) { const v = arr(t); if (!Number.isFinite(v)) { pen = false; continue; } pen ? c.lineTo(xs[t], CP.Y(v)) : c.moveTo(xs[t], CP.Y(v)); pen = true; } c.stroke(); };
-  line(t => popBand[2][t], css("--muted"), 1.5);
+  line(t => popBand[2][t], css("--mean"), 1);
   if (S.tsrc === "smoothed") line(t => KR[t * N + i], withAlpha(css("--text"), 0.35), 1);
   line(t => K()[t * N + i], HIT[i] ? css("--hit") : css("--accent"), 2.2);
   if (Number.isFinite(C.baseline_mean[i])) { c.setLineDash([3, 3]); c.strokeStyle = css("--text"); c.lineWidth = 1; c.beginPath(); c.moveTo(CP.m.l, CP.Y(C.baseline_mean[i])); c.lineTo(CP.m.l + CP.pw, CP.Y(C.baseline_mean[i])); c.stroke(); c.setLineDash([]); }

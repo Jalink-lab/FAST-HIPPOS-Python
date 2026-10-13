@@ -51,18 +51,22 @@ function drawTraces() {
     else if (S.tcol === "gray") { ctx.strokeStyle = gray; for (let i = 0; i < N; i++) if (visible(i)) drawOne(i); }
     else for (let i = 0; i < N; i++) if (visible(i)) { ctx.strokeStyle = cellColor(i, alpha); drawOne(i); }
     const all = groupsForBands(); const ids = all.flatMap(g => g.ids);
-    if (ids.length) drawBand(ctx, xs, bandStats(ids, k), css("--mean"), 0, 0, 2.5);
+    if (ids.length) drawBand(ctx, xs, bandStats(ids, k), css("--mean"), 0, 0, 1.6);
   } else if (S.tmode === "bands") {
     for (const g of groupsForBands()) if (g.ids.length) drawBand(ctx, xs, bandStats(g.ids, k), g.color);
   } else {
-    const groups = groupsForBands(), ids = groups.flatMap(g => g.ids);
-    drawDensity(ctx, ids, k, css("--accent"));
-    for (const g of groups) if (g.ids.length) drawBand(ctx, xs, bandStats(g.ids, k), g.name === "hits" ? css("--hit") : css("--mean"), 0, 0, 2);
+    const vis = []; for (let i = 0; i < N; i++) if (visible(i)) vis.push(i);
+    const hits = vis.filter(i => HIT[i]), rest = hits.length ? vis.filter(i => !HIT[i]) : vis;
+    drawDensity(ctx, rest, k, css("--accent"));
+    if (hits.length) drawDensity(ctx, hits, k, css("--hit"));  // the hits on top, in their own colour
+    if (rest.length) drawBand(ctx, xs, bandStats(rest, k), css("--mean"), 0, 0, 1.6);
+    if (hits.length) drawBand(ctx, xs, bandStats(hits, k), css("--hit"), 0, 0, 1.6);
   }
   ctx.setLineDash([4, 4]); ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1; ctx.font = "11px system-ui"; ctx.fillStyle = css("--muted");
   for (const [f, name] of [[ev.stimulation, "stim"], [ev.calibration, "cal"]]) if (f !== null && f !== undefined && !ev.baseline_only) { const x = TP.X(f * FI); ctx.beginPath(); ctx.moveTo(x, TP.m.t); ctx.lineTo(x, TP.m.t + TP.ph); ctx.stroke(); ctx.fillText(name, x + 3, TP.m.t + 10); }
   ctx.restore();
-  $("trinfo").textContent = `${nvis} cells` + (S.tsrc === "smoothed" ? ` · smoothed r=${SCR.params.smooth_traces}` : "") + (S.tmode !== "lines" ? " · median, 25–75 %, 10–90 %" : "");
+  $("trinfo").textContent = `${nvis} cells` + (S.tsrc === "smoothed" ? ` · smoothed r=${SCR.params.smooth_traces}` : "");
+  $("trinfo").title = S.tmode === "bands" ? "line: median · bands: 25–75 % and 10–90 %" : S.tmode === "density" ? "density of the traces · line: median" : "line: median of the shown cells";
 }
 function traceLine(ctx, i, col, w) {
   const k = K(); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); let pen = false;
@@ -75,8 +79,8 @@ function drawTracesSel() {
     const xs = new Float32Array(T); for (let t = 0; t < T; t++) xs[t] = TP.X(t * FI);
     drawBand(ctx, xs, bandStats([...S.sel], K()), css("--sel"), 0.12, 0.25, 2);
   } else {
-    const w = n <= 10 ? 2.5 : n <= 50 ? 1.5 : 1, a = n <= 50 ? 1 : 0.55;
-    for (const i of S.sel) { if (n <= 10) traceLine(ctx, i, css("--bg"), w + 2); ctx.globalAlpha = a; traceLine(ctx, i, S.tcol === "cell" ? cellColor(i) : css("--sel"), w); ctx.globalAlpha = 1; }
+    const w = n <= 10 ? 1.6 : n <= 50 ? 1.1 : 0.8, a = n <= 50 ? 1 : 0.55;
+    for (const i of S.sel) { if (n <= 10) traceLine(ctx, i, css("--bg"), w + 1.5); ctx.globalAlpha = a; traceLine(ctx, i, S.tcol === "cell" ? cellColor(i) : css("--sel"), w); ctx.globalAlpha = 1; }
   }
   ctx.restore();
 }
@@ -100,5 +104,5 @@ function initTraces() {
   c.addEventListener("pointerleave", () => setHover(-1));
   c.addEventListener("click", (e) => { const [px] = localXY(e, c); if (S.hover >= 0) select(S.hover, e); else setFrame(TP.iX(px) / FI); });
   $("tmode").value = S.tmode; $("tmode").onchange = () => { S.tmode = $("tmode").value; invalidate("traces"); };
-  $("tcol").value = S.tcol; $("tcol").onchange = () => { S.tcol = $("tcol").value; invalidate("traces", "tracesSel"); };
+  $("tcol").value = S.tcol; $("tcol").onchange = () => { S.tcol = $("tcol").value; invalidate("traces", "tracesSel"); outlinesChanged(); };
 }
