@@ -4,6 +4,8 @@ before the lifetime calculation, so that intensity and lifetime stay aligned."""
 from __future__ import annotations
 
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from scipy import ndimage as ndi
@@ -65,14 +67,42 @@ def estimate_bidirectional_shift(reg: np.ndarray) -> float:
     return float(shift[1])
 
 
+MIN_BIDIRECTIONAL_SHIFT = 0.05  # px; smaller phase shifts are left alone
+
+
+def shift_x(a: np.ndarray, d: float) -> np.ndarray:
+    """out[..., x] = a[..., x - d]: subpixel shift along the last axis only, by cubic (Catmull-Rom) interpolation
+    with 4 taps; edges are extended. (ndi.shift on the 4-D stack interpolated over all axes: 4^4 taps, minutes.)"""
+    t = -d
+    n = int(np.floor(t))
+    u = t - n
+    w = [(-u**3 + 2 * u**2 - u) / 2, (3 * u**3 - 5 * u**2 + 2) / 2, (-3 * u**3 + 4 * u**2 + u) / 2, (u**3 - u**2) / 2]
+    p = abs(n) + 2
+    padded = np.pad(a, [(0, 0)] * (a.ndim - 1) + [(p, p)], mode="edge")
+    width = a.shape[-1]
+    out = np.zeros(a.shape, np.float32)
+    for m, wm in zip(range(-1, 3), w, strict=True):
+        start = p + n + m
+        out += np.float32(wm) * padded[..., start : start + width]
+    return out
+
+
 def correct_bidirectional(data: np.ndarray, channels: list[int]) -> tuple[np.ndarray, float]:
-    """Shift odd lines by +s/2 and even lines by -s/2 (cubic interpolation) to align both scan directions."""
+    """Shift even lines by -s/2 and odd lines by +s/2 along x to align both scan directions."""
     s = estimate_bidirectional_shift(registration_image(data, channels))
+    if abs(s) < MIN_BIDIRECTIONAL_SHIFT:
+        log.info("Bidirectional phase correction: %.2f px, not applied", s)
+        return data, s
     log.info("Bidirectional phase correction: %.2f px", s)
-    data = data.astype(np.float32)  # interpolation
-    out = data.copy()
-    out[..., 0::2, :] = ndi.shift(data[..., 0::2, :], (0, 0, 0, -s / 2), order=3, mode="nearest")
-    out[..., 1::2, :] = ndi.shift(data[..., 1::2, :], (0, 0, 0, s / 2), order=3, mode="nearest")
+    out = np.empty(data.shape, np.float32)
+
+    def frame(t):  # per frame (in threads; NumPy releases the GIL): little extra memory
+        f = data[t].astype(np.float32)
+        out[t, ..., 0::2, :] = shift_x(f[..., 0::2, :], -s / 2)
+        out[t, ..., 1::2, :] = shift_x(f[..., 1::2, :], s / 2)
+
+    with ThreadPoolExecutor(min(8, os.cpu_count() or 4)) as pool:
+        list(pool.map(frame, range(data.shape[0])))
     return out, s
 
 

@@ -173,3 +173,36 @@ def test_auto_display_range():
     lo, hi = auto_range(rng.normal(2.7, 0.15, 10000))
     assert 2.2 <= lo <= 2.4 and 3.0 <= hi <= 3.2
     assert auto_range(np.array([np.nan])) == (0.0, 1.0)
+
+
+def test_shift_x():
+    from fast_hippos.preprocess import shift_x
+
+    x = np.arange(64, dtype=np.float32)
+    a = np.sin(x / 5)[None, :].repeat(3, axis=0)
+    assert np.allclose(shift_x(a, 2)[:, 4:], a[:, 2:-2])  # integer shift: exact
+    out = shift_x(a, 0.4)  # subpixel: cubic interpolation of a smooth signal
+    assert np.abs(out[:, 4:-4] - np.sin((x[4:-4] - 0.4) / 5)).max() < 1e-3
+
+
+def test_bidirectional_correction():
+    from fast_hippos.preprocess import correct_bidirectional, estimate_bidirectional_shift, registration_image
+
+    yy, xx = np.mgrid[0:96, 0:128].astype(np.float32)
+    rng = np.random.default_rng(0)
+    centres = rng.uniform([8, 8], [88, 120], size=(25, 2))
+
+    def scene(dx):
+        img = np.zeros((96, 128), np.float32)
+        for cy, cx in centres:
+            img += 1000 * np.exp(-((yy - cy) ** 2 + (xx - dx - cx) ** 2) / 18)
+        return img
+
+    img = scene(0)
+    img[1::2] = scene(1.6)[1::2]  # the return scan lines are displaced by 1.6 px
+    data = np.stack([img, img])[:, None].repeat(2, axis=1)  # (T, C, Y, X)
+    out, s = correct_bidirectional(data, [1, 2])
+    assert abs(s - 1.6) < 0.1 or abs(s + 1.6) < 0.1
+    assert abs(estimate_bidirectional_shift(registration_image(out, [1, 2]))) < 0.1  # aligned after correction
+    unchanged, s0 = correct_bidirectional(np.stack([scene(0)] * 2)[:, None], [1])
+    assert abs(s0) < 0.05 and unchanged.dtype == np.float32 and np.array_equal(unchanged[0, 0], scene(0))
