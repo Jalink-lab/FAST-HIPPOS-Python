@@ -1,5 +1,6 @@
 import json
 import threading
+import urllib.parse
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -21,6 +22,14 @@ def test_schema_covers_every_setting():
     assert by_key["segmentation.method"]["kind"] == "select"  # choices make a drop-down
     assert by_key["screening.criteria"]["kind"] == "criteria"
     assert by_key["input.files"]["level"] == "basic"
+    assert by_key["display.min_lifetime"]["level"] == "advanced"
+
+
+def test_layout_has_every_setting_once():
+    placed = [k for card in gui.LAYOUT for k in card["basic"] + [k for a in card["advanced"] for k in a[1]]]
+    keys = {f"{s}.{k}" for s, v in Settings().to_dict().items() for k in v}
+    assert len(placed) == len(set(placed)), "a setting appears twice"
+    assert set(placed) == keys
 
 
 def test_toml_round_trip(tmp_path):
@@ -46,7 +55,7 @@ def test_invalid_settings_are_reported():
 
 
 def test_output_info(tmp_path):
-    assert gui.output_info(str(tmp_path / "missing")) == {"exists": False, "images": []}
+    assert gui.output_info(str(tmp_path / "missing")) == {"exists": False, "images": [], "index": False}
     (tmp_path / "img1").mkdir()
     (tmp_path / "img1" / "traces.npz").write_bytes(b"")
     assert gui.output_info(str(tmp_path))["images"] == ["img1"]
@@ -72,3 +81,47 @@ def test_api_requires_token():
     finally:
         server.shutdown()
         server.server_close()
+
+
+class FakeJob(gui.Job):
+    def start(self, settings, reapply, source="gui"):
+        self.started = (settings, reapply, source)
+        return 1
+
+
+def test_apply_from_dashboard(tmp_path):
+    out = tmp_path / "out"
+    (out / "img").mkdir(parents=True)
+    base = Settings()
+    base.input.files = [tmp_path / "img.tif"]
+    base.input.output = out
+    base.screening.criteria = [Criterion("baseline_mean", "<", 2.5)]
+    base.segmentation.cellpose3_python = tmp_path / "cp3" / "python.exe"
+    (out / "settings_used.json").write_text(json.dumps(base.to_dict()))
+    toml = ('[screening]\nenabled = true\nmanual_hits = "img_manual_hits.tsv"\n'
+            'criteria = [ { metric = "response_max_diff", op = ">", value = 0.6, logic = "AND" } ]\n')
+    job = FakeJob()
+    gui.apply_from_dashboard(job, str(out / "img" / "dashboard.html"), toml, "image\tcell\nimg\t3")
+    settings, reapply, source = job.started
+    assert reapply and source == "dashboard"
+    assert settings["screening"]["criteria"][0]["metric"] == "response_max_diff"
+    assert settings["segmentation"]["cellpose3_python"] == str(tmp_path / "cp3" / "python.exe")  # rest kept
+    assert Path(settings["screening"]["manual_hits"]) == out / "img_manual_hits.tsv"
+    assert (out / "img_manual_hits.tsv").read_text().endswith("img\t3")
+
+
+def test_served_files_stay_in_output_folders(tmp_path):
+    job = gui.Job()
+    out = tmp_path / "out"
+    (out / "img").mkdir(parents=True)
+    (out / "img" / "dashboard.html").write_text("<html><head></head></html>")
+    (tmp_path / "secret.txt").write_text("x")
+
+    def url(p: Path) -> str:
+        return "/files/" + urllib.parse.quote(p.resolve().as_posix())
+
+    assert gui._served(job, url(out / "img" / "dashboard.html")) is None  # folder not registered
+    job.roots.add(out.resolve())
+    assert gui._served(job, url(out / "img" / "dashboard.html")) == (out / "img" / "dashboard.html").resolve()
+    assert gui._served(job, url(tmp_path / "secret.txt")) is None
+

@@ -33,13 +33,20 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 14px; pa
 .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
 .tabs button { border-radius: 999px; padding: 5px 14px; }
 .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-.tabs .note { align-self: center; margin-left: 8px; color: var(--muted); }
+.tabs .note { align-self: center; margin-left: 8px; color: var(--changed); }
+.switch { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+.adv { border-top: 1px dashed var(--line); }
+.adv > .advtoggle { width: 100%; text-align: left; background: none; border: none; border-radius: 0; padding: 7px 12px; color: var(--muted); }
+.adv > .advtoggle:hover { color: var(--accent); }
+.adv .count { color: var(--changed); }
+.adv h3 { margin: 6px 12px 0; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600;
+  border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+.adv .body { padding-top: 8px; }
+.card .note { padding: 10px 12px; color: var(--muted); }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
 .card > h2 { margin: 0; font-size: 13px; padding: 9px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
 .card > h2 .count { color: var(--changed); font-weight: 500; font-size: 12px; }
 .card > h2 .sp { flex: 1; }
-.card.closed > .body { display: none; } .card.closed > h2 { border-bottom: none; }
-.card > h2.toggle { cursor: pointer; } .card > h2.toggle::before { content: "▾"; color: var(--muted); } .card.closed > h2.toggle::before { content: "▸"; }
 .body { padding: 10px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 18px; }
 .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .field.wide { grid-column: 1 / -1; }
@@ -85,7 +92,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
 </header>
 <main>
   <section>
-    <div class="tabs"><button data-tab="basic" class="on">Basic</button><button data-tab="advanced">Advanced</button><span class="note" id="advNote"></span></div>
+    <div class="tabs"><label class="switch"><input type="checkbox" id="advAll"> Show all advanced settings</label><span class="note" id="advNote"></span></div>
     <div id="form"></div>
   </section>
   <aside class="side">
@@ -115,7 +122,7 @@ async function api(name, body = {}) {
 }
 function toast(msg, ms = 2500) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", ms); }
 
-let SCHEMA, S, DEFAULTS, TAB = "basic", INFO = {}, CP = {}, OUT = {}, JOB = { n: 0, state: "idle" };
+let SCHEMA, S, DEFAULTS, ADV_ALL = false, INFO = {}, CP = {}, OUT = {}, JOB = { n: 0, state: "idle", run_id: 0 };
 const FIELD = {};  // key -> spec
 const get = (key) => { const [s, k] = key.split("."); return S[s][k]; };
 const set = (key, v) => { const [s, k] = key.split("."); S[s][k] = v; };
@@ -227,7 +234,7 @@ function widget(f) {
 }
 function fieldHTML(f) {
   const wide = ["files", "criteria", "model"].includes(f.kind) || ["file", "python", "folder"].includes(f.kind);
-  const cls = ["field", f.kind === "bool" ? "check" : "", wide ? "wide" : "", isChanged(f) && TAB === "advanced" ? "changed" : ""].join(" ");
+  const cls = ["field", f.kind === "bool" ? "check" : "", wide ? "wide" : "", isChanged(f) && f.level !== "basic" ? "changed" : ""].join(" ");
   const label = `<label for="f_${f.key.replace(".", "_")}" title="${esc(f.key)}">${esc(f.label)}</label>`;
   const hint = hintFor(f);
   const help = (f.help || hint) ? `<div class="help">${esc(f.help || "")}${hint ? (f.help ? " · " : "") + hint : ""}</div>` : "";
@@ -243,44 +250,50 @@ function hintFor(f) {
   return "";
 }
 
-// ---------------------------------------------------------------- layout
-const BASIC_GROUPS = [
-  ["Images", ["input.files", "input.output", "input.modality", "input.tau1", "input.tau2", "input.additional_channel"]],
-  ["Cell segmentation", ["segmentation.method", "segmentation.cellpose_model", "segmentation.diameter", "segmentation.labelmap", "segmentation.min_cell_size"]],
-  ["Stimulation, calibration and display", ["events.stimulation_frame", "events.calibration_frame", "events.baseline_only", "display.min_lifetime", "display.max_lifetime"]],
-  ["Screening", ["screening.enabled", "screening.criteria", "screening.stage_positions_file", "screening.classify_additional_channel"]],
-];
-const closed = new Set();
+// ---------------------------------------------------------------- layout: per card the basic settings and an expanding advanced pane
+const openAdv = new Set();
 function render() {
   const active = document.activeElement?.id;
-  let html = "";
-  if (TAB === "basic") {
-    for (const [title, keys] of BASIC_GROUPS) {
-      const fs = keys.map(k => FIELD[k]).filter(f => f && shown(f.show));
-      html += `<div class="card"><h2>${esc(title)}</h2><div class="body">${fs.map(fieldHTML).join("")}</div></div>`;
+  let html = "", hidden = 0;
+  for (const card of SCHEMA.layout) {
+    const basic = card.basic.map(k => FIELD[k]).filter(f => shown(f.show));
+    const subs = card.advanced.filter(a => shown(a.show)).map(a => ({ title: a.title, fs: a.keys.map(k => FIELD[k]).filter(f => shown(f.show)) })).filter(a => a.fs.length);
+    const changed = subs.flatMap(a => a.fs).filter(isChanged).length, open = ADV_ALL || openAdv.has(card.title);
+    if (!open) hidden += changed;
+    html += `<div class="card"><h2>${esc(card.title)}</h2>` +
+      (basic.length ? `<div class="body">${basic.map(fieldHTML).join("")}</div>` : `<div class="note">${esc(card.note || "")}</div>`);
+    if (subs.length) {
+      html += `<div class="adv"><button class="advtoggle" data-card="${esc(card.title)}">${open ? "▾" : "▸"} Advanced settings` +
+        (changed ? ` · <span class="count">${changed} changed</span>` : "") + `</button>`;
+      if (open) html += subs.map(a => `<h3>${esc(a.title)}</h3><div class="body">${a.fs.map(fieldHTML).join("")}</div>`).join("") +
+        (changed ? `<div style="padding:0 12px 10px"><button class="small" data-resetcard="${esc(card.title)}">Reset these advanced settings</button></div>` : "");
+      html += `</div>`;
     }
-  } else {
-    for (const sec of SCHEMA.sections) {
-      if (!shown(sec.show)) continue;
-      const fs = sec.fields.filter(f => f.level !== "basic" && shown(f.show));
-      if (!fs.length) continue;
-      const n = fs.filter(isChanged).length;
-      html += `<div class="card ${closed.has(sec.name) ? "closed" : ""}" data-sec="${sec.name}"><h2 class="toggle">${esc(sec.title)}<span class="sp"></span>${n ? `<span class="count">${n} changed</span> <button class="small" data-resetsec="${sec.name}">reset</button>` : ""}</h2>
-        <div class="body">${fs.map(fieldHTML).join("")}</div></div>`;
-    }
+    html += `</div>`;
   }
   $("form").innerHTML = html;
-  const nAdv = SCHEMA.sections.flatMap(s => s.fields).filter(f => f.level !== "basic" && shown(f.show) && isChanged(f)).length;
-  $("advNote").textContent = nAdv ? `${nAdv} advanced setting${nAdv > 1 ? "s" : ""} changed from the defaults` : "";
+  $("advNote").textContent = hidden ? `${hidden} hidden advanced setting${hidden > 1 ? "s" : ""} changed from the defaults` : "";
   if (active && $(active)) $(active).focus();
   renderChecks();
+  renderResults();
 }
 
 // ---------------------------------------------------------------- earlier results in the output folder
 function outputState() {
   const p = S.input.output || "";
-  if (!(p in OUT)) { OUT[p] = null; api("output", { path: p }).then(r => { OUT[p] = r; renderChecks(); }).catch(() => {}); }
+  if (!(p in OUT)) { OUT[p] = null; api("output", { path: p }).then(r => { OUT[p] = r; renderChecks(); renderResults(); }).catch(() => {}); }
   return OUT[p];
+}
+// buttons for the results in the output folder (of this run or an earlier one)
+function renderResults() {
+  const o = outputState(), el = $("results");
+  if (JOB.state === "running" || !o || !o.images.length) { el.innerHTML = ""; return; }
+  const sep = S.input.output.includes("\\") ? "\\" : "/", base = S.input.output.replace(/[\\/]$/, "") + sep;
+  const links = [];
+  if (o.index) links.push(`<button class="primary" data-open="${esc(base + "index.html")}">Open overview</button>`);
+  for (const d of o.images) links.push(`<button data-open="${esc(base + d + sep + "dashboard.html")}">Dashboard: ${esc(d)}</button>`);
+  links.push(`<button data-open="${esc(S.input.output)}">Open output folder</button>`);
+  el.innerHTML = `<div class="muted">Results in the output folder${JOB.state === "done" ? "" : " (earlier run)"}:</div>` + links.join("");
 }
 
 // ---------------------------------------------------------------- checks before running
@@ -300,7 +313,7 @@ function checks() {
   const st = S.events.stimulation_frame, ca = S.events.calibration_frame;
   if (st != null && ca != null && ca <= st) add("err", "The calibration frame must come after the stimulation frame");
   if (Number.isFinite(ff.frames) && [st, ca].some(x => x != null && x >= ff.frames)) add("err", `Frames must be below ${ff.frames}`);
-  if (S.display.max_lifetime <= S.display.min_lifetime) add("err", "Display max must be larger than display min");
+  if (S.display.min_lifetime != null && S.display.max_lifetime != null && S.display.max_lifetime <= S.display.min_lifetime) add("err", "Colour scale: the maximum must be larger than the minimum");
   if (S.screening.enabled) {
     if (!S.screening.stage_positions_file && !ff.stitched) add("warn", "No stage positions: hits are found, but no .rgn files are written");
     if (!S.screening.criteria.length && !S.screening.manual_hits && !S.screening.random_hits) add("warn", "No hit criteria: every valid cell becomes a hit");
@@ -347,9 +360,8 @@ document.addEventListener("change", (e) => {
 document.addEventListener("input", (e) => { if (e.target.type === "number" && e.target.closest("[data-key]") && !e.target.closest("[data-crit]")) { readInput(e.target); renderChecks(); } });
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("button, h2.toggle"); if (!b) return;
-  if (b.dataset.tab) { TAB = b.dataset.tab; document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b)); render(); return; }
-  if (b.matches("h2.toggle") && !e.target.closest("button")) { const s = b.parentElement.dataset.sec; closed.has(s) ? closed.delete(s) : closed.add(s); render(); return; }
-  if (b.dataset.resetsec) { const sec = SCHEMA.sections.find(s => s.name === b.dataset.resetsec); sec.fields.filter(f => f.level !== "basic").forEach(f => set(f.key, structuredClone(f.default))); render(); return; }
+  if (b.dataset.card) { const c = b.dataset.card; openAdv.has(c) ? openAdv.delete(c) : openAdv.add(c); render(); return; }
+  if (b.dataset.resetcard) { const card = SCHEMA.layout.find(c => c.title === b.dataset.resetcard); card.advanced.flatMap(a => a.keys).forEach(k => set(k, structuredClone(FIELD[k].default))); render(); return; }
   if (b.dataset.browse) {
     const f = FIELD[b.dataset.browse], kind = b.dataset.kind, cur = get(f.key);
     const initial = Array.isArray(cur) ? cur[0] || S.input.output || "" : cur || "";
@@ -376,6 +388,7 @@ document.addEventListener("click", async (e) => {
 });
 
 // header buttons
+$("advAll").onchange = () => { ADV_ALL = $("advAll").checked; render(); };
 $("bOpen").onclick = async () => {
   const r = (await api("browse", { kind: "file", title: "Open settings", types: "toml", initial: S.input.output || "" })).result; if (!r) return;
   try { setSettings((await api("load", { path: r })).settings); $("from").textContent = "settings from " + r; toast("Settings loaded"); } catch (e) { toast(e.message, 5000); }
@@ -388,14 +401,21 @@ $("bReset").onclick = () => { const files = S.input.files, out = S.input.output;
 
 // ---------------------------------------------------------------- running
 async function start(reapply) {
-  try { await api("run", { settings: S, reapply }); } catch (e) { toast(e.message, 6000); return; }
-  JOB = { n: 0, state: "running" }; $("log").innerHTML = ""; $("results").innerHTML = ""; poll();
+  let r; try { r = await api("run", { settings: S, reapply }); } catch (e) { toast(e.message, 6000); return; }
+  JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 }
 $("bRun").onclick = () => start(false);
 $("bReapply").onclick = () => start(true);
 $("bStop").onclick = () => api("stop");
+// polls all the time: runs can also be started from a dashboard ('Apply to run')
 async function poll() {
-  let st; try { st = await api("status", { since: JOB.n }); } catch { setTimeout(poll, 1500); return; }
+  let st; try { st = await api("status", { since: JOB.n }); } catch { setTimeout(poll, 2000); return; }
+  if (st.run_id !== JOB.run_id) {  // a run this page did not start
+    JOB = { n: 0, state: st.state, run_id: st.run_id }; $("log").innerHTML = "";
+    if (st.source === "dashboard" && st.settings) { setSettings(st.settings); toast("Screening settings applied from a dashboard", 4000); }
+    setTimeout(poll, 0); return;
+  }
+  const changedState = st.state !== JOB.state;
   const log = $("log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
   for (const line of st.lines) {
     const cls = /ERROR|Traceback|Error:/.test(line) ? "e" : /WARNING/.test(line) ? "w" : "";
@@ -409,16 +429,8 @@ async function poll() {
   $("stateInfo").textContent = st.state === "running" ? `image ${Math.min(nImg, total)} of ${total}` : "";
   $("bar").style.width = (st.state === "done" ? 100 : st.state === "running" ? Math.min(95, (Math.max(nImg, 1) - 0.5) / total * 100) : 0) + "%";
   $("bStop").disabled = st.state !== "running";
-  if (st.state === "running") { setTimeout(poll, 700); renderChecks(); return; }
-  if (st.state !== "running") delete OUT[S.input.output || ""];  // re-check for results
-  renderChecks();
-  if (st.state === "done") {
-    const links = [];
-    if (st.index) links.push(`<button class="primary" data-open="${esc(st.index)}">Open overview</button>`);
-    for (const d of st.dashboards || []) links.push(`<button data-open="${esc(d)}">Dashboard: ${esc(d.split(/[\\/]/).slice(-2, -1)[0])}</button>`);
-    links.push(`<button data-open="${esc(st.output)}">Open output folder</button>`);
-    $("results").innerHTML = links.join("");
-  }
+  if (changedState) { delete OUT[S.input.output || ""]; renderChecks(); renderResults(); }  // re-check for results
+  setTimeout(poll, st.state === "running" ? 700 : 2000);
 }
 $("results").addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) api("open", { path: b.dataset.open }).catch(err => toast(err.message)); });
 
@@ -435,7 +447,8 @@ function setSettings(s) {
   $("ver").textContent = "version " + SCHEMA.version;
   $("from").textContent = init.from ? "last used settings" : "default settings";
   setSettings(init.settings);
-  const st = await api("status"); if (st.state === "running") { JOB.state = "running"; poll(); }
+  const st = await api("status"); JOB = { n: 0, state: st.state, run_id: st.run_id };
+  poll();
 })();
 </script>
 </body>

@@ -104,6 +104,8 @@ canvas.hs { width: 100%; height: 34px; display: block; cursor: ew-resize; }
 .crit .x { padding: 0 6px; }
 .manual { color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .manual b { color: var(--hit); }
 .exports { padding-top: 2px; }
+#scrapply { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.applymsg { font-size: 12px; min-height: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .funnel { display: inline-grid; grid-template-columns: repeat(3, 120px); gap: 8px; margin-left: 8px; }
 .frow { position: relative; display: block; height: 18px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
 .fbar { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }

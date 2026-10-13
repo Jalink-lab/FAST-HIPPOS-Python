@@ -315,8 +315,9 @@ def save_tables(result: ImageResult, settings: Settings) -> None:
             add.insert(0, "time_s", time)
             add.to_csv(d / "additional_traces.tsv", sep="\t", index=False, float_format="%.6g")
     if settings.display.save_png_plots:
-        dm = settings.display
-        ylim = None if settings.input.modality == Modality.INTENSITY else (dm.min_lifetime, dm.max_lifetime)
+        from .dashboard import display_range
+
+        ylim = None if settings.input.modality == Modality.INTENSITY else display_range(result, settings)
         hits = result.cells["hit"].to_numpy() if settings.screening.enabled else None
         plots.traces(d / "traces.png", result.kymo_smoothed, result.frame_interval, result.events, result.unit, ylim, hits, result.name)
 

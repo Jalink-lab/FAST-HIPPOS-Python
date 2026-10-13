@@ -159,3 +159,12 @@ def test_example_config_loads():
     path = resources.files("fast_hippos").joinpath("templates", "example_config.toml")
     s = Settings.from_toml(path)
     assert s.screening.criteria[0].logic == "AND" and s.display.dashboard_tiles
+
+
+def test_auto_display_range():
+    from fast_hippos.dashboard import auto_range
+
+    rng = np.random.default_rng(1)
+    lo, hi = auto_range(rng.normal(2.7, 0.15, 10000))
+    assert 2.2 <= lo <= 2.4 and 3.0 <= hi <= 3.2
+    assert auto_range(np.array([np.nan])) == (0.0, 1.0)

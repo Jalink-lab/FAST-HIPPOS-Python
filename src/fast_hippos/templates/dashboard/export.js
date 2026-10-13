@@ -35,7 +35,8 @@ async function exportHitsRGN() {
   });
 }
 function tomlValue(v) { return v === null || v === undefined ? '""' : typeof v === "string" ? JSON.stringify(v) : Array.isArray(v) ? `[${v.map(tomlValue).join(", ")}]` : typeof v === "boolean" ? String(v) : String(+(+v).toPrecision(10)); }
-function exportTOML() {
+// the screening settings as a TOML override for 'fast-hippos reapply' (+ the hand-picked hits in selection mode)
+function screeningToml() {
   const p = SCR.params, e = SCR.events, L = [], manualFile = `${D.name}_manual_hits.tsv`;
   L.push(`# Screening settings from the FAST-HIPPOS dashboard of '${D.name}'.`, "# Apply to the whole run with:", "#   fast-hippos reapply <config.toml> --override <this file>", "");
   if (eventsTouched) L.push("[events]", `stimulation_frame = ${tomlValue(e.stimulation)}`, `calibration_frame = ${tomlValue(e.calibration)}`, `baseline_only = ${e.baseline_only}`, `margin = ${e.margin}`, "");
@@ -50,10 +51,39 @@ function exportTOML() {
     'random_hits = ""', `manual_hits = ${SCR.mode === "selection" ? tomlValue(manualFile) : '""'}`, "criteria = [");
   p.criteria.forEach(c => L.push(`  { metric = ${tomlValue(c.metric)}, op = ${tomlValue(c.op)}, value = ${tomlValue(c.value)}` + (c.op === "between" ? `, value2 = ${tomlValue(c.value2)}` : "") + `, logic = ${tomlValue(c.logic)} },`));
   L.push("]", "");
+  let manual = null;
   if (SCR.mode === "selection") {
     L.splice(3, 0, `# Hits were chosen by hand: put '${manualFile}' (downloaded with this file) next to it.`);
-    const rows = ["image\tcell", ...[...SCR.manual].sort((a, b) => a - b).map(i => `${D.name}\t${C.cell[i]}`)];
-    setTimeout(() => download(manualFile, rows.join("\n"), "text/tab-separated-values"), 400);
+    manual = ["image\tcell", ...[...SCR.manual].sort((a, b) => a - b).map(i => `${D.name}\t${C.cell[i]}`)].join("\n");
   }
-  download(`screening_${D.name}.toml`, L.join("\n"), "application/toml");
+  return { toml: L.join("\n"), manual, manualFile };
+}
+function exportTOML() {
+  const { toml, manual, manualFile } = screeningToml();
+  if (manual) setTimeout(() => download(manualFile, manual, "text/tab-separated-values"), 400);
+  download(`screening_${D.name}.toml`, toml, "application/toml");
+}
+
+// ---------------------------------------------------------------- apply to the run (dashboard opened from the GUI)
+async function guiApi(name, body = {}) {
+  const r = await fetch("/api/" + name, { method: "POST", headers: { "Content-Type": "application/json", "X-FH-Token": window.FH_GUI.token }, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+async function applyToRun() {
+  if (!confirm("Apply these screening settings to the whole run?\n\nEvent detection, screening, hit lists, .rgn files and the dashboards of all images in this output folder are redone (no segmentation). The dashboard reloads when it is done.")) return;
+  const { toml, manual } = screeningToml(), msg = $("applymsg"), btn = $("scrapply");
+  const dashboard = decodeURIComponent(location.pathname.replace(/^\/files\//, ""));
+  btn.disabled = true; msg.textContent = "starting…";
+  let run;
+  try { run = (await guiApi("apply", { dashboard, toml, manual_tsv: manual })).run_id; }
+  catch (e) { msg.textContent = e.message; btn.disabled = false; return; }
+  const poll = async () => {
+    let st; try { st = await guiApi("status", { since: 0 }); } catch { setTimeout(poll, 1500); return; }
+    if (st.run_id !== run) { msg.textContent = "another run started"; btn.disabled = false; return; }
+    const last = st.lines.filter(l => / (INFO|WARNING|ERROR) /.test(l)).pop() || "";
+    if (st.state === "running") { msg.textContent = "applying… " + last.replace(/^\S+ +\S+ +/, ""); setTimeout(poll, 800); return; }
+    if (st.state === "done") { msg.textContent = "done, reloading…"; location.reload(); return; }
+    msg.textContent = `${st.state}: ${st.lines.slice(-1)[0] || ""}`; btn.disabled = false;
+  };
+  poll();
 }

@@ -67,7 +67,9 @@
         <div class="row"><label>.rgn chunks of <input id="chunk" type="number" min="1" step="100" class="w5"></label><label><input id="optpath" type="checkbox"> optimize path</label></div>
         <div class="row"><button id="route">Compute route</button><span id="routeinfo" class="muted"></span><label><input id="vroute2" type="checkbox"> show in image</label></div>
         <div class="row exports"><button id="hitsrgn">Hits → .rgn</button><button id="hitstsv">Hits → TSV</button>
-          <button id="scrtoml" title="Apply to the whole run: fast-hippos reapply config.toml --override screening.toml">Settings → TOML</button></div>
+          <button id="scrtoml" title="Apply to the whole run: fast-hippos reapply config.toml --override screening.toml">Settings → TOML</button>
+          <button id="scrapply" hidden title="Redo the screening of the whole run with these settings (all images in the output folder)">↻ Apply to run</button></div>
+        <div class="muted applymsg" id="applymsg"></div>
       </div>
       <div class="card crits">
         <h3>Hits from <span class="seg" id="hitsrc"><button data-v="criteria">criteria</button><button data-v="selection">selection</button></span>

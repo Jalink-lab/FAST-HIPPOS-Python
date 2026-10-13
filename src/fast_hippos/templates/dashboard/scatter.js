@@ -9,12 +9,17 @@ function scatterValues(key) {
   if (key === "@additional") { for (let i = 0; i < N; i++) o[i] = KA[S.frame * N + i]; return o; }
   const a = C[key]; for (let i = 0; i < N; i++) o[i] = a[i] === null || a[i] === undefined ? NaN : a[i]; return o;
 }
+// per-cell quantities in the same unit as the traces (lifetime or ratio)
+const VALUE_METRICS = ["baseline_mean", "response_mean_abs", "response_max_abs", "calibration_mean"];
+const isValueAxis = (k) => k === "@value" || VALUE_METRICS.includes(k);
 const scatterLabel = (k) => k === "@value" ? VALUE_LABEL : k === "@additional" ? "additional channel @ frame" : k;
 function drawScatter() {
   SP.resize(); SP.logx = S.slogx; SP.logy = S.slogy;
   const xs = scatterValues(S.sx), ys = scatterValues(S.sy), ids = [];
   for (let i = 0; i < N; i++) if (visible(i)) ids.push(i);
-  const [x0, x1] = finiteRange(xs, ids, S.slogx), [y0, y1] = S.sy === "@value" && !S.slogy ? yRange() : finiteRange(ys, ids, S.slogy);
+  // lifetime (or ratio) axes share the range of the colour scale, as in Traces and Distribution
+  const [x0, x1] = isValueAxis(S.sx) && !S.slogx ? yRange() : finiteRange(xs, ids, S.slogx);
+  const [y0, y1] = isValueAxis(S.sy) && !S.slogy ? yRange() : finiteRange(ys, ids, S.slogy);
   SP.range(x0, x1, y0, y1);
   const ctx = SP.clear(0); SP.axes(ctx, scatterLabel(S.sx), scatterLabel(S.sy)); ctx.save(); SP.clip(ctx);
   SP.pts = []; const base = css("--accent"), hit = css("--hit"), r = ids.length > 2000 ? 1.6 : 2.6;

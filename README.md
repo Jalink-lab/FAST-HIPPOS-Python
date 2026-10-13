@@ -120,8 +120,8 @@ Or use the graphical interface, which opens in the browser:
 uv run fast-hippos gui
 ```
 
-The **Basic** tab holds the settings needed for a typical run; everything else is under **Advanced**, with
-changed settings marked. The GUI reads the image metadata (size, frames, channels, pixel size, frame
+Each section shows the settings needed for a typical run; the others are in an expanding **Advanced
+settings** pane per section, grouped under subheadings, with changed settings marked. The GUI reads the image metadata (size, frames, channels, pixel size, frame
 interval, stitched stage positions) as soon as images are added, checks that Cellpose and the GPU are
 available, checks the settings before a run, and shows the log while it runs. The settings of every run are
 saved in the output folder as `fast_hippos_settings.toml`, so a run can be repeated from the command line.
@@ -191,7 +191,9 @@ gives the same results as the Python pipeline; the test suite checks this.
    *selection* and use hand-picked cells as the hits.
 2. For a single image, **Hits → .rgn** and **Hits → TSV** give you the final files directly.
 3. To apply the settings to the whole run (all images, the combined hit list, `.rgn` chunks with routes, and
-   the index page), click **Settings → TOML** and run:
+   the index page): in a dashboard opened from the GUI (`fast-hippos gui`, *Open overview* or *Dashboard*),
+   click **↻ Apply to run**. The GUI re-applies the settings and the dashboard reloads with the result.
+   Without the GUI, click **Settings → TOML** and run:
 
    ```powershell
    uv run fast-hippos reapply experiment.toml --override screening_<image>.toml

@@ -41,8 +41,8 @@ min_cell_intensity = 0
 
 [display]
 lut = "turbo"                         # turbo | viridis | plasma | magma | inferno | cividis | gray
-min_lifetime = 2.0
-max_lifetime = 3.4
+# min_lifetime = 2.0                  # colour scale / axes; default: from the data (can be changed in the dashboard)
+# max_lifetime = 3.4
 smooth_traces = 0                     # temporal box radius (frames), used for traces and hit detection
 overlay_smooth_xy = 1.0
 overlay_smooth_t = 1.0

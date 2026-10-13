@@ -90,8 +90,10 @@ class SegmentationSettings:
 @dataclass
 class DisplaySettings:
     lut: str = "turbo"
-    min_lifetime: float = 2.0
-    max_lifetime: float = 3.4
+    # initial lifetime / ratio range of colour scales and axes; None = from the data (1st-99th percentile).
+    # Can also be changed in the dashboard.
+    min_lifetime: float | None = None
+    max_lifetime: float | None = None
     smooth_traces: float = 0.0  # temporal box radius (frames) for traces and hit detection
     overlay_smooth_xy: float = 1.0  # radius (pixels) for the lifetime overlay
     overlay_smooth_t: float = 1.0  # radius (frames) for the lifetime overlay

@@ -68,10 +68,24 @@ def _columns(df: pd.DataFrame) -> dict[str, list]:
 
 
 def display_range(result: ImageResult, settings: Settings) -> tuple[float, float]:
-    if result.unit == "Intensity":
-        finite = result.kymo[np.isfinite(result.kymo)]
-        return (float(np.percentile(finite, 1)), float(np.percentile(finite, 99))) if finite.size else (0.0, 1.0)
-    return settings.display.min_lifetime, settings.display.max_lifetime
+    """Initial colour / axis range: display.min_lifetime and max_lifetime if set, else from the data (1st-99th
+    percentile of all cell values, rounded outward to a round step). The dashboard can change it later."""
+    lo, hi = auto_range(result.kymo)
+    d = settings.display
+    lo = lo if d.min_lifetime is None else d.min_lifetime
+    hi = hi if d.max_lifetime is None else d.max_lifetime
+    return (lo, hi) if hi > lo else (lo, lo + 1.0)
+
+
+def auto_range(values: np.ndarray) -> tuple[float, float]:
+    finite = values[np.isfinite(values)]
+    if not finite.size:
+        return 0.0, 1.0
+    p1, p99 = (float(x) for x in np.percentile(finite, [1, 99]))
+    span = p99 - p1 or abs(p99) or 1.0
+    raw = span / 10
+    step = min((m * 10 ** math.floor(math.log10(raw)) for m in (1, 2, 2.5, 5, 10)), key=lambda s: abs(s - raw))
+    return round(math.floor(p1 / step) * step, 10), round(math.ceil(p99 / step) * step, 10)
 
 
 def _png_url(name: str) -> str:
