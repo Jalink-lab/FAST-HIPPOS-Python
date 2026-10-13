@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAST-HIPPOS</title>
+<link rel="icon" type="image/png" href="__FH_ICON__">
+<style>
+:root {
+  --bg: #f3f5f8; --panel: #ffffff; --panel2: #f6f7f9; --line: #dde2e8; --text: #1b2330; --muted: #5d6877;
+  --accent: #1f6fd1; --accent-soft: rgba(31,111,209,.10); --hit: #d0157f; --ok: #1f9d5c; --warn: #b26a00; --err: #c62828;
+  --changed: #e69500; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0f1216; --panel: #171b21; --panel2: #1d222a; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
+  --accent: #4da3ff; --accent-soft: rgba(77,163,255,.12); --hit: #ff4fb0; --ok: #3fbf7f; --warn: #e3a33a; --err: #ff6b6b;
+  --changed: #ffb340; color-scheme: dark;
+} }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; align-items: center; gap: 14px; padding: 10px 16px; }
+header .logo { width: 60px; height: 60px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--line); flex: none; }
+header h1 { margin: 0; font-size: 18px; } header .sub { color: var(--muted); }
+header .sp { flex: 1; }
+input, select, button, textarea { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; }
+input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+button { cursor: pointer; } button:hover:not(:disabled) { border-color: var(--accent); } button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 7px 14px; }
+button.small { padding: 1px 7px; font-size: 12px; }
+button.link { background: none; border: none; color: var(--accent); padding: 0; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 14px; padding: 0 16px 24px; align-items: start; }
+@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } }
+.tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.tabs button { border-radius: 999px; padding: 5px 14px; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tabs .note { align-self: center; margin-left: 8px; color: var(--muted); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+.card > h2 { margin: 0; font-size: 13px; padding: 9px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+.card > h2 .count { color: var(--changed); font-weight: 500; font-size: 12px; }
+.card > h2 .sp { flex: 1; }
+.card.closed > .body { display: none; } .card.closed > h2 { border-bottom: none; }
+.card > h2.toggle { cursor: pointer; } .card > h2.toggle::before { content: "▾"; color: var(--muted); } .card.closed > h2.toggle::before { content: "▸"; }
+.body { padding: 10px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 18px; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field > label { color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: center; }
+.field.changed > label::after { content: "●"; color: var(--changed); font-size: 9px; }
+.field .help { color: var(--muted); font-size: 11.5px; }
+.field.check { flex-direction: row; align-items: center; gap: 7px; } .field.check > label { color: var(--text); font-size: 13px; }
+.row { display: flex; gap: 6px; align-items: center; } .row > input:not([type=checkbox]), .row > select { flex: 1; min-width: 0; }
+.files { display: flex; flex-direction: column; gap: 4px; }
+.file { display: flex; gap: 8px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.file .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file .meta { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.file .bad { color: var(--err); }
+.chip { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; font-size: 11.5px; color: var(--muted); }
+.chip.ok { color: var(--ok); border-color: var(--ok); } .chip.warn { color: var(--warn); border-color: var(--warn); }
+.crit { display: grid; grid-template-columns: 56px minmax(150px, 1.4fr) 76px minmax(60px, .6fr) minmax(60px, .6fr) 28px; gap: 6px; align-items: center; margin-bottom: 6px; }
+.pill { border-radius: 999px; font-size: 11.5px; font-weight: 700; padding: 2px 0; }
+.pill.AND { background: var(--accent-soft); color: var(--accent); } .pill.OR { background: rgba(208,21,127,.12); color: var(--hit); }
+.side { position: sticky; top: 12px; }
+.checks { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 4px; }
+.checks li { display: flex; gap: 7px; } .checks .i { width: 16px; text-align: center; }
+.checks .err { color: var(--err); } .checks .warn { color: var(--warn); } .checks .ok { color: var(--ok); }
+.runbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.state { font-weight: 600; } .state.running { color: var(--accent); } .state.done { color: var(--ok); } .state.failed, .state.stopped { color: var(--err); }
+.progress { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin: 6px 0 10px; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+pre.log { margin: 0; height: 330px; overflow: auto; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px;
+  font: 11.5px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
+.results { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.muted { color: var(--muted); }
+#toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 8px; display: none; z-index: 10; }
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" src="__FH_LOGO__" alt="FAST-HIPPOS">
+  <div><h1>FAST-HIPPOS</h1><div class="sub">Single-cell FLIM traces and hit identification · <span id="ver"></span> · <span id="from"></span></div></div>
+  <span class="sp"></span>
+  <button id="bOpen" title="Load settings from a .toml file (e.g. fast_hippos_settings.toml from an output folder)">Open settings…</button>
+  <button id="bSave" title="Save the settings as a .toml file">Save settings…</button>
+  <button id="bReset" title="All settings back to the defaults">Defaults</button>
+</header>
+<main>
+  <section>
+    <div class="tabs"><button data-tab="basic" class="on">Basic</button><button data-tab="advanced">Advanced</button><span class="note" id="advNote"></span></div>
+    <div id="form"></div>
+  </section>
+  <aside class="side">
+    <div class="card"><h2>Run</h2><div style="padding:10px 12px">
+      <ul class="checks" id="checks"></ul>
+      <div class="runbtns">
+        <button class="primary" id="bRun">▶ Run analysis</button>
+        <button id="bReapply" title="Redo event detection, screening and dashboards on the saved output in the output folder, without segmentation (seconds instead of minutes)">↻ Re-apply screening</button>
+        <button id="bStop" disabled>■ Stop</button>
+      </div>
+      <div><span class="state" id="state">Ready</span> <span class="muted" id="stateInfo"></span></div>
+      <div class="progress"><div id="bar"></div></div>
+      <pre class="log" id="log"></pre>
+      <div class="results" id="results"></div>
+    </div></div>
+  </aside>
+</main>
+<div id="toast"></div>
+<script>
+"use strict";
+const TOKEN = "__FH_TOKEN__";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+async function api(name, body = {}) {
+  const r = await fetch("/api/" + name, { method: "POST", headers: { "Content-Type": "application/json", "X-FH-Token": TOKEN }, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+function toast(msg, ms = 2500) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", ms); }
+
+let SCHEMA, S, DEFAULTS, TAB = "basic", INFO = {}, CP = {}, OUT = {}, JOB = { n: 0, state: "idle" };
+const FIELD = {};  // key -> spec
+const get = (key) => { const [s, k] = key.split("."); return S[s][k]; };
+const set = (key, v) => { const [s, k] = key.split("."); S[s][k] = v; };
+const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const isChanged = (f) => !same(get(f.key), f.default);
+function shown(cond) { return !cond || Object.entries(cond).every(([k, vals]) => vals.some(v => same(get(k), v))); }
+
+// ---------------------------------------------------------------- facts from the input files
+function fileFacts() {
+  const files = (S.input.files || []).map(p => INFO[p]).filter(Boolean);
+  const num = (k) => files.map(f => f[k]).filter(v => v != null);
+  return { files, channels: Math.max(0, ...num("channels")), frames: Math.min(Infinity, ...num("frames")),
+           stitched: files.length > 0 && files.every(f => f.stitched), interval: files.length > 0 && files.every(f => f.frame_interval) };
+}
+async function inspect(paths) {
+  const todo = paths.filter(p => !(p in INFO)); if (!todo.length) return;
+  try { for (const f of (await api("inspect", { paths: todo })).files) INFO[f.path] = f; } catch (e) { toast(e.message); }
+  render();
+}
+function fileMeta(f) {
+  if (!f) return "…";
+  if (!f.exists) return `<span class="bad">not found</span>`;
+  if (f.error) return `<span class="bad">${esc(f.error)}</span>`;
+  const parts = [];
+  if (f.series) parts.push(`${f.series} series`);
+  if (f.width) parts.push(`${f.width}×${f.height} px`);
+  if (f.frames) parts.push(`${f.frames} frames`);
+  if (f.channels) parts.push(`${f.channels} ch`);
+  if (f.pixel_size) parts.push(`${f.pixel_size} µm/px`);
+  if (f.frame_interval) parts.push(`${(+f.frame_interval).toFixed(2)} s/frame`);
+  parts.push(f.size_mb >= 1000 ? `${(f.size_mb / 1000).toFixed(1)} GB` : `${f.size_mb} MB`);
+  return esc(parts.join(" · ")) + (f.stitched ? ` <span class="chip ok">stitched · stage positions</span>` : "");
+}
+
+// ---------------------------------------------------------------- Cellpose status
+const CP_MODELS = { cyto3: "cyto3 (Cellpose 3)", nuclei: "nuclei (Cellpose 3)", cyto2_cp3: "cyto2_cp3 (Cellpose 3)", cpsam: "cpsam (Cellpose 4, Cellpose-SAM)" };
+function cpVersion() { return S.segmentation.cellpose_version || (S.segmentation.cellpose_model === "cpsam" ? 4 : 3); }
+function cpPython() { return S.segmentation[`cellpose${cpVersion()}_python`] || ""; }
+async function checkCellpose() {
+  const py = cpPython(), key = `${cpVersion()}|${py}`;
+  if (CP[key]) return; CP[key] = { pending: true }; render();
+  try { CP[key] = await api("cellpose", { python: py }); } catch (e) { CP[key] = { error: e.message }; }
+  render();
+}
+function cpStatus() {
+  if (S.segmentation.method !== "cellpose") return "";
+  const v = cpVersion(), r = CP[`${v}|${cpPython()}`];
+  if (!r) { setTimeout(checkCellpose); return `<span class="chip">checking Cellpose…</span>`; }
+  if (r.pending) return `<span class="chip">checking Cellpose ${v}…</span>`;
+  if (r.error || !r.cellpose) return `<span class="chip warn">Cellpose ${v} not found${cpPython() ? "" : " in this environment: set its python.exe under Advanced → Segmentation"}</span>`;
+  const major = +r.cellpose.split(".")[0];
+  if (major !== v) return `<span class="chip warn">environment has Cellpose ${esc(r.cellpose)}, model needs ${v}</span>`;
+  return `<span class="chip ok">Cellpose ${esc(r.cellpose)} · ${r.gpu ? "GPU " + esc(r.gpu) : "CPU only"}</span>`;
+}
+
+// ---------------------------------------------------------------- widgets
+function widget(f) {
+  const v = get(f.key), id = "f_" + f.key.replace(".", "_");
+  const num = (step) => `<input id="${id}" type="number" step="${step}" value="${v ?? ""}" placeholder="${f.optional ? "—" : ""}" data-num="${step === "1" ? "int" : "float"}">`;
+  switch (f.kind) {
+    case "bool": return `<input id="${id}" type="checkbox" ${v ? "checked" : ""}>`;
+    case "int": return num("1");
+    case "float": return num("any");
+    case "select": return `<select id="${id}">${Object.entries(f.choices).map(([k, l]) => `<option value="${esc(k)}" ${same(k, v) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+    case "frame": {
+      const ff = fileFacts(), max = Number.isFinite(ff.frames) ? ff.frames - 1 : "";
+      return `<div class="row"><input id="${id}" type="number" step="1" min="0" max="${max}" value="${v ?? ""}" placeholder="automatic" data-num="int"><span class="muted">${max !== "" ? "0–" + max : ""}</span></div>`;
+    }
+    case "channel": case "channel_required": {
+      const n = Math.max(fileFacts().channels, v || 0, 1), opts = [];
+      if (f.kind === "channel") opts.push(`<option value="" ${v == null ? "selected" : ""}>none</option>`);
+      for (let c = 1; c <= n; c++) opts.push(`<option value="${c}" ${v === c ? "selected" : ""}>channel ${c}</option>`);
+      return `<select id="${id}" data-num="int">${opts.join("")}</select>`;
+    }
+    case "file": case "python": case "folder":
+      return `<div class="row"><input id="${id}" type="text" value="${esc(v ?? "")}" placeholder="${f.optional ? "—" : ""}"><button class="small" data-browse="${f.key}" data-kind="${f.kind}">Browse…</button></div>`;
+    case "model": {
+      const custom = !(v in CP_MODELS);
+      return `<div class="row"><select id="${id}">${Object.entries(CP_MODELS).map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("")}
+        <option value="__custom" ${custom ? "selected" : ""}>custom model file…</option></select></div>
+        ${custom ? `<div class="row"><input id="${id}_path" type="text" value="${esc(v)}"><button class="small" data-browse="${f.key}" data-kind="file">Browse…</button></div>` : ""}
+        <div>${cpStatus()}</div>`;
+    }
+    case "pair": {
+      const [a, b] = v || ["", ""];
+      return `<div class="row"><input id="${id}_0" type="number" step="any" value="${a ?? ""}" placeholder="off"> – <input id="${id}_1" type="number" step="any" value="${b ?? ""}" placeholder="off"></div>`;
+    }
+    case "intlist": return `<input id="${id}" type="text" value="${esc((v || []).join(", "))}" placeholder="all">`;
+    case "metric": return `<select id="${id}"><option value="">(cell order)</option>${Object.keys(SCHEMA.metrics).map(m => `<option ${m === v ? "selected" : ""}>${m}</option>`).join("")}</select>`;
+    case "files": {
+      const files = v || [];
+      return `<div class="files">${files.map((p, i) => `<div class="file"><span class="name" title="${esc(p)}">${esc(p.split(/[\\/]/).pop())}</span>
+          <span class="meta">${fileMeta(INFO[p])}</span><button class="small" data-remove="${i}" title="Remove">✕</button></div>`).join("")}
+        <div class="row"><button data-browse="${f.key}" data-kind="files">Add images…</button>${files.length ? `<button class="link" data-clearfiles>clear</button>` : `<span class="muted">no images selected</span>`}</div></div>`;
+    }
+    case "criteria": {
+      const crit = v || [], metrics = Object.keys(SCHEMA.metrics);
+      return `<div>${crit.map((c, i) => `<div class="crit" data-crit="${i}">
+          <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
+          <select data-c="metric" title="${esc(SCHEMA.metrics[c.metric] || "")}">${metrics.map(m => `<option ${m === c.metric ? "selected" : ""}>${m}</option>`).join("")}</select>
+          <select data-c="op">${[["<", "<"], [">", ">"], ["between", "between"]].map(([k, l]) => `<option value="${k}" ${k === c.op ? "selected" : ""}>${l}</option>`).join("")}</select>
+          <input data-c="value" type="number" step="any" value="${c.value ?? ""}">
+          ${c.op === "between" ? `<input data-c="value2" type="number" step="any" value="${c.value2 ?? ""}">` : "<span></span>"}
+          <button class="small" data-c="remove" title="Remove">✕</button></div>`).join("")}
+        <div class="row"><button class="small" data-addcrit>+ criterion</button><span class="muted">${crit.length ? "hover a metric for its meaning; thresholds can be refined later in the dashboard" : "no criteria: all valid cells are listed, refine in the dashboard"}</span></div></div>`;
+    }
+    default: return `<input id="${id}" type="text" value="${esc(v ?? "")}">`;
+  }
+}
+function fieldHTML(f) {
+  const wide = ["files", "criteria", "model"].includes(f.kind) || ["file", "python", "folder"].includes(f.kind);
+  const cls = ["field", f.kind === "bool" ? "check" : "", wide ? "wide" : "", isChanged(f) && TAB === "advanced" ? "changed" : ""].join(" ");
+  const label = `<label for="f_${f.key.replace(".", "_")}" title="${esc(f.key)}">${esc(f.label)}</label>`;
+  const hint = hintFor(f);
+  const help = (f.help || hint) ? `<div class="help">${esc(f.help || "")}${hint ? (f.help ? " · " : "") + hint : ""}</div>` : "";
+  return f.kind === "bool" ? `<div class="${cls}" data-key="${f.key}">${widget(f)}${label}${help ? `<span class="help">${help}</span>` : ""}</div>`
+    : `<div class="${cls}" data-key="${f.key}">${label}${widget(f)}${help}</div>`;
+}
+// context-dependent hints, derived from the selected images
+function hintFor(f) {
+  const ff = fileFacts();
+  if (f.key === "screening.stage_positions_file" && ff.stitched) return "<b>the selected images carry their stage positions</b>";
+  if (f.key === "input.modality" && ff.files.length && ["tcspc", "ratio"].includes(get(f.key)) && ff.channels < 2) return `<span style="color:var(--warn)">needs 2 channels, the images have ${ff.channels}</span>`;
+  if (f.key === "input.default_frame_interval" && ff.files.length && !ff.interval) return `<span style="color:var(--warn)">used: not all images have a frame interval</span>`;
+  return "";
+}
+
+// ---------------------------------------------------------------- layout
+const BASIC_GROUPS = [
+  ["Images", ["input.files", "input.output", "input.modality", "input.tau1", "input.tau2", "input.additional_channel"]],
+  ["Cell segmentation", ["segmentation.method", "segmentation.cellpose_model", "segmentation.diameter", "segmentation.labelmap", "segmentation.min_cell_size"]],
+  ["Stimulation, calibration and display", ["events.stimulation_frame", "events.calibration_frame", "events.baseline_only", "display.min_lifetime", "display.max_lifetime"]],
+  ["Screening", ["screening.enabled", "screening.criteria", "screening.stage_positions_file", "screening.classify_additional_channel"]],
+];
+const closed = new Set();
+function render() {
+  const active = document.activeElement?.id;
+  let html = "";
+  if (TAB === "basic") {
+    for (const [title, keys] of BASIC_GROUPS) {
+      const fs = keys.map(k => FIELD[k]).filter(f => f && shown(f.show));
+      html += `<div class="card"><h2>${esc(title)}</h2><div class="body">${fs.map(fieldHTML).join("")}</div></div>`;
+    }
+  } else {
+    for (const sec of SCHEMA.sections) {
+      if (!shown(sec.show)) continue;
+      const fs = sec.fields.filter(f => f.level !== "basic" && shown(f.show));
+      if (!fs.length) continue;
+      const n = fs.filter(isChanged).length;
+      html += `<div class="card ${closed.has(sec.name) ? "closed" : ""}" data-sec="${sec.name}"><h2 class="toggle">${esc(sec.title)}<span class="sp"></span>${n ? `<span class="count">${n} changed</span> <button class="small" data-resetsec="${sec.name}">reset</button>` : ""}</h2>
+        <div class="body">${fs.map(fieldHTML).join("")}</div></div>`;
+    }
+  }
+  $("form").innerHTML = html;
+  const nAdv = SCHEMA.sections.flatMap(s => s.fields).filter(f => f.level !== "basic" && shown(f.show) && isChanged(f)).length;
+  $("advNote").textContent = nAdv ? `${nAdv} advanced setting${nAdv > 1 ? "s" : ""} changed from the defaults` : "";
+  if (active && $(active)) $(active).focus();
+  renderChecks();
+}
+
+// ---------------------------------------------------------------- earlier results in the output folder
+function outputState() {
+  const p = S.input.output || "";
+  if (!(p in OUT)) { OUT[p] = null; api("output", { path: p }).then(r => { OUT[p] = r; renderChecks(); }).catch(() => {}); }
+  return OUT[p];
+}
+
+// ---------------------------------------------------------------- checks before running
+function checks() {
+  const out = [], ff = fileFacts(), add = (level, msg) => out.push([level, msg]);
+  if (!S.input.files.length) add("err", "Add one or more images");
+  ff.files.filter(f => !f.exists || f.error).forEach(f => add("err", `${f.name}: ${f.exists ? "cannot be read" : "not found"}`));
+  if (!S.input.output) add("err", "Choose an output folder");
+  const o = outputState();
+  if (o && o.images.length) add("warn", `The output folder has results of ${o.images.length} image${o.images.length > 1 ? "s" : ""}: a new run overwrites them; Re-apply screening reuses them`);
+  if (S.segmentation.method === "labelmap" && !S.segmentation.labelmap) add("err", "Choose the label image");
+  if (S.segmentation.method === "cellpose") {
+    const r = CP[`${cpVersion()}|${cpPython()}`];
+    if (r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== cpVersion())) add("err", `Cellpose ${cpVersion()} is not available (Advanced → Segmentation)`);
+    else if (r && r.cellpose && !r.gpu && S.segmentation.use_gpu) add("warn", "No GPU found: Cellpose will run on the CPU (slow)");
+  }
+  const st = S.events.stimulation_frame, ca = S.events.calibration_frame;
+  if (st != null && ca != null && ca <= st) add("err", "The calibration frame must come after the stimulation frame");
+  if (Number.isFinite(ff.frames) && [st, ca].some(x => x != null && x >= ff.frames)) add("err", `Frames must be below ${ff.frames}`);
+  if (S.display.max_lifetime <= S.display.min_lifetime) add("err", "Display max must be larger than display min");
+  if (S.screening.enabled) {
+    if (!S.screening.stage_positions_file && !ff.stitched) add("warn", "No stage positions: hits are found, but no .rgn files are written");
+    if (!S.screening.criteria.length && !S.screening.manual_hits && !S.screening.random_hits) add("warn", "No hit criteria: every valid cell becomes a hit");
+    if (S.screening.classify_additional_channel && !S.input.additional_channel) add("warn", "Classification needs an additional channel");
+    S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
+  }
+  if (!out.length) add("ok", "Ready to run");
+  return out;
+}
+function renderChecks() {
+  const cs = checks(), icon = { err: "✕", warn: "!", ok: "✓" };
+  $("checks").innerHTML = cs.map(([l, m]) => `<li class="${l}"><span class="i">${icon[l]}</span><span>${esc(m)}</span></li>`).join("");
+  const blocked = cs.some(c => c[0] === "err") || JOB.state === "running", o = outputState();
+  $("bRun").disabled = blocked; $("bReapply").disabled = blocked || !(o && o.images.length);
+  $("bReapply").title = o && o.images.length ? `Redo event detection, screening and dashboards for ${o.images.join(", ")} without segmentation (seconds instead of minutes)`
+    : "Needs the results of an earlier run in the output folder";
+}
+
+// ---------------------------------------------------------------- events
+function readInput(el) {
+  const fieldEl = el.closest("[data-key]"); if (!fieldEl) return;
+  const f = FIELD[fieldEl.dataset.key];
+  let v;
+  if (f.kind === "bool") v = el.checked;
+  else if (f.kind === "pair") {
+    const a = $(el.id.replace(/_[01]$/, "_0")).value, b = $(el.id.replace(/_[01]$/, "_1")).value;
+    v = a === "" && b === "" ? null : [a === "" ? null : +a, b === "" ? null : +b];
+  } else if (f.kind === "intlist") v = el.value.trim() ? el.value.split(/[,\s]+/).filter(Boolean).map(Number) : null;
+  else if (f.kind === "model") v = el.tagName === "SELECT" ? (el.value === "__custom" ? "" : el.value) : el.value;
+  else if (el.dataset.num) v = el.value === "" ? (f.optional ? null : f.default) : (el.dataset.num === "int" ? parseInt(el.value, 10) : parseFloat(el.value));
+  else v = el.value === "" && f.optional ? null : el.value;
+  set(f.key, v);
+}
+document.addEventListener("change", (e) => {
+  const el = e.target;
+  const crit = el.closest("[data-crit]");
+  if (crit) {
+    const c = S.screening.criteria[+crit.dataset.crit], k = el.dataset.c;
+    c[k] = k === "value" || k === "value2" ? (el.value === "" ? null : +el.value) : el.value;
+    render(); return;
+  }
+  if (el.closest("[data-key]")) { readInput(el); render(); }
+});
+document.addEventListener("input", (e) => { if (e.target.type === "number" && e.target.closest("[data-key]") && !e.target.closest("[data-crit]")) { readInput(e.target); renderChecks(); } });
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button, h2.toggle"); if (!b) return;
+  if (b.dataset.tab) { TAB = b.dataset.tab; document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b)); render(); return; }
+  if (b.matches("h2.toggle") && !e.target.closest("button")) { const s = b.parentElement.dataset.sec; closed.has(s) ? closed.delete(s) : closed.add(s); render(); return; }
+  if (b.dataset.resetsec) { const sec = SCHEMA.sections.find(s => s.name === b.dataset.resetsec); sec.fields.filter(f => f.level !== "basic").forEach(f => set(f.key, structuredClone(f.default))); render(); return; }
+  if (b.dataset.browse) {
+    const f = FIELD[b.dataset.browse], kind = b.dataset.kind, cur = get(f.key);
+    const initial = Array.isArray(cur) ? cur[0] || S.input.output || "" : cur || "";
+    const types = kind === "files" ? "files" : kind === "python" ? "python" : "file";
+    const r = (await api("browse", { kind: kind === "files" ? "files" : kind === "folder" ? "folder" : "file", title: f.label, initial, types })).result;
+    if (!r || (Array.isArray(r) && !r.length)) return;
+    if (kind === "files") {
+      const files = [...new Set([...(cur || []), ...r])]; set(f.key, files);
+      if (!S.input.output || S.input.output === "output") set("input.output", r[0].replace(/[\\/][^\\/]*$/, "") + "/FAST-HIPPOS_output");
+      inspect(files);
+    } else set(f.key, r);
+    render(); return;
+  }
+  if (b.dataset.remove) { S.input.files.splice(+b.dataset.remove, 1); render(); return; }
+  if (b.hasAttribute("data-clearfiles")) { S.input.files = []; render(); return; }
+  if (b.hasAttribute("data-addcrit")) { S.screening.criteria.push({ metric: "response_max_diff", op: ">", value: 0.3, value2: null, logic: "AND" }); render(); return; }
+  const crit = b.closest("[data-crit]");
+  if (crit) {
+    const i = +crit.dataset.crit, c = S.screening.criteria[i];
+    if (b.dataset.c === "remove") S.screening.criteria.splice(i, 1);
+    if (b.dataset.c === "logic") c.logic = (c.logic || S.screening.logic) === "AND" ? "OR" : "AND";
+    render();
+  }
+});
+
+// header buttons
+$("bOpen").onclick = async () => {
+  const r = (await api("browse", { kind: "file", title: "Open settings", types: "toml", initial: S.input.output || "" })).result; if (!r) return;
+  try { setSettings((await api("load", { path: r })).settings); $("from").textContent = "settings from " + r; toast("Settings loaded"); } catch (e) { toast(e.message, 5000); }
+};
+$("bSave").onclick = async () => {
+  const r = (await api("browse", { kind: "save", title: "Save settings", types: "toml", initial: S.input.output || "" })).result; if (!r) return;
+  try { await api("save", { path: r, settings: S }); toast("Saved " + r); } catch (e) { toast(e.message, 5000); }
+};
+$("bReset").onclick = () => { const files = S.input.files, out = S.input.output; setSettings(structuredClone(DEFAULTS)); S.input.files = files; S.input.output = out; render(); toast("Defaults restored (images and output folder kept)"); };
+
+// ---------------------------------------------------------------- running
+async function start(reapply) {
+  try { await api("run", { settings: S, reapply }); } catch (e) { toast(e.message, 6000); return; }
+  JOB = { n: 0, state: "running" }; $("log").innerHTML = ""; $("results").innerHTML = ""; poll();
+}
+$("bRun").onclick = () => start(false);
+$("bReapply").onclick = () => start(true);
+$("bStop").onclick = () => api("stop");
+async function poll() {
+  let st; try { st = await api("status", { since: JOB.n }); } catch { setTimeout(poll, 1500); return; }
+  const log = $("log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
+  for (const line of st.lines) {
+    const cls = /ERROR|Traceback|Error:/.test(line) ? "e" : /WARNING/.test(line) ? "w" : "";
+    log.insertAdjacentHTML("beforeend", `<span class="${cls}">${esc(line)}</span>\n`);
+  }
+  if (atEnd) log.scrollTop = log.scrollHeight;
+  JOB.n = st.n; JOB.state = st.state;
+  const all = log.textContent, nImg = (all.match(/INFO {4}--- /g) || []).length, total = Math.max(1, S.input.files.length);
+  const label = { idle: "Ready", running: "Running…", done: "Done", failed: "Failed", stopped: "Stopped" }[st.state];
+  $("state").textContent = label; $("state").className = "state " + st.state;
+  $("stateInfo").textContent = st.state === "running" ? `image ${Math.min(nImg, total)} of ${total}` : "";
+  $("bar").style.width = (st.state === "done" ? 100 : st.state === "running" ? Math.min(95, (Math.max(nImg, 1) - 0.5) / total * 100) : 0) + "%";
+  $("bStop").disabled = st.state !== "running";
+  if (st.state === "running") { setTimeout(poll, 700); renderChecks(); return; }
+  if (st.state !== "running") delete OUT[S.input.output || ""];  // re-check for results
+  renderChecks();
+  if (st.state === "done") {
+    const links = [];
+    if (st.index) links.push(`<button class="primary" data-open="${esc(st.index)}">Open overview</button>`);
+    for (const d of st.dashboards || []) links.push(`<button data-open="${esc(d)}">Dashboard: ${esc(d.split(/[\\/]/).slice(-2, -1)[0])}</button>`);
+    links.push(`<button data-open="${esc(st.output)}">Open output folder</button>`);
+    $("results").innerHTML = links.join("");
+  }
+}
+$("results").addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) api("open", { path: b.dataset.open }).catch(err => toast(err.message)); });
+
+function setSettings(s) {
+  S = s;
+  for (const sec of SCHEMA.sections) for (const f of sec.fields) { const [a, k] = f.key.split("."); if (!(k in S[a])) S[a][k] = structuredClone(f.default); }
+  inspect(S.input.files || []); render();
+}
+(async () => {
+  SCHEMA = await api("schema");
+  for (const sec of SCHEMA.sections) for (const f of sec.fields) FIELD[f.key] = f;
+  DEFAULTS = (await api("defaults")).settings;
+  const init = await api("initial");
+  $("ver").textContent = "version " + SCHEMA.version;
+  $("from").textContent = init.from ? "last used settings" : "default settings";
+  setSettings(init.settings);
+  const st = await api("status"); if (st.state === "running") { JOB.state = "running"; poll(); }
+})();
+</script>
+</body>
+</html>

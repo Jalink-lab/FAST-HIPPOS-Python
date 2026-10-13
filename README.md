@@ -114,6 +114,18 @@ uv run fast-hippos init-config experiment.toml   # annotated example config to e
 uv run fast-hippos run experiment.toml           # full analysis
 ```
 
+Or use the graphical interface, which opens in the browser:
+
+```powershell
+uv run fast-hippos gui
+```
+
+The **Basic** tab holds the settings needed for a typical run; everything else is under **Advanced**, with
+changed settings marked. The GUI reads the image metadata (size, frames, channels, pixel size, frame
+interval, stitched stage positions) as soon as images are added, checks that Cellpose and the GPU are
+available, checks the settings before a run, and shows the log while it runs. The settings of every run are
+saved in the output folder as `fast_hippos_settings.toml`, so a run can be repeated from the command line.
+
 A minimal config for a TCSPC screen:
 
 ```toml

@@ -29,6 +29,9 @@ def main(argv: list[str] | None = None) -> int:
     t.add_argument("annotations", type=Path, help="label image: 0 = unlabelled, 1..K = classes")
     t.add_argument("output", type=Path, help="classifier file (.joblib)")
     t.add_argument("--sigma-max", type=float, default=16.0)
+    g = sub.add_parser("gui", help="open the graphical user interface in the browser")
+    g.add_argument("--port", type=int, default=0, help="port on 127.0.0.1 (default: a free one)")
+    g.add_argument("--no-browser", action="store_true", help="do not open the browser")
     d = sub.add_parser("demo", help="analyze a synthetic data set and open the dashboard")
     d.add_argument("output", type=Path, nargs="?", default=Path("fast_hippos_demo"))
     args = p.parse_args(argv)
@@ -56,6 +59,11 @@ def main(argv: list[str] | None = None) -> int:
         image = read_tiff(args.image).data[0, 0]
         annotations = read_tiff(args.annotations).data[0, 0].astype(int)
         train(image, annotations, args.output, sigma_max=args.sigma_max)
+        return 0
+    if args.command == "gui":
+        from .gui import serve
+
+        serve(args.port, open_browser=not args.no_browser)
         return 0
     if args.command == "demo":
         return _demo(args.output)
