@@ -223,9 +223,9 @@ def test_summed_image():
 def test_bidirectional_estimate_large_values_no_overflow():
     import warnings
 
-    from fast_hippos.preprocess import estimate_bidirectional_shift
-
     from scipy import ndimage as ndi
+
+    from fast_hippos.preprocess import estimate_bidirectional_shift
 
     rng = np.random.default_rng(3)
     img = ndi.gaussian_filter(rng.random((256, 512)), 3)  # structure shared by even and odd lines, no offset
