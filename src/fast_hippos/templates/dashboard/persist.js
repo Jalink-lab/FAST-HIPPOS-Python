@@ -13,6 +13,7 @@ function writeStore(store, value) { try { store.setItem(PERSIST_KEY, JSON.string
   for (const k of DISPLAY_KEYS) if (k in saved && typeof saved[k] === typeof S[k]) S[k] = saved[k];
   if (!(S.dmax > S.dmin)) { S.dmin = D.display.min; S.dmax = D.display.max; }
   if (S.fillMetric && !(S.fillMetric in C)) S.fillMetric = "";
+  if (!["hit", "cell"].includes(S.tcol)) S.tcol = D.screening.enabled ? "hit" : "cell";  // 'gray' no longer exists
   if (saved.theme) document.documentElement.dataset.theme = saved.theme;
 })();
 
@@ -21,7 +22,7 @@ function saveState() {
   for (const k of DISPLAY_KEYS) display[k] = S[k];
   writeStore(localStorage, display);
   writeStore(sessionStorage, { frame: S.frame, sel: [...S.sel], view: { s: view.s, tx: view.tx, ty: view.ty, auto: view.auto },
-    scroll: window.scrollY, screenClosed: $("scrbody").classList.contains("closed") });
+    kzoom: S.kzoom, kstart: S.kstart, scroll: window.scrollY, screenClosed: $("scrbody").classList.contains("closed") });
 }
 addEventListener("pagehide", saveState);
 addEventListener("beforeunload", saveState);
@@ -42,6 +43,7 @@ function restoreSession() {
   if (S.fillMetric) fillsChanged();
   const s = readStore(sessionStorage); if (!s) return;
   if (Number.isInteger(s.frame)) setFrame(s.frame);
+  if (s.kzoom >= 1) { S.kzoom = s.kzoom; S.kstart = s.kstart || 0; syncKymoZoom(); invalidate("kymo", "kymoOvl"); }
   if (Array.isArray(s.sel)) selectMany(s.sel.filter(i => Number.isInteger(i) && i >= 0 && i < N), false);
   if (s.view && !s.view.auto) { Object.assign(view, { s: s.view.s, tx: s.view.tx, ty: s.view.ty, auto: false, fitted: true }); invalidate("viewer"); }
   if (typeof s.screenClosed === "boolean" && s.screenClosed !== $("scrbody").classList.contains("closed")) $("scrtoggle").click();

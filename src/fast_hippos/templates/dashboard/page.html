@@ -97,13 +97,15 @@
   <section class="panel traces">
     <div class="panel-h"><h2>Traces</h2><span id="trinfo" class="muted"></span><span class="sp"></span>
       <label class="muted">View <select id="tmode"><option value="lines">lines</option><option value="bands">bands</option><option value="density">density</option></select></label>
-      <label class="muted">Color <select id="tcol"><option value="cell">per cell</option><option value="hit">hits</option><option value="gray">gray</option></select></label></div>
+      <label class="muted">Color <select id="tcol"><option value="hit">hits</option><option value="cell">per cell</option></select></label></div>
     <div class="stack"><canvas id="trb"></canvas><canvas id="trs"></canvas><canvas id="trh"></canvas></div>
   </section>
   <section class="panel kymo">
     <div class="panel-h"><h2>Kymograph</h2><span class="muted">time ↓ · shift+drag selects a range</span><span class="sp"></span>
       <label class="muted"><input type="checkbox" id="ksort" checked> sorted on response</label></div>
     <div class="stack"><canvas id="kyb"></canvas><canvas id="kyo"></canvas><svg id="ksvg" class="selsvg"></svg></div>
+    <div class="axisrow" title="Zoom in on the cells (Ctrl+scroll in the kymograph); drag to move along"><span class="muted">zoom</span>
+      <input type="range" id="kzoom" min="0" max="100" value="0" style="flex:1"><span class="muted" id="kinfo"></span></div>
   </section>
   <section class="panel dist">
     <div class="panel-h"><h2>Distribution</h2><span id="distinfo" class="muted"></span></div>

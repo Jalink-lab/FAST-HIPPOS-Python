@@ -1,12 +1,16 @@
 // ---------------------------------------------------------------- traces: lines, quantile bands or density
 const TP = new Plot([$("trb"), $("trs"), $("trh")], { l: 50, r: 12, t: 12, b: 32 });
 const yRange = () => [S.dmin, S.dmax];
+// colour 'hits': non-hits grey and hits fuchsia, in all three views; 'per cell': cell colours (lines) or blue
 function groupsForBands() {
   const vis = []; for (let i = 0; i < N; i++) if (visible(i)) vis.push(i);
-  if (S.tcol === "hit" && HIT.some(Boolean)) return [
-    { ids: vis.filter(i => !HIT[i]), color: css("--trace-gray-solid"), name: "non-hits" },
-    { ids: vis.filter(i => HIT[i]), color: css("--hit"), name: "hits" }];
-  return [{ ids: vis, color: css("--accent"), name: "cells" }];
+  if (S.tcol === "hit") {
+    const hits = vis.filter(i => HIT[i]), rest = vis.filter(i => !HIT[i]), groups = [];
+    if (rest.length) groups.push({ ids: rest, color: css("--trace-gray-solid"), median: css("--mean"), name: "non-hits" });
+    if (hits.length) groups.push({ ids: hits, color: css("--hit"), median: css("--hit"), name: "hits" });
+    return groups;
+  }
+  return vis.length ? [{ ids: vis, color: css("--accent"), median: css("--mean"), name: "cells" }] : [];
 }
 function bandStats(ids, k) {
   const q = [0.1, 0.25, 0.5, 0.75, 0.9], out = q.map(() => new Float64Array(T)), col = new Float64Array(ids.length);
@@ -40,33 +44,27 @@ function drawTraces() {
   const ctx = TP.clear(0); TP.axes(ctx, "time (s)", D.is_lifetime ? "lifetime (ns)" : D.unit);
   ctx.save(); TP.clip(ctx);
   const ev = EV, xs = new Float32Array(T); for (let t = 0; t < T; t++) xs[t] = TP.X(t * FI);
-  const shade = (a, b, col) => { if (b > a) { ctx.fillStyle = col; ctx.fillRect(TP.X(a * FI), TP.m.t, TP.X(Math.max(a, b - 1) * FI) - TP.X(a * FI) || 2, TP.ph); } };
-  if (!ev.baseline_only) { shade(ev.baseline[0], ev.baseline[1], css("--base-win")); shade(ev.timed_window[0], ev.timed_window[1], css("--resp-win")); shade(ev.calibration_window[0], ev.calibration_window[1], css("--cal-win")); }
+  shadeWindows(ctx, TP);
   const k = K(); let nvis = 0; for (let i = 0; i < N; i++) if (visible(i)) nvis++;
   if (S.tmode === "lines") {
     const alpha = nvis > 1000 ? 0.18 : nvis > 200 ? 0.35 : 0.7; ctx.lineWidth = nvis > 1000 ? 0.6 : 1;
     const drawOne = (i) => { ctx.beginPath(); let pen = false; for (let t = 0; t < T; t++) { const v = k[t * N + i]; if (Number.isNaN(v)) { pen = false; continue; } const y = TP.Y(v); pen ? ctx.lineTo(xs[t], y) : ctx.moveTo(xs[t], y); pen = true; } ctx.stroke(); };
     const gray = css("--trace-gray"), hit = css("--hit");
     if (S.tcol === "hit") { ctx.strokeStyle = gray; for (let i = 0; i < N; i++) if (visible(i) && !HIT[i]) drawOne(i); ctx.strokeStyle = hit; ctx.globalAlpha = 0.85; for (let i = 0; i < N; i++) if (visible(i) && HIT[i]) drawOne(i); ctx.globalAlpha = 1; }
-    else if (S.tcol === "gray") { ctx.strokeStyle = gray; for (let i = 0; i < N; i++) if (visible(i)) drawOne(i); }
     else for (let i = 0; i < N; i++) if (visible(i)) { ctx.strokeStyle = cellColor(i, alpha); drawOne(i); }
-    const all = groupsForBands(); const ids = all.flatMap(g => g.ids);
-    if (ids.length) drawBand(ctx, xs, bandStats(ids, k), css("--mean"), 0, 0, 1.6);
+    for (const g of groupsForBands()) drawBand(ctx, xs, bandStats(g.ids, k), g.median, 0, 0, 1.6);
   } else if (S.tmode === "bands") {
     for (const g of groupsForBands()) if (g.ids.length) drawBand(ctx, xs, bandStats(g.ids, k), g.color);
   } else {
-    const vis = []; for (let i = 0; i < N; i++) if (visible(i)) vis.push(i);
-    const hits = vis.filter(i => HIT[i]), rest = hits.length ? vis.filter(i => !HIT[i]) : vis;
-    drawDensity(ctx, rest, k, css("--accent"));
-    if (hits.length) drawDensity(ctx, hits, k, css("--hit"));  // the hits on top, in their own colour
-    if (rest.length) drawBand(ctx, xs, bandStats(rest, k), css("--mean"), 0, 0, 1.6);
-    if (hits.length) drawBand(ctx, xs, bandStats(hits, k), css("--hit"), 0, 0, 1.6);
+    const groups = groupsForBands();  // the hits last: on top
+    for (const g of groups) drawDensity(ctx, g.ids, k, g.color);
+    for (const g of groups) drawBand(ctx, xs, bandStats(g.ids, k), g.median, 0, 0, 1.6);
   }
   ctx.setLineDash([4, 4]); ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1; ctx.font = "11px system-ui"; ctx.fillStyle = css("--muted");
-  for (const [f, name] of [[ev.stimulation, "stim"], [ev.calibration, "cal"]]) if (f !== null && f !== undefined && !ev.baseline_only) { const x = TP.X(f * FI); ctx.beginPath(); ctx.moveTo(x, TP.m.t); ctx.lineTo(x, TP.m.t + TP.ph); ctx.stroke(); ctx.fillText(name, x + 3, TP.m.t + 10); }
+  for (const [f, name] of [[ev.stimulation, "stim"], [ev.calibration, "cal"]]) if (f !== null && f !== undefined && !ev.baseline_only) { const x = TP.X(eventX(f)); ctx.beginPath(); ctx.moveTo(x, TP.m.t); ctx.lineTo(x, TP.m.t + TP.ph); ctx.stroke(); ctx.fillText(name, x + 3, TP.m.t + 10); }
   ctx.restore();
-  $("trinfo").textContent = `${nvis} cells` + (S.tsrc === "smoothed" ? ` · smoothed r=${SCR.params.smooth_traces}` : "");
-  $("trinfo").title = S.tmode === "bands" ? "line: median · bands: 25–75 % and 10–90 %" : S.tmode === "density" ? "density of the traces · line: median" : "line: median of the shown cells";
+  const what = S.tmode === "bands" ? "median, 50/80 %" : S.tmode === "density" ? "density, median" : "median";
+  $("trinfo").textContent = `${nvis} cells · ${what}` + (S.tsrc === "smoothed" ? ` · smoothed r=${SCR.params.smooth_traces}` : "");
 }
 function traceLine(ctx, i, col, w) {
   const k = K(); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); let pen = false;

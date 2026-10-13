@@ -26,8 +26,7 @@ function drawCell() {
   const c = CP.clear(0); CP.axes(c, null, null); c.save(); CP.clip(c);
   const key = `${S.tsrc}|${SCR.version}|${S.show}|${S.show === "sel" ? S.sel.size : 0}`;
   if (key !== popBandKey) { const ids = []; for (let j = 0; j < N; j++) if (visible(j)) ids.push(j); popBand = bandStats(ids, K()); popBandKey = key; }
-  const ev = EV, shade = (a, bb, col) => { if (bb > a) { c.fillStyle = col; c.fillRect(CP.X(a * FI), CP.m.t, CP.X(Math.max(a, bb - 1) * FI) - CP.X(a * FI) || 2, CP.ph); } };
-  if (!ev.baseline_only) { shade(ev.baseline[0], ev.baseline[1], css("--base-win")); shade(ev.timed_window[0], ev.timed_window[1], css("--resp-win")); shade(ev.calibration_window[0], ev.calibration_window[1], css("--cal-win")); }
+  shadeWindows(c, CP);
   const xs = new Float32Array(T); for (let t = 0; t < T; t++) xs[t] = CP.X(t * FI);
   const area = (lo, hi) => { c.fillStyle = withAlpha(css("--muted"), 0.18); c.beginPath(); for (let t = 0; t < T; t++) c.lineTo(xs[t], CP.Y(hi[t])); for (let t = T - 1; t >= 0; t--) c.lineTo(xs[t], CP.Y(lo[t])); c.fill(); };
   area(popBand[1], popBand[3]);

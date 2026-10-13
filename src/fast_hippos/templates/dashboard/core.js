@@ -25,8 +25,8 @@ const S = {
   frame: 0, hover: -1, sel: new Set(), lastClicked: -1, playing: false,
   lut: D.display.lut, dmin: D.display.min, dmax: D.display.max, bright: Math.pow(10, 0.2),
   isrc: "movie", outl: "all", tsrc: SCR.params.smooth_traces > 0 ? "smoothed" : "raw",
-  show: "all", tcol: D.screening.enabled && D.screening.n_hits ? "hit" : "cell", tmode: N > 300 ? "bands" : "lines",
-  sorted: true, rows: "all", sortCol: null, sortDir: 1, sx: "mean_intensity", sy: "@value", slogx: false, slogy: false, sclass: false,
+  show: "all", tcol: D.screening.enabled ? "hit" : "cell", tmode: N > 300 ? "bands" : "lines",
+  sorted: true, kzoom: 1, kstart: 0, rows: "all", sortCol: null, sortDir: 1, sx: "mean_intensity", sy: "@value", slogx: false, slogy: false, sclass: false,
   tool: "rect", showRoute: false, scalebar: true, fillMetric: "",
 };
 const K = () => (S.tsrc === "smoothed" ? KS : KR);
@@ -110,6 +110,19 @@ function lutRGB(v, out = [0, 0, 0]) {
   const j = Math.round(x * 255) * 3; out[0] = L[j]; out[1] = L[j + 1]; out[2] = L[j + 2]; return out;
 }
 function hexToRgb(h) { const c = document.createElement("canvas").getContext("2d"); c.fillStyle = h; const s = c.fillStyle; return s.startsWith("#") ? [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)] : [255, 255, 255]; }
+// baseline / response / timed window / calibration as in the Timing panel: frame f covers (f - 1/2 .. f + 1/2) x interval
+function shadeWindows(ctx, P) {
+  const ev = EV, block = (w, col) => {
+    if (!w || !(w[1] > w[0])) return;
+    const x0 = P.X((w[0] - 0.5) * FI), x1 = P.X((w[1] - 0.5) * FI);
+    ctx.fillStyle = col; ctx.fillRect(x0, P.m.t, x1 - x0, P.ph);
+  };
+  block(ev.baseline, css("--base-win"));
+  block(ev.response, withAlpha(css("--resp-solid"), 0.10));
+  block(ev.timed_window, withAlpha(css("--resp-solid"), 0.22));
+  block(ev.calibration_window, css("--cal-win"));
+}
+const eventX = (f) => (f - 0.5) * FI;  // time of the transition into frame f (the S / C markers of the Timing panel)
 function withAlpha(color, a) { const [r, g, b] = hexToRgb(color); return `rgba(${r},${g},${b},${a})`; }
 
 // ---------------------------------------------------------------- shift-drag selection shapes (rectangle or lasso)
