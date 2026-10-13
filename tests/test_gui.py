@@ -144,3 +144,15 @@ def test_enable_conditions_refer_to_settings():
             assert cond_key in keys, (key, cond_key)
             assert cond_key in gui.REASONS, f"no reason text for conditions on {cond_key}"
     assert set(by_key["events.stimulation_frame"]["enable"]) == {"events.baseline_only"}
+
+
+def test_cellpose_check_is_cached(tmp_path, monkeypatch):
+    monkeypatch.setattr(gui, "CELLPOSE_CACHE", tmp_path / "cache.json")
+    monkeypatch.setattr(gui, "STATE_DIR", tmp_path)
+    calls = []
+    monkeypatch.setattr(gui, "_probe_cellpose", lambda exe: calls.append(exe) or {"cellpose": "3.1.1.2", "gpu": None})
+    assert gui.check_cellpose("env/python.exe") == {"cellpose": "3.1.1.2", "gpu": None}
+    assert gui.check_cellpose("env/python.exe")["cached"] is True  # instant, from the last check
+    assert calls == ["env/python.exe"]
+    gui.check_cellpose("env/python.exe", fresh=True)
+    assert calls == ["env/python.exe"] * 2

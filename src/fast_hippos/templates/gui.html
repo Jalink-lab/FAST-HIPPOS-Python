@@ -186,6 +186,10 @@ async function checkCellpose() {
   if (CP[key]) return; CP[key] = { pending: true }; render();
   try { CP[key] = await api("cellpose", { python: py }); } catch (e) { CP[key] = { error: e.message }; }
   render();
+  if (CP[key].cached) {  // shown at once from the last check; verify in the background (starting PyTorch takes seconds)
+    try { CP[key] = await api("cellpose", { python: py, fresh: true }); } catch (e) { CP[key] = { error: e.message }; }
+    render();
+  }
 }
 function cpStatus() {
   if (S.segmentation.method !== "cellpose") return "";

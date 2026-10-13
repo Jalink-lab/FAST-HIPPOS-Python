@@ -11,6 +11,7 @@ pages in the browser cannot use it.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import mimetypes
@@ -446,9 +447,31 @@ def output_info(path: str, job: Job | None = None) -> dict:
     return {"exists": bool(out and out.is_dir()), "images": images, "index": bool(out and (out / "index.html").exists())}
 
 
-def check_cellpose(python: str | None) -> dict:
-    """Cellpose version and GPU of an environment (empty = this one)."""
+CELLPOSE_CACHE = STATE_DIR / "cellpose_check.json"
+
+
+def check_cellpose(python: str | None, fresh: bool = False) -> dict:
+    """Cellpose version and GPU of an environment (empty = this one). Starting that environment and importing
+    PyTorch takes seconds, so the last result is returned at once (with "cached": true) unless fresh is set;
+    the page then asks again with fresh=True in the background."""
     exe = python or _python()
+    try:
+        cache = json.loads(CELLPOSE_CACHE.read_text())
+    except Exception:  # noqa: BLE001 - no cache yet
+        cache = {}
+    if not fresh and exe in cache:
+        return cache[exe] | {"cached": True}
+    result = _probe_cellpose(exe)
+    cache[exe] = result
+    try:
+        STATE_DIR.mkdir(exist_ok=True)
+        CELLPOSE_CACHE.write_text(json.dumps(cache, indent=1))
+    except OSError:
+        pass
+    return result
+
+
+def _probe_cellpose(exe: str) -> dict:
     if not Path(exe).exists():
         return {"error": f"Not found: {exe}"}
     try:
@@ -586,9 +609,12 @@ def apply_from_dashboard(job: Job, dashboard: str, toml_text: str, manual_tsv: s
 # ---------------------------------------------------------------- server
 
 
-def _page(token: str) -> bytes:
-    from .dashboard import _png_url
+def _png_url(name: str) -> str:  # (not imported from .dashboard: that pulls in matplotlib and pandas, ~2 s)
+    raw = resources.files("fast_hippos").joinpath("templates", name).read_bytes()
+    return "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
 
+
+def _page(token: str) -> bytes:
     html = resources.files("fast_hippos").joinpath("templates", "gui.html").read_text(encoding="utf-8")
     html = html.replace("__FH_LOGO__", _png_url("logo.png")).replace("__FH_ICON__", _png_url("favicon.png"))
     return html.replace("__FH_TOKEN__", token).encode("utf-8")
@@ -671,7 +697,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "defaults": lambda q: {"settings": Settings().to_dict()},
         "browse": lambda q: {"result": browse(q["kind"], q.get("title", "FAST-HIPPOS"), q.get("initial", ""), q.get("types", "file"))},
         "inspect": lambda q: {"files": [inspect_file(Path(p)) | {"path": p} for p in q["paths"]]},
-        "cellpose": lambda q: check_cellpose(q.get("python")),
+        "cellpose": lambda q: check_cellpose(q.get("python"), bool(q.get("fresh"))),
         "output": lambda q: output_info(q.get("path", ""), job),
         "load": lambda q: {"settings": load_toml(Path(q["path"]))},
         "save": lambda q: (Path(q["path"]).write_text(to_toml(q["settings"]), encoding="utf-8"), {"ok": True})[1],
