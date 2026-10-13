@@ -100,7 +100,7 @@ def _embed(template: str, data: dict) -> str:
 
 
 # dashboard modules, in load order (templates/dashboard); screening.js is shared with the tests
-DASHBOARD_JS = ["core.js", "plot.js", "viewer.js", "traces.js", "kymo.js", "dist.js", "scatter.js", "cellcard.js",
+DASHBOARD_JS = ["core.js", "persist.js", "plot.js", "viewer.js", "traces.js", "kymo.js", "dist.js", "scatter.js", "cellcard.js",
                 "table.js", "screenui.js", "export.js", "main.js"]
 
 

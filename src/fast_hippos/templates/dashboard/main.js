@@ -59,7 +59,7 @@ function initControls() {
 }
 
 initControls(); initScreening(); initViewer(); initTraces(); initKymo(); initScatter(); initTable();
-recompute(); routeFromRun(); drawColorbar(); updateChips();
+recompute(); routeFromRun(); restoreSession(); drawColorbar(); updateChips();
 new ResizeObserver(() => invalidate("traces", "tracesSel", "tracesHov", "kymo", "kymoOvl", "hist", "scatter", "scatterSel", "scatterHov", "cell")).observe(document.querySelector("main"));
 matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { hitRGB = hexToRgb(css("--hit")); outlinesChanged(); invalidate(...ALL()); });
 invalidate(...ALL());

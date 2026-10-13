@@ -164,7 +164,8 @@ Frames are 0-based and denote the *first* frame with the stimulus. Channels are 
 
 Open `dashboard.html` (per image) or `index.html` (per run) in a browser. It needs no server, no internet and
 no Python, so you can share an output folder with anyone. All views are linked: hovering or selecting a
-cell anywhere highlights it everywhere.
+cell anywhere highlights it everywhere. Each dashboard remembers its display settings (colours, ranges, plot
+choices); after a reload, e.g. when new results arrive, also the frame, zoom and selection.
 
 | Panel | What it shows |
 |---|---|
