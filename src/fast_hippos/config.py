@@ -80,7 +80,7 @@ class SegmentationSettings:
     max_circularity: float = 1.0  # 4*pi*A/P^2; 1.0 = no filtering
     min_cell_intensity: float = 0.0
     # Hit position refinement (replaces the Labkit step): a pixel classifier trained with
-    # `fast-hippos train-classifier` predicts a nuclei probability map; the hit position becomes the
+    # `fast-hippos-cli train-classifier` predicts a nuclei probability map; the hit position becomes the
     # probability-weighted centre of the (eroded) cell instead of its centroid.
     classifier: Path | None = None
     classifier_class: int = 1  # class index of the nuclei in the classifier

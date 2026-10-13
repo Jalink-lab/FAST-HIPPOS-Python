@@ -1,4 +1,4 @@
-"""Command line interface: ``fast-hippos <command>``."""
+"""Command line interface: ``fast-hippos-cli <command>``."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="fast-hippos", description="FAST-HIPPOS single-cell FLIM trace analysis and screening. "
+        prog="fast-hippos-cli", description="FAST-HIPPOS single-cell FLIM trace analysis and screening. "
         "Without a command (e.g. when fast-hippos.exe is double-clicked) the graphical interface opens.")
     sub = p.add_subparsers(dest="command")
 
@@ -34,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     g = sub.add_parser("gui", help="open the graphical user interface in the browser")
     g.add_argument("--port", type=int, default=0, help="port on 127.0.0.1 (default: a free one)")
     g.add_argument("--no-browser", action="store_true", help="do not open the browser")
+    sub.add_parser("shortcut", help="put a FAST-HIPPOS shortcut (opens the GUI) on the desktop (Windows)")
     d = sub.add_parser("demo", help="analyze a synthetic data set and open the dashboard")
     d.add_argument("output", type=Path, nargs="?", default=Path("fast_hippos_demo"))
     args = p.parse_args(argv)
@@ -68,6 +69,11 @@ def main(argv: list[str] | None = None) -> int:
         from .gui import serve
 
         serve(args.port, open_browser=not args.no_browser)
+        return 0
+    if args.command == "shortcut":
+        from .shortcut import create_desktop_shortcut
+
+        print(f"Created {create_desktop_shortcut()}")
         return 0
     if args.command == "demo":
         return _demo(args.output)

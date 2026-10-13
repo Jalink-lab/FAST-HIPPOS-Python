@@ -19,7 +19,10 @@ dependencies = [
 ]
 
 [project.scripts]
-fast-hippos = "fast_hippos.cli:main"
+fast-hippos-cli = "fast_hippos.cli:main"  # command line (and the GUI when started without a command)
+
+[project.gui-scripts]
+fast-hippos = "fast_hippos.gui:main_gui"  # the GUI in the browser, without a console window
 
 [project.optional-dependencies]
 # Cellpose in this environment (optional): either version. Both can also be used from other

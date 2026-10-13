@@ -51,6 +51,10 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 14px; pa
 .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .field.wide { grid-column: 1 / -1; }
 .field > label { color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: center; }
+.field.off { opacity: .42; }
+.field.off input, .field.off select, .field.off button { cursor: not-allowed; }
+#stopped { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 20; align-items: center; justify-content: center; flex-direction: column; gap: 10px; }
+#stopped.on { display: flex; }
 .field.changed > label::after { content: "●"; color: var(--changed); font-size: 9px; }
 .field .help { color: var(--muted); font-size: 11.5px; }
 .field.check { flex-direction: row; align-items: center; gap: 7px; } .field.check > label { color: var(--text); font-size: 13px; }
@@ -89,7 +93,10 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
   <button id="bOpen" title="Load settings from a .toml file (e.g. fast_hippos_settings.toml from an output folder)">Open settings…</button>
   <button id="bSave" title="Save the settings as a .toml file">Save settings…</button>
   <button id="bReset" title="All settings back to the defaults">Defaults</button>
+  <button id="bQuit" title="Stop FAST-HIPPOS (a running analysis is stopped too)">Quit</button>
 </header>
+<div id="stopped"><img class="logo" src="__FH_LOGO__" alt="" style="width:96px;height:96px;border-radius:14px;background:#fff">
+  <h2 style="margin:0">FAST-HIPPOS has stopped</h2><div class="muted">You can close this tab. Start FAST-HIPPOS again to continue.</div></div>
 <main>
   <section>
     <div class="tabs"><label class="switch"><input type="checkbox" id="advAll"> Show all advanced settings</label><span class="note" id="advNote"></span></div>
@@ -128,7 +135,20 @@ const get = (key) => { const [s, k] = key.split("."); return S[s][k]; };
 const set = (key, v) => { const [s, k] = key.split("."); S[s][k] = v; };
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const isChanged = (f) => !same(get(f.key), f.default);
-function shown(cond) { return !cond || Object.entries(cond).every(([k, vals]) => vals.some(v => same(get(k), v))); }
+function holds(key, c) {
+  const v = get(key), isSet = !(v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length));
+  if (Array.isArray(c)) return c.some(x => same(v, x));
+  if ("set" in c) return isSet === c.set;
+  if ("not" in c) return !c.not.some(x => same(v, x));
+  return true;
+}
+function shown(cond) { return !cond || Object.entries(cond).every(([k, c]) => holds(k, c)); }
+// a setting that is not used with the current settings is greyed out; returns the reason, or "" if used
+function unusedReason(f) {
+  if (!f.enable) return "";
+  const failed = Object.entries(f.enable).find(([k, c]) => !holds(k, c));
+  return failed ? (SCHEMA.reasons[failed[0]] || "not used with the current settings") : "";
+}
 
 // ---------------------------------------------------------------- facts from the input files
 function fileFacts() {
@@ -233,6 +253,14 @@ function widget(f) {
   }
 }
 function fieldHTML(f) {
+  const why = unusedReason(f);
+  if (why) {  // same field, inputs disabled
+    const html = fieldHTMLRaw(f).replace(/<(input|select|button)\b/g, "<$1 disabled");
+    return html.replace(/^<div class="field/, `<div title="${esc("Not used: " + why)}" class="off field`);
+  }
+  return fieldHTMLRaw(f);
+}
+function fieldHTMLRaw(f) {
   const wide = ["files", "criteria", "model"].includes(f.kind) || ["file", "python", "folder"].includes(f.kind);
   const cls = ["field", f.kind === "bool" ? "check" : "", wide ? "wide" : "", isChanged(f) && f.level !== "basic" ? "changed" : ""].join(" ");
   const label = `<label for="f_${f.key.replace(".", "_")}" title="${esc(f.key)}">${esc(f.label)}</label>`;
@@ -310,7 +338,7 @@ function checks() {
     if (r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== cpVersion())) add("err", `Cellpose ${cpVersion()} is not available (Advanced → Segmentation)`);
     else if (r && r.cellpose && !r.gpu && S.segmentation.use_gpu) add("warn", "No GPU found: Cellpose will run on the CPU (slow)");
   }
-  const st = S.events.stimulation_frame, ca = S.events.calibration_frame;
+  const st = S.events.baseline_only ? null : S.events.stimulation_frame, ca = S.events.baseline_only ? null : S.events.calibration_frame;
   if (st != null && ca != null && ca <= st) add("err", "The calibration frame must come after the stimulation frame");
   if (Number.isFinite(ff.frames) && [st, ca].some(x => x != null && x >= ff.frames)) add("err", `Frames must be below ${ff.frames}`);
   if (S.display.min_lifetime != null && S.display.max_lifetime != null && S.display.max_lifetime <= S.display.min_lifetime) add("err", "Colour scale: the maximum must be larger than the minimum");
@@ -318,7 +346,7 @@ function checks() {
     if (!S.screening.stage_positions_file && !ff.stitched) add("warn", "No stage positions: hits are found, but no .rgn files are written");
     if (!S.screening.criteria.length && !S.screening.manual_hits && !S.screening.random_hits) add("warn", "No hit criteria: every valid cell becomes a hit");
     if (S.screening.classify_additional_channel && !S.input.additional_channel) add("warn", "Classification needs an additional channel");
-    S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
+    if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
   }
   if (!out.length) add("ok", "Ready to run");
   return out;
@@ -388,6 +416,11 @@ document.addEventListener("click", async (e) => {
 });
 
 // header buttons
+$("bQuit").onclick = async () => {
+  if (JOB.state === "running" && !confirm("An analysis is running. Stop it and quit FAST-HIPPOS?")) return;
+  try { await api("quit"); } catch { /* already gone */ }
+  $("stopped").classList.add("on");
+};
 $("advAll").onchange = () => { ADV_ALL = $("advAll").checked; render(); };
 $("bOpen").onclick = async () => {
   const r = (await api("browse", { kind: "file", title: "Open settings", types: "toml", initial: S.input.output || "" })).result; if (!r) return;
@@ -409,7 +442,11 @@ $("bReapply").onclick = () => start(true);
 $("bStop").onclick = () => api("stop");
 // polls all the time: runs can also be started from a dashboard ('Apply to run')
 async function poll() {
-  let st; try { st = await api("status", { since: JOB.n }); } catch { setTimeout(poll, 2000); return; }
+  poll.fails = poll.fails || 0;
+  let st;
+  try { st = await api("status", { since: JOB.n }); poll.fails = 0; }
+  catch { if (++poll.fails >= 3) $("stopped").classList.add("on"); setTimeout(poll, 2000); return; }
+  $("stopped").classList.remove("on");
   if (st.run_id !== JOB.run_id) {  // a run this page did not start
     JOB = { n: 0, state: st.state, run_id: st.run_id }; $("log").innerHTML = "";
     if (st.source === "dashboard" && st.settings) { setSettings(st.settings); toast("Screening settings applied from a dashboard", 4000); }

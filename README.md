@@ -37,7 +37,7 @@ the result immediately.
 
 ## Highlights
 
-- **One command, one config file.** `fast-hippos run experiment.toml` runs the whole pipeline. Settings are
+- **One command, one config file.** `fast-hippos-cli run experiment.toml` runs the whole pipeline. Settings are
   stored in a readable TOML file instead of dialogs, so every analysis is reproducible.
 - **FLIM-aware cell lifetimes.** For two-component TCSPC data the fitted amplitudes of all pixels in a cell are
   pooled, giving a robust cell lifetime Σ(A₁τ₁ + A₂τ₂) / Σ(A₁ + A₂), also for dim cells.
@@ -96,7 +96,7 @@ git clone https://github.com/Jalink-lab/FAST-HIPPOS-Python.git
 cd FAST-HIPPOS-Python
 uv sync                       # creates .venv with all dependencies
 uv sync --extra lif           # optional: read Leica .lif files
-uv run fast-hippos --help
+uv run fast-hippos-cli --help
 ```
 
 > If the project folder is in a synchronized folder (OneDrive, SURFdrive, Dropbox), keep the environment out of
@@ -108,23 +108,30 @@ of them in this environment instead, use `uv sync --extra cellpose3` or `uv sync
 
 ## Quick start
 
+FAST-HIPPOS installs two programs in the environment's `Scripts` folder:
+
+| Program | What it is |
+|---|---|
+| `fast-hippos.exe` | the graphical interface, in the browser, without a console window |
+| `fast-hippos-cli.exe` | the command line (without a command it also opens the interface) |
+
 ```powershell
-uv run fast-hippos demo                          # synthetic experiment, opens a dashboard
-uv run fast-hippos init-config experiment.toml   # annotated example config to edit
-uv run fast-hippos run experiment.toml           # full analysis
+uv run fast-hippos-cli shortcut                      # desktop shortcut to the interface, with the logo
+uv run fast-hippos                                   # or start the interface directly
+uv run fast-hippos-cli demo                          # synthetic experiment, opens a dashboard
+uv run fast-hippos-cli init-config experiment.toml   # annotated example config to edit
+uv run fast-hippos-cli run experiment.toml           # full analysis
 ```
 
-Or use the graphical interface, which opens in the browser:
-
-```powershell
-uv run fast-hippos            # or: fast-hippos gui, or double-click fast-hippos.exe in the environment's Scripts folder
-```
-
-Each section shows the settings needed for a typical run; the others are in an expanding **Advanced
-settings** pane per section, grouped under subheadings, with changed settings marked. The GUI reads the image metadata (size, frames, channels, pixel size, frame
-interval, stitched stage positions) as soon as images are added, checks that Cellpose and the GPU are
-available, checks the settings before a run, and shows the log while it runs. The settings of every run are
-saved in the output folder as `fast_hippos_settings.toml`, so a run can be repeated from the command line.
+In the interface, each section shows the settings needed for a typical run; the others are in an expanding
+**Advanced settings** pane per section, grouped under subheadings, with changed settings marked. Settings that
+are not used with the current choices are greyed out, with the reason as tooltip. The interface reads the
+image metadata (size, frames, channels, pixel size, frame interval, stitched stage positions) as soon as
+images are added, checks that Cellpose and the GPU are available, checks the settings before a run, and shows
+the log while it runs. The settings of every run are saved in the output folder as `fast_hippos_settings.toml`,
+so a run can be repeated from the command line. **Quit** stops FAST-HIPPOS; it also stops by itself 15 minutes
+after the browser tab with the interface was closed. Starting it again while it runs just
+opens the running interface.
 
 A minimal config for a TCSPC screen:
 
@@ -151,7 +158,7 @@ criteria = [
 ```
 
 Frames are 0-based and denote the *first* frame with the stimulus. Channels are 1-based, as in Fiji. See
-`fast-hippos init-config` for all options.
+`fast-hippos-cli init-config` for all options.
 
 ## The dashboard
 
@@ -191,12 +198,12 @@ gives the same results as the Python pipeline; the test suite checks this.
    *selection* and use hand-picked cells as the hits.
 2. For a single image, **Hits → .rgn** and **Hits → TSV** give you the final files directly.
 3. To apply the settings to the whole run (all images, the combined hit list, `.rgn` chunks with routes, and
-   the index page): in a dashboard opened from the GUI (`fast-hippos gui`, *Open overview* or *Dashboard*),
+   the index page): in a dashboard opened from the GUI (`fast-hippos-cli gui`, *Open overview* or *Dashboard*),
    click **↻ Apply to run**. The GUI re-applies the settings and the dashboard reloads with the result.
    Without the GUI, click **Settings → TOML** and run:
 
    ```powershell
-   uv run fast-hippos reapply experiment.toml --override screening_<image>.toml
+   uv run fast-hippos-cli reapply experiment.toml --override screening_<image>.toml
    ```
 
    `reapply` reuses the saved traces: there is no segmentation or measurement, so it takes seconds instead of
@@ -242,7 +249,7 @@ visible area. On a 1.9 GB stitched data set (4089 × 2556 px, 30 frames, 10 239 
 - TCSPC cell lifetimes pool the fitted amplitudes of all pixels; the Fiji version averages per-pixel lifetimes
   weighted by intensity. The values differ slightly, most for dim cells, so thresholds do not transfer 1:1.
 - The Labkit step that refines positions on nuclei is replaced by a scikit-learn pixel classifier
-  (`fast-hippos train-classifier`).
+  (`fast-hippos-cli train-classifier`).
 - Stitching tiles is still done with the Fiji *Stitch tiles* command; FAST-HIPPOS reads the stage metadata it
   stores in the stitched `.tif`, or a positions file.
 

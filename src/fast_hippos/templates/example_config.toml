@@ -37,7 +37,7 @@ cellprob_threshold = 0.0
 min_cell_size = 50                    # pixels
 max_circularity = 1.0                 # < 1 removes round objects
 min_cell_intensity = 0
-# classifier = "nuclei.joblib"        # refine hit positions on nuclei (fast-hippos train-classifier)
+# classifier = "nuclei.joblib"        # refine hit positions on nuclei (fast-hippos-cli train-classifier)
 
 [display]
 lut = "turbo"                         # turbo | viridis | plasma | magma | inferno | cividis | gray

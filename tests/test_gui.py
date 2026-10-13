@@ -134,3 +134,13 @@ def test_gui_is_the_default_command(monkeypatch):
     monkeypatch.setattr(gui, "serve", lambda port, open_browser: calls.append((port, open_browser)))
     assert cli.main([]) == 0
     assert calls == [(0, True)]
+
+
+def test_enable_conditions_refer_to_settings():
+    keys = {f"{s}.{k}" for s, v in Settings().to_dict().items() for k in v}
+    by_key = {f["key"]: f for s in gui.schema()["sections"] for f in s["fields"]}
+    for key, f in by_key.items():
+        for cond_key in f.get("enable", {}):
+            assert cond_key in keys, (key, cond_key)
+            assert cond_key in gui.REASONS, f"no reason text for conditions on {cond_key}"
+    assert set(by_key["events.stimulation_frame"]["enable"]) == {"events.baseline_only"}

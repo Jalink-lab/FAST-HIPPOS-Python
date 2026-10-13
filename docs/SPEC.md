@@ -231,8 +231,8 @@ Negative overlap (stitched file, scanned right-to-left): tile index = nx − 1 (
 **Python port:** screening can be changed interactively in each dashboard (live recompute in the browser by
 `templates/screening.js`, a line-by-line mirror of `events` / `screening` / `kymograph.smooth_time`;
 parity is tested on 160 parameter combinations with identical results, and the dashboard -> TOML ->
-`fast-hippos reapply --override` round trip reproduced the identical 334 hits on the 50_50 crop).
-`fast-hippos reapply` re-runs events, metrics, hits, outputs and dashboards from the saved traces.
+`fast-hippos-cli reapply --override` round trip reproduced the identical 334 hits on the 50_50 crop).
+`fast-hippos-cli reapply` re-runs events, metrics, hits, outputs and dashboards from the saved traces.
 
 Fiji re-apply mode:
 Skip segmentation and measurement; reload from the output folder: labelmap (with stage metadata in
@@ -324,7 +324,7 @@ Cellpose 3 (cyto3) and Cellpose 4 (cpsam) run from their own separate Python env
 | `stage` | stitched metadata, tile geometry, positions, path optimization, `.rgn` | `register_hit`, `optimizePath`, `generate_rgn_file` |
 | `pipeline` | per-image processing, re-apply, run-level screening output | main macro body |
 | `dashboard`, `viewer_data`, `templates/` | self-contained HTML dashboards + run index | all image/plot windows, Inspect_and_select_traces |
-| `cli` | `fast-hippos run / reapply / init-config / train-classifier / demo` | - |
+| `cli` | `fast-hippos-cli run / reapply / init-config / train-classifier / demo` | - |
 
 Dashboard (`templates/dashboard/*`, assembled into one self-contained HTML by `dashboard.py`):
 `core.js` (state, layered redraw scheduling, selection), `plot.js`, `viewer.js` (overview + lazily loaded
@@ -344,8 +344,8 @@ Fiji and load as labelmap); dashboard size for long/large data (frames are lossl
 
 | Step | Result |
 |---|---|
-| `fast-hippos run` (labelmap, screening, tiles) | 2.5 min |
-| `fast-hippos reapply` (screening + dashboards, no segmentation) | 30 s |
+| `fast-hippos-cli run` (labelmap, screening, tiles) | 2.5 min |
+| `fast-hippos-cli reapply` (screening + dashboards, no segmentation) | 30 s |
 | dashboard.html (overview 1:4, all 30 frames embedded) | 45 MB |
 | tiles (levels 1:1 and 1:2, 512² px, 1280 + 360 files) | 526 MB |
 | browser: zoom to full resolution, step 10 frames | ~55 ms per frame including tile loading; 160 MB JS heap |

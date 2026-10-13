@@ -1,8 +1,8 @@
-"""Graphical user interface: a small local web app (``fast-hippos gui``).
+"""Graphical user interface: a small local web app (``fast-hippos-cli gui``).
 
 The settings form is generated from the config dataclasses, so every setting is reachable; ``FIELDS`` adds
 labels, help texts, the basic/advanced split and conditions under which a field is shown. Runs are started
-as a subprocess (``fast-hippos run <toml>``) whose log is streamed to the page; the settings are saved next
+as a subprocess (``fast-hippos-cli run <toml>``) whose log is streamed to the page; the settings are saved next
 to the output as ``fast_hippos_settings.toml``.
 
 The server only listens on 127.0.0.1 and every API call must carry a random per-session token, so other web
@@ -20,7 +20,9 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.parse
+import urllib.request
 import webbrowser
 from dataclasses import fields
 from enum import StrEnum
@@ -36,6 +38,16 @@ log = logging.getLogger(__name__)
 
 STATE_DIR = Path.home() / ".fast_hippos"
 LAST_SETTINGS = STATE_DIR / "last_settings.toml"
+INSTANCE = STATE_DIR / "gui_instance.json"  # port of a running GUI, so that a second start reuses it
+IDLE_TIMEOUT = 15 * 60  # s without any request from a browser (and no run) after which the GUI stops
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def _python() -> str:
+    """The console interpreter for subprocesses (the GUI itself may run in pythonw.exe, without a console)."""
+    exe = Path(sys.executable)
+    console = exe.with_name("python.exe") if exe.name.lower() == "pythonw.exe" else exe
+    return str(console if console.exists() else exe)
 SETTINGS_NAME = "fast_hippos_settings.toml"
 
 TCSPC = {"input.modality": ["tcspc"]}
@@ -101,7 +113,7 @@ FIELDS: dict[str, dict] = {
     "segmentation.max_circularity": {"label": "Maximum circularity", "help": "1 = no filter; lower removes round objects"},
     "segmentation.min_cell_intensity": {"label": "Minimum cell intensity"},
     "segmentation.classifier": {"label": "Nuclei classifier (.joblib)", "widget": "file",
-        "help": "Refines hit positions on the nuclei (fast-hippos train-classifier)"},
+        "help": "Refines hit positions on the nuclei (fast-hippos-cli train-classifier)"},
     "segmentation.classifier_class": {"label": "Classifier: nuclei class"},
     "segmentation.position_erosion": {"label": "Classifier: erosion (px)"},
     # ---- display
@@ -126,34 +138,34 @@ FIELDS: dict[str, dict] = {
     "events.margin": {"label": "Margin (frames)", "help": "Frames excluded before each transition"},
     # ---- screening
     "screening.enabled": {"label": "Screen for hits"},
-    "screening.criteria": {"label": "Hit criteria", "widget": "criteria", "show": SCREEN},
-    "screening.stage_positions_file": {"label": "Stage positions", "widget": "file", "show": SCREEN,
+    "screening.criteria": {"label": "Hit criteria", "widget": "criteria", "enable": SCREEN},
+    "screening.stage_positions_file": {"label": "Stage positions", "widget": "file", "enable": SCREEN,
         "help": "Text file (x0 y0 x1 y1 …, m) or the .lif file. Not needed for "
         "images stitched with 'Stitch tiles' (stored in the image)."},
-    "screening.classify_additional_channel": {"label": "Classify cells on the additional channel", "show": SCREEN},
-    "screening.logic": {"label": "Default criterion logic", "choices": {"OR": "OR", "AND": "AND"}, "show": SCREEN},
-    "screening.baseline_calibration_diff": {"label": "Gate: calibration − baseline", "widget": "pair", "show": SCREEN,
+    "screening.classify_additional_channel": {"label": "Classify cells on the additional channel", "enable": SCREEN},
+    "screening.logic": {"label": "Default criterion logic", "choices": {"OR": "OR", "AND": "AND"}, "enable": SCREEN},
+    "screening.baseline_calibration_diff": {"label": "Gate: calibration − baseline", "widget": "pair", "enable": SCREEN,
         "help": "Valid cells only; empty = off"},
-    "screening.max_baseline_deviation": {"label": "Gate: |baseline − population| ≤", "show": SCREEN, "help": "Empty = off"},
-    "screening.response_window": {"label": "Response window (frames)", "show": SCREEN, "help": "-1 = full response"},
-    "screening.response_window_anchor": {"label": "Response window anchor", "show": SCREEN, "choices": {
+    "screening.max_baseline_deviation": {"label": "Gate: |baseline − population| ≤", "enable": SCREEN, "help": "Empty = off"},
+    "screening.response_window": {"label": "Response window (frames)", "enable": SCREEN, "help": "-1 = full response"},
+    "screening.response_window_anchor": {"label": "Response window anchor", "enable": SCREEN, "choices": {
         "before_calibration": "before calibration", "after_stimulation": "after stimulation"}},
-    "screening.response_window_margin": {"label": "Response window margin", "show": SCREEN},
-    "screening.rise_time_fraction": {"label": "Rise time fraction", "show": SCREEN},
-    "screening.additional_channel_metric": {"label": "Additional channel metric", "show": SCREEN,
+    "screening.response_window_margin": {"label": "Response window margin", "enable": SCREEN},
+    "screening.rise_time_fraction": {"label": "Rise time fraction", "enable": SCREEN},
+    "screening.additional_channel_metric": {"label": "Additional channel metric", "enable": SCREEN,
         "choices": {"mean": "mean over time", "first": "first frame"}},
-    "screening.classification_threshold": {"label": "Classification threshold", "show": SCREEN, "help": "Empty = Otsu"},
-    "screening.sort_by": {"label": "Sort hits by", "show": SCREEN, "widget": "metric", "help": "Empty = cell order"},
-    "screening.sort_descending": {"label": "Highest first", "show": SCREEN},
-    "screening.manual_hits": {"label": "Hand-picked hits (TSV)", "widget": "file", "show": SCREEN,
+    "screening.classification_threshold": {"label": "Classification threshold", "enable": SCREEN, "help": "Empty = Otsu"},
+    "screening.sort_by": {"label": "Sort hits by", "enable": SCREEN, "widget": "metric", "help": "Empty = cell order"},
+    "screening.sort_descending": {"label": "Highest first", "enable": SCREEN},
+    "screening.manual_hits": {"label": "Hand-picked hits (TSV)", "widget": "file", "enable": SCREEN,
         "help": "Replaces the criteria (export from a dashboard selection)"},
-    "screening.random_hits": {"label": "Random hits (testing)", "show": SCREEN},
-    "screening.random_seed": {"label": "Random seed", "show": SCREEN},
-    "screening.n_tiles": {"label": "Tiles (nx, ny)", "widget": "pair", "show": SCREEN, "help": "Overruled by stitched metadata"},
-    "screening.tile_overlap": {"label": "Tile overlap (%)", "show": SCREEN},
-    "screening.max_hits_per_rgn": {"label": "Hits per .rgn file", "show": SCREEN},
-    "screening.optimize_path": {"label": "Optimize the route", "show": SCREEN},
-    "screening.max_optimization_time": {"label": "Route optimization time (s per file)", "show": SCREEN},
+    "screening.random_hits": {"label": "Random hits (testing)", "enable": SCREEN},
+    "screening.random_seed": {"label": "Random seed", "enable": SCREEN},
+    "screening.n_tiles": {"label": "Tiles (nx, ny)", "widget": "pair", "enable": SCREEN, "help": "Overruled by stitched metadata"},
+    "screening.tile_overlap": {"label": "Tile overlap (%)", "enable": SCREEN},
+    "screening.max_hits_per_rgn": {"label": "Hits per .rgn file", "enable": SCREEN},
+    "screening.optimize_path": {"label": "Optimize the route", "enable": SCREEN},
+    "screening.max_optimization_time": {"label": "Route optimization time (s per file)", "enable": SCREEN},
 }
 
 FD = {"input.modality": ["fd_flim"]}
@@ -191,15 +203,15 @@ LAYOUT = [
     {"title": "Screening", "basic": ["screening.enabled", "screening.criteria", "screening.stage_positions_file",
                                      "screening.classify_additional_channel"],
      "advanced": [
-         ("Criteria", ["screening.logic", "screening.rise_time_fraction"], SCREEN),
+         ("Criteria", ["screening.logic", "screening.rise_time_fraction"]),
          ("Response window", ["screening.response_window", "screening.response_window_anchor",
-                              "screening.response_window_margin"], SCREEN),
-         ("Quality gates", ["screening.baseline_calibration_diff", "screening.max_baseline_deviation"], SCREEN),
-         ("Additional channel", ["screening.additional_channel_metric", "screening.classification_threshold"], SCREEN),
-         ("Hit list", ["screening.sort_by", "screening.sort_descending", "screening.manual_hits"], SCREEN),
+                              "screening.response_window_margin"]),
+         ("Quality gates", ["screening.baseline_calibration_diff", "screening.max_baseline_deviation"]),
+         ("Additional channel", ["screening.additional_channel_metric", "screening.classification_threshold"]),
+         ("Hit list", ["screening.sort_by", "screening.sort_descending", "screening.manual_hits"]),
          ("Stage positions and .rgn files", ["screening.n_tiles", "screening.tile_overlap", "screening.max_hits_per_rgn",
-                                             "screening.optimize_path", "screening.max_optimization_time"], SCREEN),
-         ("Testing", ["screening.random_hits", "screening.random_seed"], SCREEN),
+                                             "screening.optimize_path", "screening.max_optimization_time"]),
+         ("Testing", ["screening.random_hits", "screening.random_seed"]),
      ]},
     {"title": "Display and output", "basic": [],
      "note": "The defaults suit most runs; colours and ranges can also be changed in the dashboard.",
@@ -211,6 +223,49 @@ LAYOUT = [
          ("Files", ["display.save_png_plots", "display.save_tables"]),
      ]},
 ]
+
+# Conditions under which a setting is used; otherwise it is greyed out, with the reason as tooltip.
+# {field: [allowed values]} or {field: {"set": bool}} or {field: {"not": [values]}}; all must hold.
+ENABLE = {
+    "events.stimulation_frame": {"events.baseline_only": [False]},
+    "events.calibration_frame": {"events.baseline_only": [False]},
+    "events.sensitivity": {"events.baseline_only": [False], "events.stimulation_frame": {"set": False}},
+    "preprocess.drift_reference": {"preprocess.correct_drift": [True]},
+    "preprocess.drift_edge_detect": {"preprocess.correct_drift": [True]},
+    "preprocess.drift_blur_sigma": {"preprocess.correct_drift": [True]},
+    "screening.criteria": {"screening.manual_hits": {"set": False}, "screening.random_hits": {"set": False}},
+    "screening.logic": {"screening.manual_hits": {"set": False}, "screening.random_hits": {"set": False}},
+    "screening.classify_additional_channel": {"input.additional_channel": {"set": True}},
+    "screening.additional_channel_metric": {"input.additional_channel": {"set": True}},
+    "screening.classification_threshold": {"input.additional_channel": {"set": True},
+                                           "screening.classify_additional_channel": [True]},
+    "screening.response_window_anchor": {"screening.response_window": {"not": [-1]}},
+    "screening.response_window_margin": {"screening.response_window": {"not": [-1]}},
+    "screening.sort_descending": {"screening.sort_by": {"set": True}},
+    "screening.random_seed": {"screening.random_hits": {"set": True}},
+    "screening.max_optimization_time": {"screening.optimize_path": [True]},
+    "segmentation.classifier_class": {"segmentation.classifier": {"set": True}},
+    "segmentation.position_erosion": {"segmentation.classifier": {"set": True}},
+    "display.dashboard_max_size": {"display.dashboard": [True]},
+    "display.dashboard_max_megapixels": {"display.dashboard": [True]},
+    "display.dashboard_tiles": {"display.dashboard": [True]},
+    "display.histogram_bins": {"display.dashboard": [True]},
+}
+REASONS = {  # why a condition on this field disables others
+    "events.baseline_only": "'Baseline only' is on",
+    "events.stimulation_frame": "only for automatic detection (no stimulation frame set)",
+    "preprocess.correct_drift": "drift correction is off",
+    "screening.enabled": "screening is off",
+    "screening.manual_hits": "replaced by the hand-picked hits",
+    "screening.random_hits": "replaced by random hits",
+    "input.additional_channel": "needs an additional channel",
+    "screening.classify_additional_channel": "classification is off",
+    "screening.response_window": "only for a timed response window (not -1)",
+    "screening.sort_by": "the hits are in cell order",
+    "screening.optimize_path": "route optimization is off",
+    "segmentation.classifier": "needs a nuclei classifier",
+    "display.dashboard": "no dashboard",
+}
 
 SECTIONS = {"input": "Input", "fdflim": "Frequency-domain FLIM", "preprocess": "Pre-processing",
             "segmentation": "Segmentation", "display": "Display", "events": "Stimulation & calibration",
@@ -263,6 +318,9 @@ def schema() -> dict:
                 enum = next(a for a in (get_args(hints[f.name]) or (hints[f.name],)) if isinstance(a, type))
                 spec["choices"] = {m.value: m.value for m in enum}
             extra = dict(FIELDS.get(key, {}))
+            enable = (extra.pop("enable", None) or {}) | ENABLE.get(key, {})
+            if enable:
+                spec["enable"] = enable
             if "widget" in extra:
                 extra["kind"] = extra.pop("widget")
             elif "choices" in extra:
@@ -278,7 +336,7 @@ def schema() -> dict:
     layout = [{"title": c["title"], "basic": c["basic"], "note": c.get("note"),
                "advanced": [{"title": a[0], "keys": a[1], "show": a[2] if len(a) > 2 else None} for a in c["advanced"]]}
               for c in LAYOUT]
-    return {"version": __version__, "sections": sections, "layout": layout, "metrics": METRICS}
+    return {"version": __version__, "sections": sections, "layout": layout, "metrics": METRICS, "reasons": REASONS}
 
 
 # ---------------------------------------------------------------- TOML
@@ -390,11 +448,12 @@ def output_info(path: str, job: Job | None = None) -> dict:
 
 def check_cellpose(python: str | None) -> dict:
     """Cellpose version and GPU of an environment (empty = this one)."""
-    exe = python or sys.executable
+    exe = python or _python()
     if not Path(exe).exists():
         return {"error": f"Not found: {exe}"}
     try:
-        r = subprocess.run([exe, "-c", _CELLPOSE_PROBE], capture_output=True, text=True, timeout=120, check=False)
+        r = subprocess.run([exe, "-c", _CELLPOSE_PROBE], capture_output=True, text=True, timeout=120, check=False,
+                           creationflags=NO_WINDOW)
         return json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else {"error": r.stderr[-500:]}
     except Exception as e:  # noqa: BLE001 - shown to the user
         return {"error": f"{type(e).__name__}: {e}"}
@@ -429,8 +488,8 @@ def browse(kind: str, title: str, initial: str = "", types: str = "file"):
     """Native file dialog, run in a separate process (Tk needs its own main thread)."""
     if initial and Path(initial).is_file():
         initial = str(Path(initial).parent)
-    r = subprocess.run([sys.executable, "-c", _DIALOG, kind, title, initial or "", json.dumps(FILETYPES.get(types, []))],
-                       capture_output=True, text=True, check=False)
+    r = subprocess.run([_python(), "-c", _DIALOG, kind, title, initial or "", json.dumps(FILETYPES.get(types, []))],
+                       capture_output=True, text=True, check=False, creationflags=NO_WINDOW)
     return json.loads(r.stdout) if r.stdout.strip() else None
 
 
@@ -458,18 +517,18 @@ class Job:
         out = Path(settings["input"]["output"])
         out.mkdir(parents=True, exist_ok=True)
         toml = out / SETTINGS_NAME
-        header = f"# FAST-HIPPOS {__version__} settings, written by the GUI\n# Run again with: fast-hippos run {SETTINGS_NAME}"
+        header = f"# FAST-HIPPOS {__version__} settings, written by the GUI\n# Run again with: fast-hippos-cli run {SETTINGS_NAME}"
         toml.write_text(to_toml(settings, header), encoding="utf-8")
         STATE_DIR.mkdir(exist_ok=True)
         LAST_SETTINGS.write_text(to_toml(settings, header), encoding="utf-8")
-        cmd = [sys.executable, "-u", "-m", "fast_hippos.cli", "reapply" if reapply else "run", str(toml)]
+        cmd = [_python(), "-u", "-m", "fast_hippos.cli", "reapply" if reapply else "run", str(toml)]
         with self.lock:
             self.lines, self.state, self.output = [f"$ fast-hippos {cmd[4]} {toml}"], "running", str(out)
             self.settings, self.source, self.run_id = settings, source, self.run_id + 1
             self.roots.add(out.resolve())
         env = os.environ | {"PYTHONIOENCODING": "utf-8"}
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-                                     errors="replace", env=env, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                                     errors="replace", env=env, creationflags=NO_WINDOW)
         threading.Thread(target=self._read, daemon=True).start()
         return self.run_id
 
@@ -547,6 +606,11 @@ def file_url(base: str, path: Path) -> str:
 def make_handler(token: str, job: Job, ctx: dict | None = None):
     ctx = ctx if ctx is not None else {}
 
+    def quit_server() -> None:
+        job.stop()
+        if ctx.get("server"):
+            threading.Thread(target=ctx["server"].shutdown, daemon=True).start()
+
     def open_path(path: str) -> None:
         p = Path(path)
         if not p.exists():
@@ -582,6 +646,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "stop": lambda q: (job.stop(), {"ok": True})[1],
         "status": lambda q: job.status(int(q.get("since", 0))),
         "open": lambda q: (open_path(q["path"]), {"ok": True})[1],
+        "quit": lambda q: (quit_server(), {"ok": True})[1],
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -599,6 +664,10 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
             self.wfile.write(body)
 
         def do_GET(self):
+            ctx["last"] = time.monotonic()
+            if self.path == "/ping":  # lets a second start find this instance
+                self._send(200, b'"fast-hippos"')
+                return
             if self.path.split("?")[0] in ("/", "/index.html"):
                 self._send(200, _page(token), "text/html; charset=utf-8", cookie=True)
                 return
@@ -619,6 +688,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
             self._send(200, body, ctype)
 
         def do_POST(self):
+            ctx["last"] = time.monotonic()
             name = self.path.strip("/").removeprefix("api/")
             if self.headers.get("X-FH-Token") != token or name not in api:
                 self._send(403, b'{"error": "forbidden"}')
@@ -646,14 +716,50 @@ def _open(path: str) -> None:
         subprocess.run(["xdg-open", str(p)], check=False)
 
 
+def _running_instance() -> str | None:
+    """URL of a GUI that is already running, if any."""
+    try:
+        port = json.loads(INSTANCE.read_text())["port"]
+        url = f"http://127.0.0.1:{port}"
+        with urllib.request.urlopen(url + "/ping", timeout=1) as r:
+            return url + "/" if r.read() == b'"fast-hippos"' else None
+    except Exception:  # noqa: BLE001 - no (reachable) instance
+        return None
+
+
+def _say(msg: str) -> None:
+    if sys.stdout:  # None under pythonw.exe
+        print(msg, flush=True)
+    log.info(msg)
+
+
 def serve(port: int = 0, open_browser: bool = True) -> None:
+    if port == 0 and (url := _running_instance()):
+        _say(f"FAST-HIPPOS is already running at {url}")
+        if open_browser:
+            webbrowser.open(url)
+        return
     token = secrets.token_urlsafe(16)
-    ctx: dict = {}
-    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(token, Job(), ctx))
+    job = Job()
+    ctx: dict = {"last": time.monotonic()}
+    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(token, job, ctx))
+    ctx["server"] = server
     ctx["base"] = f"http://127.0.0.1:{server.server_address[1]}"
     url = ctx["base"] + "/"
-    print(f"FAST-HIPPOS {__version__}: the interface runs in your browser at {url}")
-    print("Keep this window open while you use it; close it (or press Ctrl+C) to stop FAST-HIPPOS.")
+    STATE_DIR.mkdir(exist_ok=True)
+    INSTANCE.write_text(json.dumps({"port": server.server_address[1], "pid": os.getpid()}))
+
+    def watchdog():  # stop when no browser has talked to us for a while (e.g. all tabs closed)
+        while True:
+            time.sleep(30)
+            if job.state != "running" and time.monotonic() - ctx["last"] > IDLE_TIMEOUT:
+                _say("No browser activity: stopping")
+                server.shutdown()
+                return
+
+    threading.Thread(target=watchdog, daemon=True).start()
+    _say(f"FAST-HIPPOS {__version__}: the interface runs in your browser at {url}")
+    _say("Close it with 'Quit' in the interface" + (" or Ctrl+C here." if sys.stdout else "."))
     if open_browser:
         webbrowser.open(url)
     try:
@@ -662,3 +768,29 @@ def serve(port: int = 0, open_browser: bool = True) -> None:
         pass
     finally:
         server.server_close()
+        job.stop()
+        try:
+            if json.loads(INSTANCE.read_text()).get("pid") == os.getpid():
+                INSTANCE.unlink()
+        except Exception:  # noqa: BLE001, S110 - already gone
+            pass
+
+
+def main_gui() -> int:
+    """Entry point of fast-hippos.exe (no console window): the GUI, with a log file instead of a console."""
+    STATE_DIR.mkdir(exist_ok=True)
+    logging.basicConfig(filename=STATE_DIR / "gui.log", level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    try:
+        serve(open_browser=not os.environ.get("FAST_HIPPOS_NO_BROWSER"))
+    except Exception:
+        log.exception("The FAST-HIPPOS interface stopped with an error")
+        try:
+            import tkinter
+            from tkinter import messagebox
+
+            tkinter.Tk().withdraw()
+            messagebox.showerror("FAST-HIPPOS", f"FAST-HIPPOS could not start. Details are in {STATE_DIR / 'gui.log'}")
+        except Exception:  # noqa: BLE001, S110 - no way left to report it
+            pass
+        return 1
+    return 0

@@ -35,10 +35,10 @@ async function exportHitsRGN() {
   });
 }
 function tomlValue(v) { return v === null || v === undefined ? '""' : typeof v === "string" ? JSON.stringify(v) : Array.isArray(v) ? `[${v.map(tomlValue).join(", ")}]` : typeof v === "boolean" ? String(v) : String(+(+v).toPrecision(10)); }
-// the screening settings as a TOML override for 'fast-hippos reapply' (+ the hand-picked hits in selection mode)
+// the screening settings as a TOML override for 'fast-hippos-cli reapply' (+ the hand-picked hits in selection mode)
 function screeningToml() {
   const p = SCR.params, e = SCR.events, L = [], manualFile = `${D.name}_manual_hits.tsv`;
-  L.push(`# Screening settings from the FAST-HIPPOS dashboard of '${D.name}'.`, "# Apply to the whole run with:", "#   fast-hippos reapply <config.toml> --override <this file>", "");
+  L.push(`# Screening settings from the FAST-HIPPOS dashboard of '${D.name}'.`, "# Apply to the whole run with:", "#   fast-hippos-cli reapply <config.toml> --override <this file>", "");
   if (eventsTouched) L.push("[events]", `stimulation_frame = ${tomlValue(e.stimulation)}`, `calibration_frame = ${tomlValue(e.calibration)}`, `baseline_only = ${e.baseline_only}`, `margin = ${e.margin}`, "");
   else L.push("# [events] unchanged: the automatic or manual frames of each image are kept", "");
   L.push("[display]", `smooth_traces = ${p.smooth_traces}`, "", "[screening]", "enabled = true", `logic = ${tomlValue(p.logic)}`,
