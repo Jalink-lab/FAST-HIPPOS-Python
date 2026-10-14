@@ -82,7 +82,7 @@
   </section>
   <section class="panel viewer">
     <div class="panel-h"><h2>Image</h2><span id="vinfo" class="muted"></span><span class="sp"></span>
-      <button id="vzsel" title="Zoom to the selection, or to the hits (Z)">Zoom to selection</button><button id="vzout" class="icon" title="Zoom out (Ctrl+wheel)">−</button><button id="vzin" class="icon" title="Zoom in (Ctrl+wheel)">+</button><button id="vfit" title="Fit (F)">Fit</button><button id="vfull" class="icon" title="Full screen (Shift+F; Esc to leave)">⤢</button></div>
+      <button id="vzoom" class="small" title="Zoom: screen pixels per image pixel. Click for 100 % (one image pixel per screen pixel)">100 %</button><button id="vzsel" title="Zoom to the selection, or to the hits (Z)">Zoom to selection</button><button id="vzout" class="icon" title="Zoom out (Ctrl+wheel)">−</button><button id="vzin" class="icon" title="Zoom in (Ctrl+wheel)">+</button><button id="vfit" title="Fit (F)">Fit</button><button id="vfull" class="icon" title="Full screen (Shift+F; Esc to leave)">⤢</button></div>
     <div id="vwrap"><canvas id="vimg"></canvas><canvas id="vsel"></canvas><canvas id="vhov"></canvas><svg id="vsvg" class="selsvg"></svg>
       <div id="vbar"><div id="vbarname"></div><canvas id="vbarc" width="256" height="1"></canvas><div class="ends"><span id="vbar0"></span><span id="vbar1"></span></div></div>
       <div id="loading"></div></div>
@@ -91,7 +91,7 @@
       <label title="colour every cell by a per-cell value (spatial patterns)">Cells <select id="vfill"></select></label>
       <label>Intensity <select id="isrc"><option value="movie">movie</option><option value="projection">projection</option></select></label>
       <label class="slider">Brightness <input id="bright" type="range" min="-1" max="1.2" step="0.01" value="0.2"></label>
-      <label><input id="vroute" type="checkbox"> route</label><label><input id="vscale" type="checkbox"> scale bar</label>
+      <label><input id="vroute" type="checkbox"> route</label>
     </div>
   </section>
   <section class="panel traces">

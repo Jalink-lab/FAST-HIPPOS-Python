@@ -213,6 +213,7 @@ function drawViewer() {
   const [x, w, h] = canvasSize(vimg); renderImage(x, w, h, view);
   if (S.playing) prefetch();
   const L = chooseLevel(view.s);
+  const z = view.s * 100; $("vzoom").textContent = `${z < 10 ? z.toFixed(1) : Math.round(z)} %`;
   $("vinfo").textContent = `${W0}×${H0} px · ${L === OVERVIEW ? (F0 > 1 ? `overview 1:${F0}` : "full resolution") : (L.factor > 1 ? `tiles 1:${L.factor}` : "full resolution")}` + (NVF < T ? ` · ${NVF} of ${T} frames` : "");
   invalidate("viewerSel", "viewerHov");
 }
@@ -227,7 +228,7 @@ function drawViewerHov() {
   const [x, w, h] = canvasSize(vhov);
   if (S.hover >= 0) { x.fillStyle = css("--hover"); for (const [px, py, sz] of cellBoundary(S.hover, w, h, view)) x.fillRect(px, py, Math.max(1, sz), Math.max(1, sz)); }
   if (S.showRoute && SCR.route) drawRoute(x);
-  if (S.scalebar && D.pixel_size) drawScaleBar(x, w, h);
+  if (D.pixel_size) drawScaleBar(x, w, h);  // always
 }
 function drawRoute(x) {
   const colors = ["#4da3ff", "#ffb347", "#7bd389", "#c792ea", "#ff6b6b", "#5ad1d1"];
@@ -312,7 +313,7 @@ function initViewer() {
   $("vroute").checked = S.showRoute; $("vroute").onchange = () => { S.showRoute = $("vroute").checked; invalidate("viewerHov"); };
   const fm = $("vfill"); fm.add(new Option("lifetime image", "")); METRIC_KEYS.forEach(k => fm.add(new Option(k, k)));
   fm.onchange = () => { S.fillMetric = fm.value; fillsChanged(); };
-  $("vscale").checked = S.scalebar; $("vscale").onchange = () => { S.scalebar = $("vscale").checked; invalidate("viewerHov"); };
+  $("vzoom").onclick = () => { const r = vwrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1 / view.s); };
   hitRGB = hexToRgb(css("--hit"));
   // when the size changes (window, full screen): refit, or keep the same spot in the middle when zoomed in
   let lastSize = null;

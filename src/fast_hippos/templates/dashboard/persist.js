@@ -3,7 +3,7 @@
 // selection, scroll position) only across a reload of the tab, e.g. after 'Apply to run' (sessionStorage).
 const PERSIST_KEY = "fast-hippos:" + location.pathname;
 const DISPLAY_KEYS = ["lut", "dmin", "dmax", "bright", "isrc", "outl", "tsrc", "show", "tcol", "tmode", "sorted", "rows",
-  "sortCol", "sortDir", "sx", "sy", "slogx", "slogy", "sclass", "tool", "showRoute", "scalebar", "fillMetric"];
+  "sortCol", "sortDir", "sx", "sy", "slogx", "slogy", "sclass", "tool", "showRoute", "fillMetric"];
 function readStore(store) { try { return JSON.parse(store.getItem(PERSIST_KEY) || "null"); } catch { return null; } }
 function writeStore(store, value) { try { store.setItem(PERSIST_KEY, JSON.stringify(value)); } catch { /* storage unavailable */ } }
 
