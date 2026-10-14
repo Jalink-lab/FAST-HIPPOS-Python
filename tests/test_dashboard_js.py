@@ -134,3 +134,37 @@ def test_dashboard_payload_reproduces_python_hits(js, tmp_path):
     out = json.loads(js.call("run", arg))
     assert out["hit"] == r.cells["hit"].astype(int).tolist()
     assert 0 < sum(out["hit"]) < len(out["hit"])
+
+
+def test_route_matches_python(js):
+    """The dashboard's 'Compute route' gives the same route as the .rgn files of a run."""
+    import logging
+
+    from fast_hippos import stage
+
+    logging.disable(logging.INFO)
+    rng = np.random.default_rng(5)
+    for n, start, grid in ((7, None, False), (60, None, False), (300, [0.2, 0.9], False), (800, [0.5, 0.5], False),
+                           (600, [0.3, 0.3], True)):
+        pts = rng.random((n, 2))
+        if grid:  # positions on a pixel grid: many exactly equal distances
+            pts = np.unique(np.round(pts * 60) / 60, axis=0)
+        py = stage.optimize_path(pts, 60, None if start is None else np.array(start)).tolist()
+        route = json.loads(js.eval(f"JSON.stringify(FHScreen.optimizePath({json.dumps(pts.tolist())}, 60000, {json.dumps(start)}))"))
+        assert route == py, n
+    logging.disable(logging.NOTSET)
+
+
+def test_startup_functions_are_defined():
+    """Every function called at start-up (the top-level calls in main.js) is defined in the dashboard bundle."""
+    import re
+
+    from fast_hippos.dashboard import _dashboard_template
+
+    bundle = _dashboard_template()
+    main = resources.files("fast_hippos").joinpath("templates", "dashboard", "main.js").read_text(encoding="utf-8")
+    top = "\n".join(line for line in main.splitlines() if line and not line[0].isspace() and not line.startswith(("//", "function", "}")))
+    # plain calls (not methods like el.addEventListener), without keywords and browser built-ins
+    called = set(re.findall(r"(?<![.\w])([A-Za-z_]\w*)\(", top)) - {"if", "for", "new", "ResizeObserver", "matchMedia", "invalidate", "request", "select", "setTimeout", "zoomTo"}
+    missing = [f for f in called if not re.search(rf"(function\*?\s+{f}\s*\(|const {f} = )", bundle)]
+    assert not missing, missing

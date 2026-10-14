@@ -240,24 +240,11 @@ function sortedHits() {
   if (p.sort_by && p.sort_by in C) { const k = p.sort_by, dir = p.sort_descending ? -1 : 1; ids.sort((a, b) => { const va = C[k][a], vb = C[k][b]; const na = va === null || Number.isNaN(va), nb = vb === null || Number.isNaN(vb); if (na || nb) return na - nb; return (va - vb) * dir; }); }
   return ids;
 }
-async function optimizeAsync(pts, maxMs) {
-  const n = pts.length; if (n < 3) return pts.map((_, i) => i);
-  const d = (a, b) => Math.hypot(pts[a][0] - pts[b][0], pts[a][1] - pts[b][1]);
-  const used = new Uint8Array(n), order = [];
-  let cur = 0; for (let i = 1; i < n; i++) if (pts[i][0] ** 2 + pts[i][1] ** 2 < pts[cur][0] ** 2 + pts[cur][1] ** 2) cur = i;
-  for (let k = 0; k < n; k++) { order.push(cur); used[cur] = 1; let best = -1, bd = Infinity; for (let j = 0; j < n; j++) if (!used[j]) { const v = d(cur, j); if (v < bd) { bd = v; best = j; } } cur = best; }
-  const t0 = performance.now(); let slice = performance.now();
-  for (let improved = true; improved && performance.now() - t0 < maxMs;) {
-    improved = false;
-    for (let i = 0; i < n - 2; i++) {
-      for (let j = i + 2; j < n - 1; j++) {
-        const gain = d(order[i], order[i + 1]) + d(order[j], order[j + 1]) - d(order[i], order[j]) - d(order[i + 1], order[j + 1]);
-        if (gain > 1e-12) { const seg = order.slice(i + 1, j + 1).reverse(); order.splice(i + 1, seg.length, ...seg); improved = true; }
-      }
-      if (performance.now() - slice > 40) { await new Promise(r => setTimeout(r)); slice = performance.now(); }
-    }
-  }
-  return order;
+// the shared route optimizer (screening.js), paused every 40 ms so that the page stays responsive
+async function optimizeAsync(pts, maxMs, start) {
+  const g = FHScreen.routeSteps(pts, maxMs, start); let r, t = performance.now();
+  while (!(r = g.next()).done) if (performance.now() - t > 40) { await new Promise(res => setTimeout(res)); t = performance.now(); }
+  return r.value;
 }
 function routeLength(chunks) {
   const useAbs = HAS_ABS && chunks.every(ch => ch.every(i => C.abs_x_m[i] !== null));
@@ -281,9 +268,11 @@ async function computeRoute() {
   const useAbs = HAS_ABS && ids.every(i => C.abs_x_m[i] !== null);
   const pt = (i) => useAbs ? [C.abs_x_m[i], C.abs_y_m[i]] : [POSX[i], POSY[i]];
   let length = 0;
+  // chained as in the run: the first route starts near the first tile of the scan, every next one near the end of the previous one
+  let start = useAbs && D.route_start ? D.route_start : null;
   for (let a = 0; a < ids.length; a += size) {
     let chunk = ids.slice(a, a + size);
-    if (p.optimize_path && chunk.length > 2) { const o = await optimizeAsync(chunk.map(pt), 5000); chunk = o.map(k => chunk[k]); }
+    if (p.optimize_path && chunk.length > 2) { const o = await optimizeAsync(chunk.map(pt), 5000, start); chunk = o.map(k => chunk[k]); start = pt(chunk[chunk.length - 1]); }
     for (let j = 1; j < chunk.length; j++) { const [x0, y0] = pt(chunk[j - 1]), [x1, y1] = pt(chunk[j]); length += Math.hypot(x1 - x0, y1 - y0); }
     chunks.push(chunk);
   }

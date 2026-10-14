@@ -393,12 +393,17 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
     if len(hits) and have_positions:
         stage.write_rgn(out / f"HITS_{run_name}.rgn", hits[["abs_x_m", "abs_y_m"]].to_numpy())
         size = max(1, sc.max_hits_per_rgn)
+        # the routes are chained: the first starts near the first tile of the scan, every next one near the end
+        # of the previous one
+        first_tile = results[0].tiles[0] if results[0].tiles else None
+        start = np.array([first_tile[0] + first_tile[2] / 2, first_tile[1] + first_tile[3] / 2]) if first_tile else None
         for k in range(math.ceil(len(hits) / size)):
             chunk = hits.iloc[k * size : (k + 1) * size]
             a, b = k * size + 1, k * size + len(chunk)
             if sc.optimize_path and len(chunk) > 2:
-                order = stage.optimize_path(chunk[["abs_x_m", "abs_y_m"]].to_numpy(), sc.max_optimization_time)
+                order = stage.optimize_path(chunk[["abs_x_m", "abs_y_m"]].to_numpy(), sc.max_optimization_time, start)
                 chunk = chunk.iloc[order]  # whole rows are reordered (fixes issue I9)
+                start = chunk[["abs_x_m", "abs_y_m"]].to_numpy()[-1]
             chunk = chunk.copy()
             chunk.insert(1, "visit_order", np.arange(1, len(chunk) + 1))
             chunk.to_csv(out / f"hits_{a}-{b}.tsv", sep="\t", index=False, float_format="%.10g")

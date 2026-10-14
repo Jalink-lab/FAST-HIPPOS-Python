@@ -133,24 +133,127 @@ const FHScreen = (() => {
     return Math.pow(10, ctr[idx]);
   }
 
-  // Nearest neighbour from the point closest to (0, 0), then 2-opt (as fast_hippos.stage.optimize_path)
-  function optimizePath(pts, maxMs = 3000) {
-    const n = pts.length; if (n < 2) return pts.map((_, i) => i);
-    const d = (a, b) => Math.hypot(pts[a][0] - pts[b][0], pts[a][1] - pts[b][1]);
-    const used = new Uint8Array(n), order = [];
-    let cur = 0; for (let i = 1; i < n; i++) if (pts[i][0] ** 2 + pts[i][1] ** 2 < pts[cur][0] ** 2 + pts[cur][1] ** 2) cur = i;
-    for (let k = 0; k < n; k++) { order.push(cur); used[cur] = 1; let best = -1, bd = Infinity; for (let j = 0; j < n; j++) if (!used[j]) { const v = d(cur, j); if (v < bd) { bd = v; best = j; } } cur = best; }
-    const t0 = Date.now();
-    for (let improved = true; improved && Date.now() - t0 < maxMs;) {
-      improved = false;
-      for (let i = 0; i < n - 2 && !improved; i++) for (let j = i + 2; j < n - 1; j++) {
-        const gain = d(order[i], order[i + 1]) + d(order[j], order[j + 1]) - d(order[i], order[j]) - d(order[i + 1], order[j + 1]);
-        if (gain > 1e-12) { const seg = order.slice(i + 1, j + 1).reverse(); order.splice(i + 1, seg.length, ...seg); improved = true; break; }
+  // ---- route through the hits, as fast_hippos.stage.optimize_path: nearest neighbour from the point closest to
+  // `start` (default: stage origin), then 2-opt and Or-opt moves between nearby points, within maxMs.
+  // A generator that yields now and then, so that the dashboard can keep the page responsive (routeSteps is run at
+  // once by optimizePath, e.g. in the tests).
+  function* routeSteps(pts, maxMs = 5000, start = null, K = 25) {
+    const n = pts.length;
+    if (n < 3) return pts.map((_, i) => i);
+    const X = Float64Array.from(pts, p => p[0]), Y = Float64Array.from(pts, p => p[1]);
+    const d = (a, b) => Math.sqrt((X[a] - X[b]) ** 2 + (Y[a] - Y[b]) ** 2);
+    const deadline = Date.now() + maxMs, late = () => Date.now() > deadline;
+    // nearest neighbour
+    const [sx, sy] = start || [0, 0], used = new Uint8Array(n);
+    let order = [], cur = 0, bc = Infinity;
+    for (let i = 0; i < n; i++) { const v = (X[i] - sx) ** 2 + (Y[i] - sy) ** 2; if (v < bc) { bc = v; cur = i; } }
+    for (let s = 0; s < n; s++) {
+      order.push(cur); used[cur] = 1; if (s === n - 1) break;
+      let best = -1, bd = Infinity;
+      for (let j = 0; j < n; j++) if (!used[j]) { const v = (X[j] - X[cur]) ** 2 + (Y[j] - Y[cur]) ** 2; if (v < bd) { bd = v; best = j; } }
+      cur = best; if (s % 500 === 499) yield;
+    }
+    // the K nearest other points of every point, nearest first
+    const k = Math.min(K, n - 1), nbr = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const bi = [], bv = [];
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue;
+        const v = (X[j] - X[i]) ** 2 + (Y[j] - Y[i]) ** 2;
+        if (bi.length === k && v >= bv[k - 1]) continue;
+        let p = bi.length; while (p > 0 && bv[p - 1] > v) p--;
+        bi.splice(p, 0, j); bv.splice(p, 0, v); if (bi.length > k) { bi.pop(); bv.pop(); }
       }
+      nbr[i] = bi; if (i % 500 === 499) yield;
+    }
+    let pos = new Int32Array(n);
+    const reindex = () => { for (let i = 0; i < n; i++) pos[order[i]] = i; };
+    const length = () => { let L = 0; for (let i = 1; i < n; i++) L += d(order[i - 1], order[i]); return L; };
+
+    function* twoOpt() {  // as fast_hippos.stage.two_opt (first point fixed)
+      reindex();
+      const queued = new Uint8Array(n).fill(1), todo = order.slice(); let head = 0, steps = 0;
+      const push = (p) => { if (!queued[p]) { queued[p] = 1; todo.push(p); } };
+      const reverse = (i, j) => { for (let a = i, b = j; a < b; a++, b--) { const t = order[a]; order[a] = order[b]; order[b] = t; } for (let t = i; t <= j; t++) pos[order[t]] = t; };
+      const improve = (a) => {
+        const i = pos[a];
+        for (const side of [1, -1]) {
+          if (i + side < 0 || i + side >= n) continue;
+          const b = order[i + side], dab = d(a, b);
+          for (const c of nbr[a]) {
+            const dac = d(a, c); if (dac >= dab) break;
+            const j = pos[c]; let e = null, gain, lo, hi;
+            if (side === 1) {
+              if (j > i + 1) { e = j + 1 < n ? order[j + 1] : null; gain = dab - dac + (e !== null ? d(c, e) - d(b, e) : 0); lo = i + 1; hi = j; }
+              else if (j < i) { e = order[j + 1]; gain = dab - dac + d(c, e) - d(e, b); lo = j + 1; hi = i; }
+              else continue;
+            } else {
+              if (j < i - 1) { e = j > 0 ? order[j - 1] : null; if (e === null) continue; gain = dab - dac + d(e, c) - d(e, b); lo = j; hi = i - 1; }
+              else if (j > i) { e = order[j - 1]; gain = dab - dac + d(e, c) - d(b, e); lo = i; hi = j - 1; }
+              else continue;
+            }
+            if (lo === 0) continue;
+            if (gain > 1e-12) { reverse(lo, hi); push(a); push(b); push(c); if (e !== null) push(e); return true; }
+          }
+        }
+        return false;
+      };
+      for (;;) {
+        while (head < todo.length) {
+          if (late()) return;
+          const a = todo[head++]; queued[a] = 0;
+          if (improve(a) && !queued[a]) { queued[a] = 1; todo.push(a); }
+          if (++steps % 2000 === 0) yield;
+        }
+        let swept = false;
+        for (const a of order.slice()) { if (late()) return; if (improve(a)) swept = true; if (++steps % 2000 === 0) yield; }
+        if (!swept) return;
+      }
+    }
+    function* orOpt() {  // as fast_hippos.stage.or_opt
+      reindex(); let steps = 0;
+      for (let improved = true; improved && !late();) {
+        improved = false;
+        for (let s = 1; s < n; s++) {
+          if (late()) break;
+          for (const len of [1, 2, 3]) {
+            const t = s + len - 1; if (t >= n) break;
+            const seg = order.slice(s, t + 1), p = order[s - 1], q = t + 1 < n ? order[t + 1] : null;
+            const removed = d(p, seg[0]) + (q !== null ? d(seg[len - 1], q) - d(p, q) : 0);
+            let best = 1e-12, at = null;
+            for (const end of [seg[0], seg[len - 1]]) for (const u of nbr[end]) {
+              const iu = pos[u]; if (iu >= s - 1 && iu <= t) continue;
+              const v = iu + 1 < n ? order[iu + 1] : null;
+              if (v !== null && pos[v] >= s && pos[v] <= t) continue;
+              for (const [first, last] of [[seg[0], seg[len - 1]], [seg[len - 1], seg[0]]]) {
+                const added = d(u, first) + (v !== null ? d(last, v) - d(u, v) : 0);
+                if (removed - added > best) { best = removed - added; at = [u, first !== seg[0]]; }
+              }
+            }
+            if (at) {
+              const rest = order.slice(0, s).concat(order.slice(t + 1)), kk = rest.indexOf(at[0]) + 1;
+              order = rest.slice(0, kk).concat(at[1] ? seg.slice().reverse() : seg, rest.slice(kk)); reindex();
+              improved = true; break;
+            }
+          }
+          if (++steps % 200 === 0) yield;
+        }
+      }
+    }
+    yield* twoOpt();
+    while (!late()) {
+      const before = length();
+      yield* orOpt(); yield* twoOpt();
+      if (length() > before - 1e-12 * Math.max(1, before)) break;
     }
     return order;
   }
+  function optimizePath(pts, maxMs = 5000, start = null) {
+    const g = routeSteps(pts, maxMs, start); let r;
+    while (!(r = g.next()).done);
+    return r.value;
+  }
 
-  return { windows, timedWindow, smooth, metrics, hits, order, otsuLog10, optimizePath };
+  return { windows, timedWindow, smooth, metrics, hits, order, otsuLog10, routeSteps, optimizePath };
 })();
 if (typeof module !== "undefined") module.exports = FHScreen;

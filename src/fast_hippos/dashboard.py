@@ -61,7 +61,9 @@ def _columns(df: pd.DataFrame) -> dict[str, list]:
         if s.dtype == bool:
             cols[name] = s.astype(int).tolist()
         elif pd.api.types.is_numeric_dtype(s):
-            cols[name] = [None if not np.isfinite(v) else (int(v) if float(v).is_integer() and abs(v) < 2**31 else round(float(v), 7)) for v in s.to_numpy(dtype=float)]
+            # stage positions in m keep full precision (the dashboard's routes must match those of the run)
+            digits = 12 if name.endswith("_m") else 7
+            cols[name] = [None if not np.isfinite(v) else (int(v) if float(v).is_integer() and abs(v) < 2**31 else round(float(v), digits)) for v in s.to_numpy(dtype=float)]
         else:
             cols[name] = s.astype(str).tolist()
     return cols
@@ -185,6 +187,8 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
         },
         # visiting order of the hits per .rgn chunk, as optimized by the run (row indices); None = not computed
         "route": route if route and any(route) else None,
+        # where the routes start (centre of the first tile of the scan, stage frame in m), as in the run
+        "route_start": [result.tiles[0][0] + result.tiles[0][2] / 2, result.tiles[0][1] + result.tiles[0][3] / 2] if result.tiles else None,
         "population_baseline": cells.attrs.get("population_baseline") if hasattr(cells, "attrs") else None,
         "cells": _columns(cells),
         "luts": _luts(),
