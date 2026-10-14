@@ -137,13 +137,16 @@ def refined_positions(
 # ---------------------------------------------------------------- path optimization
 
 
-def nearest_neighbour_path(points: np.ndarray) -> np.ndarray:
+def nearest_neighbour_path(points: np.ndarray, start: np.ndarray | None = None) -> np.ndarray:
+    """Greedy route: from the point closest to `start` (default: stage origin (0, 0)), always to the nearest
+    unvisited point."""
     n = len(points)
     if n == 0:
         return np.array([], dtype=int)
+    origin = np.zeros(points.shape[1]) if start is None else np.asarray(start, dtype=float)
     order = np.empty(n, dtype=int)
     visited = np.zeros(n, dtype=bool)
-    current = int(np.argmin((points**2).sum(axis=1)))  # start closest to (0, 0)
+    current = int(np.argmin(((points - origin) ** 2).sum(axis=1)))
     for k in range(n):
         order[k] = current
         visited[current] = True
@@ -160,42 +163,193 @@ def path_length(points: np.ndarray, order: np.ndarray) -> float:
     return float(np.sqrt(((p[1:] - p[:-1]) ** 2).sum(axis=1)).sum())
 
 
-def two_opt(points: np.ndarray, order: np.ndarray, max_time: float = 5.0, max_iterations: int = 100000) -> np.ndarray:
-    """Improve an open path with 2-opt moves (longest segments first) until no move helps or time runs out."""
-    order = order.copy()
+def _neighbour_lists(points: np.ndarray, k: int) -> list[list[int]]:
+    """For every point the indices of its k nearest other points, nearest first (the point itself excluded, also
+    when another point lies at exactly the same place)."""
+    from scipy.spatial import cKDTree
+
+    n = len(points)
+    k = min(k, n - 1)
+    # candidates from the k-d tree, then ordered exactly as the dashboard does (squared distance as dx^2 + dy^2,
+    # equal distances by index), so that both give the same routes, also for positions on a pixel grid (many ties)
+    idx = cKDTree(points).query(points, min(k + 9, n))[1].tolist()
+    xs, ys = points[:, 0].astype(float).tolist(), points[:, 1].astype(float).tolist()
+    out = []
+    for i, row in enumerate(idx):
+        cand = sorted((((xs[j] - xs[i]) ** 2 + (ys[j] - ys[i]) ** 2), j) for j in row if j != i)
+        out.append([j for _, j in cand[:k]])
+    return out
+
+
+def two_opt(points: np.ndarray, order: np.ndarray, max_time: float = 5.0, neighbours: int = 25,
+            fixed_start: bool = True) -> np.ndarray:
+    """Improve an open route with 2-opt moves until none helps or time runs out.
+
+    Each point is only tried against its `neighbours` nearest points (a new edge to a far point never shortens a
+    good route), and only points whose surroundings changed are tried again ("don't-look bits"). Work per sweep
+    grows with n instead of n^2, so 5000 points converge in seconds. Moves that reverse the end of the route are
+    included; with fixed_start the first point stays first (the route then starts where it was told to).
+    """
+    from collections import deque
+
     n = len(order)
+    order = [int(i) for i in order]
     if n < 4:
-        return order
+        return np.asarray(order)
+    xs, ys = points[:, 0].astype(float).tolist(), points[:, 1].astype(float).tolist()
+
+    def d(a, b):
+        return ((xs[a] - xs[b]) ** 2 + (ys[a] - ys[b]) ** 2) ** 0.5
+
+    nbr = _neighbour_lists(points, neighbours)
+    pos = [0] * n
+    for i, c in enumerate(order):
+        pos[c] = i
+
+    def reverse(i, j):  # reverse order[i..j] (inclusive)
+        order[i : j + 1] = order[i : j + 1][::-1]
+        for t in range(i, j + 1):
+            pos[order[t]] = t
+
+    def improve(a):
+        """First improving move that creates an edge from a to one of its neighbours; True if one was made."""
+        i = pos[a]
+        for side in (1, -1):  # break the edge to a's successor, or to its predecessor
+            if not 0 <= i + side < n:
+                continue
+            b = order[i + side]
+            dab = d(a, b)
+            for c in nbr[a]:
+                dac = d(a, c)
+                if dac >= dab:
+                    break  # neighbours are sorted: no gain possible from here on
+                j = pos[c]
+                if side == 1:  # new edges (a, c) and (b, c'), reversing b..c or c'..a
+                    if j > i + 1:
+                        e = order[j + 1] if j + 1 < n else None
+                        gain = dab - dac + ((d(c, e) - d(b, e)) if e is not None else 0)
+                        lo, hi = i + 1, j
+                    elif j < i:
+                        e = order[j + 1]
+                        gain = dab - dac + d(c, e) - d(e, b)
+                        lo, hi = j + 1, i
+                    else:
+                        continue
+                else:  # side == -1: new edges (c, a) and (c', b), reversing b..c or c..b
+                    if j < i - 1:
+                        e = order[j - 1] if j > 0 else None
+                        if e is None and fixed_start:
+                            continue
+                        gain = dab - dac + ((d(e, c) - d(e, b)) if e is not None else 0)
+                        lo, hi = j, i - 1
+                    elif j > i:
+                        e = order[j - 1]
+                        gain = dab - dac + d(e, c) - d(b, e)
+                        lo, hi = i, j - 1
+                    else:
+                        continue
+                if fixed_start and lo == 0:
+                    continue
+                if gain > 1e-12:
+                    reverse(lo, hi)
+                    for p in (a, b, c) + ((e,) if e is not None else ()):
+                        if not queued[p]:
+                            queued[p] = True
+                            todo.append(p)
+                    return True
+        return False
+
+    queued = [True] * n
+    todo = deque(order)
     start = time.perf_counter()
-    for _ in range(max_iterations):
-        if time.perf_counter() - start > max_time:
-            log.info("2-opt: time limit reached")
-            break
-        p = points[order]
-        seg = np.sqrt(((p[1:] - p[:-1]) ** 2).sum(axis=1))  # seg[i] = |p[i] - p[i+1]|
+    while True:
+        while todo:
+            if time.perf_counter() - start > max_time:
+                log.info("2-opt: time limit reached")
+                return np.asarray(order)
+            a = todo.popleft()
+            queued[a] = False
+            if improve(a) and not queued[a]:
+                queued[a] = True
+                todo.append(a)
+        # a reversal elsewhere can open a move for a point whose own edges did not change: sweep all points once
+        # more, and stop only when a full sweep finds nothing
+        swept = False
+        for a in list(order):
+            if time.perf_counter() - start > max_time:
+                return np.asarray(order)
+            if improve(a):
+                swept = True
+        if not swept:
+            return np.asarray(order)
+
+
+def or_opt(points: np.ndarray, order: np.ndarray, max_time: float = 5.0, neighbours: int = 25) -> np.ndarray:
+    """Move stretches of 1-3 consecutive points (either way round) to a better place in the route, next to one of
+    the nearest neighbours of their ends, until no move helps or time runs out. The first point stays first."""
+    n = len(order)
+    order = [int(i) for i in order]
+    if n < 5:
+        return np.asarray(order)
+    xs, ys = points[:, 0].astype(float).tolist(), points[:, 1].astype(float).tolist()
+
+    def d(a, b):
+        return ((xs[a] - xs[b]) ** 2 + (ys[a] - ys[b]) ** 2) ** 0.5
+
+    nbr = _neighbour_lists(points, neighbours)
+    pos = {c: i for i, c in enumerate(order)}
+    start = time.perf_counter()
+    improved = True
+    while improved and time.perf_counter() - start < max_time:
         improved = False
-        for i in np.argsort(seg)[::-1]:
-            j = np.arange(n - 1)
-            cur = seg[i] + seg[j]
-            new = np.sqrt(((p[i] - p[j]) ** 2).sum(axis=1)) + np.sqrt(((p[i + 1] - p[j + 1]) ** 2).sum(axis=1))
-            gain = cur - new
-            gain[np.abs(j - i) < 2] = 0
-            best = int(np.argmax(gain))
-            if gain[best] > 1e-12:
-                a, b = sorted((i, best))
-                order[a + 1 : b + 1] = order[a + 1 : b + 1][::-1]
-                improved = True
+        for s in range(1, n):
+            if time.perf_counter() - start > max_time:
                 break
-        if not improved:
-            break
-    return order
+            for length in (1, 2, 3):
+                t = s + length - 1
+                if t >= n:
+                    break
+                seg = order[s : t + 1]
+                p, q = order[s - 1], (order[t + 1] if t + 1 < n else None)
+                removed = d(p, seg[0]) + ((d(seg[-1], q) - d(p, q)) if q is not None else 0)
+                best, best_at = 1e-12, None
+                for end in (seg[0], seg[-1]):
+                    for u in nbr[end]:
+                        iu = pos[u]
+                        if s - 1 <= iu <= t:  # inside the stretch, or the point before it (same place)
+                            continue
+                        v = order[iu + 1] if iu + 1 < n else None
+                        if v is not None and s <= pos[v] <= t:
+                            continue
+                        for first, last in ((seg[0], seg[-1]), (seg[-1], seg[0])):  # insert between u and v
+                            added = d(u, first) + ((d(last, v) - d(u, v)) if v is not None else 0)
+                            if removed - added > best:
+                                best, best_at = removed - added, (u, first != seg[0])
+                if best_at is not None:
+                    u, flip = best_at
+                    rest = order[:s] + order[t + 1 :]
+                    k = rest.index(u) + 1
+                    order = rest[:k] + (seg[::-1] if flip else seg) + rest[k:]
+                    pos = {c: i for i, c in enumerate(order)}
+                    improved = True
+                    break
+    return np.asarray(order)
 
 
-def optimize_path(points: np.ndarray, max_time: float = 5.0) -> np.ndarray:
-    """Visiting order of the points: nearest neighbour from the point closest to (0, 0), then 2-opt."""
-    order = nearest_neighbour_path(points)
+def optimize_path(points: np.ndarray, max_time: float = 5.0, start: np.ndarray | None = None) -> np.ndarray:
+    """Visiting order of the points: nearest neighbour from the point closest to `start` (default: stage
+    origin), then alternately 2-opt and Or-opt while they improve the route (within max_time); the route keeps
+    starting there."""
+    order = nearest_neighbour_path(points, start)
     length_nn = path_length(points, order)
-    order = two_opt(points, order, max_time)
+    deadline = time.perf_counter() + max_time
+    order = two_opt(points, order, max_time, neighbours=25)
+    while (left := deadline - time.perf_counter()) > 0:
+        before = path_length(points, order)
+        order = or_opt(points, order, left)
+        order = two_opt(points, order, max(0.0, deadline - time.perf_counter()), neighbours=25)
+        if path_length(points, order) > before - 1e-12 * max(1.0, before):
+            break
     if length_nn > 0:
         log.info(
             "Path optimization: %d points, %.1f mm (%.1f %% shorter than nearest neighbour)",

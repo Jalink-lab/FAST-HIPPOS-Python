@@ -57,6 +57,46 @@ def iter_images(path: Path, series: list[int] | None = None) -> Iterator[ImageDa
         raise ValueError(f"Unsupported file type: {path} (supported: .tif, .lif, .npy)")
 
 
+def image_info(path: Path) -> list[dict]:
+    """Size of every image (series) in a file from its metadata only, with the axes interpreted as by
+    iter_images: [{name, frames, channels, width, height, ...}]. Fast, also for large files."""
+    path = Path(path)
+    suffix = path.suffix.lower()
+    if suffix in (".tif", ".tiff"):
+        with tifffile.TiffFile(path) as tif:
+            s = tif.series[0]
+            ij = tif.imagej_metadata or {}
+            t, c, h, w = _tcyx_shape(s.shape, s.axes)
+            info = {"name": path.stem, "frames": t, "channels": c, "width": w, "height": h, "dtype": str(s.dtype),
+                    "frame_interval": ij.get("finterval"), "stitched": "Stitched image" in (ij.get("Info") or "")}
+            tag = tif.pages[0].tags.get("XResolution")
+            if tag and tag.value[0]:
+                info["pixel_size"] = round(tag.value[1] / tag.value[0], 4)
+            return [info]
+    if suffix == ".lif":
+        from readlif.reader import LifFile
+
+        out = []
+        for img in LifFile(str(path)).get_iter_image():
+            dims = img.info["dims"]
+            out.append({"name": img.info.get("name", path.stem), "frames": max(dims.t, 1), "channels": img.info["channels"],
+                        "width": dims.x, "height": dims.y})
+        return out
+    if suffix == ".npy":
+        arr = np.load(path, mmap_mode="r")
+        t, c, h, w = _tcyx_shape(arr.shape, "TCYX"[-arr.ndim :])
+        return [{"name": path.stem, "frames": t, "channels": c, "width": w, "height": h}]
+    raise ValueError(f"Unsupported file type: {path.name} (supported: .tif, .lif, .npy)")
+
+
+def _tcyx_shape(shape: tuple, axes: str) -> tuple[int, int, int, int]:
+    """(T, C, Y, X) sizes that _to_tcyx would produce, without reading any pixels."""
+    axes = axes.upper().replace("S", "C").replace("Q", "T")
+    dims = dict(zip(axes, shape, strict=True))
+    frames = dims.get("T", 1) if "T" in axes else dims.get("Z", 1)
+    return frames, dims.get("C", 1), dims["Y"], dims["X"]
+
+
 def read_tiff(path: Path) -> ImageData:
     with tifffile.TiffFile(path) as tif:
         series = tif.series[0]
