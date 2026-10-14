@@ -43,14 +43,26 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 580px; gap: 14px; pa
   border-bottom: 1px solid var(--line); padding-bottom: 3px; }
 .adv .body { padding-top: 8px; }
 .card .note { padding: 10px 12px; color: var(--muted); }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
-.card > h2 { margin: 0; font-size: 13px; padding: 9px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; overflow: hidden; --h: 212; }
+.card > h2 { margin: 0; font-size: 13.5px; padding: 9px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+/* Hierarchy by colour, one subtle hue per card (--h, set per card): tinted title band with a stripe, sub-headings
+   and the advanced toggle in the card's hue, a faint tint behind the advanced settings. */
+.card > h2 { background: hsl(var(--h) 70% 96%); color: hsl(var(--h) 50% 28%); box-shadow: inset 4px 0 hsl(var(--h) 55% 52%); }
+.card .adv { background: hsl(var(--h) 40% 98.6%); }
+.card .adv > .advtoggle { color: hsl(var(--h) 40% 40%); }
+.card .adv h3 { color: hsl(var(--h) 45% 36%); border-bottom-color: hsl(var(--h) 45% 86%); }
+@media (prefers-color-scheme: dark) {
+  .card > h2 { background: hsl(var(--h) 28% 17%); color: hsl(var(--h) 70% 80%); box-shadow: inset 4px 0 hsl(var(--h) 55% 55%); }
+  .card .adv { background: hsl(var(--h) 14% 12.5%); }
+  .card .adv > .advtoggle { color: hsl(var(--h) 45% 68%); }
+  .card .adv h3 { color: hsl(var(--h) 55% 72%); border-bottom-color: hsl(var(--h) 25% 26%); }
+}
 .card > h2 .count { color: var(--changed); font-weight: 500; font-size: 12px; }
 .card > h2 .sp { flex: 1; }
 .body { padding: 10px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 18px; }
 .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .field.wide { grid-column: 1 / -1; }
-.field > label { color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: center; }
+.field > label { color: var(--text); font-size: 12px; font-weight: 500; display: flex; gap: 6px; align-items: center; }
 .field.off { opacity: .42; }
 .field.off input, .field.off select, .field.off button { cursor: not-allowed; }
 #stopped { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 20; align-items: center; justify-content: center; flex-direction: column; gap: 10px; }
@@ -103,7 +115,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
     <div id="form"></div>
   </section>
   <aside class="side">
-    <div class="card"><h2>Run</h2><div style="padding:10px 12px">
+    <div class="card" style="--h:150"><h2>Run</h2><div style="padding:10px 12px">
       <ul class="checks" id="checks"></ul>
       <div class="runbtns">
         <button class="primary" id="bRun">▶ Run analysis</button>
@@ -286,6 +298,7 @@ function hintFor(f) {
 
 // ---------------------------------------------------------------- layout: per card the basic settings and an expanding advanced pane
 const openAdv = new Set();
+const HUES = { "Images": 212, "Cell segmentation": 175, "Stimulation and calibration": 32, "Screening": 330, "Display and output": 262 };
 function render() {
   const active = document.activeElement?.id;
   let html = "", hidden = 0;
@@ -294,7 +307,7 @@ function render() {
     const subs = card.advanced.filter(a => shown(a.show)).map(a => ({ title: a.title, fs: a.keys.map(k => FIELD[k]).filter(f => shown(f.show)) })).filter(a => a.fs.length);
     const changed = subs.flatMap(a => a.fs).filter(isChanged).length, open = ADV_ALL || openAdv.has(card.title);
     if (!open) hidden += changed;
-    html += `<div class="card"><h2>${esc(card.title)}</h2>` +
+    html += `<div class="card" style="--h:${HUES[card.title] ?? 212}"><h2>${esc(card.title)}</h2>` +
       (basic.length ? `<div class="body">${basic.map(fieldHTML).join("")}</div>` : `<div class="note">${esc(card.note || "")}</div>`);
     if (subs.length) {
       html += `<div class="adv"><button class="advtoggle" data-card="${esc(card.title)}">${open ? "▾" : "▸"} Advanced settings` +
