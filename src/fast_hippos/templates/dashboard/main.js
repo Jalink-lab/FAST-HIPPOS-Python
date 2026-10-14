@@ -2,10 +2,10 @@
 function updateChips() {
   const ev = EV, p = SCR.params, nh = nHits();
   const ch = [
-    `<span class="chip"><b>${N}</b> cells</span>`,
+    `<span class="chip" title="Number of cells found in this image"><b>${N}</b> cells</span>`,
     `<span class="chip"><b>${T}</b> frames × ${FI.toFixed(3).replace(/\.?0+$/, "")} s</span>`,
     ev.baseline_only ? `<span class="chip">baseline only</span>` :
-      `<span class="chip">stim <b>${ev.stimulation ?? "–"}</b> · cal <b>${ev.calibration ?? "–"}</b>${ev.detected ? " (auto)" : " (manual)"}</span>`,
+      `<span class="chip" title="First frames of the stimulation and the calibration in the analysis run; (auto) = detected automatically, (manual) = set in the settings">stim <b>${ev.stimulation ?? "–"}</b> · cal <b>${ev.calibration ?? "–"}</b>${ev.detected ? " (auto)" : " (manual)"}</span>`,
   ];
   if (p.criteria.length || SCR.mode === "selection" || nh) ch.push(`<span class="chip hit" title="${SCR.mode === "selection" ? "hits chosen by hand" : p.criteria.map(c => `${c.logic} ${critText(c)}`).join("\n")}"><b>${nh}</b> hits${SCR.mode === "selection" ? " (manual)" : ""}</span>`);
   if (S.sel.size) ch.push(`<span class="chip"><b>${S.sel.size}</b> selected</span>`);

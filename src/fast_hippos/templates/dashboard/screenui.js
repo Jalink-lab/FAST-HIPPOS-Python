@@ -198,9 +198,9 @@ function renderCriteria() {
     const row = document.createElement("div"); row.className = "crit";
     row.innerHTML = `<button class="pill ${c.logic.toLowerCase()}" title="AND: required · OR: at least one of the OR criteria">${c.logic}</button>
       <select class="m"></select>
-      <div class="seg op"><button data-v="&lt;" title="lower than">&lt;</button><button data-v="&gt;" title="higher than">&gt;</button><button data-v="between" title="between">↔</button></div>
-      <span class="vals"><input class="v" type="number" step="any"><input class="v2" type="number" step="any"></span>
-      <canvas class="hs" title="drag to set the threshold"></canvas><span class="n"></span><button class="x" title="remove">✕</button>`;
+      <div class="seg op"><button data-v="&lt;" title="lower than">&lt;</button><button data-v="&gt;" title="higher than">&gt;</button><button data-v="between" title="between the two values">↔</button></div>
+      <span class="vals"><input class="v" type="number" step="any" title="Threshold, in the unit of the metric (e.g. ns); or drag in the histogram"><input class="v2" type="number" step="any" title="Upper limit of the range"></span>
+      <canvas class="hs" title="drag to set the threshold"></canvas><span class="n" title="Number of cells that pass this criterion"></span><button class="x" title="Remove this criterion">✕</button>`;
     const ms = row.querySelector(".m"); METRIC_KEYS.forEach(m => ms.add(new Option(m, m))); ms.value = c.metric; ms.title = D.screen.metrics[c.metric] || "";
     const v1 = row.querySelector(".v"), v2 = row.querySelector(".v2");
     const showV2 = () => { v2.style.display = c.op === "between" ? "" : "none"; };
@@ -227,6 +227,7 @@ function updateScreenUI() {
     "switch off 'optimize path' to visit the hits in this order." : "Which hits come first: they fill the .rgn files in this order";
   // funnel: cells -> pass gates -> hits
   const bar = (n, cls, label) => `<span class="fbar ${cls}" style="width:${Math.max(2, 100 * n / Math.max(1, N))}%"></span><span class="flab">${label}</span>`;
+  $("funnel").title = "All cells → valid cells (pass the quality gates) → hits (valid cells that meet the criteria)";
   $("funnel").innerHTML = `<span class="frow">${bar(N, "f0", `${N} cells`)}</span><span class="frow">${bar(nv, "f1", `${nv} valid`)}</span><span class="frow">${bar(nh, "f2", `<b>${nh}</b> hits`)}</span>`;
   $("scrmod").textContent = screeningModified() ? "changed — not yet in the run output" : "";
   $("g1n").textContent = p.baseline_calibration_diff && SCR.hasCal ? `${countFail(i => !(C.calibration_diff[i] >= p.baseline_calibration_diff[0] && C.calibration_diff[i] <= p.baseline_calibration_diff[1]))} fail` : (p.baseline_calibration_diff ? "no calibration" : "off");

@@ -16,18 +16,18 @@
 </header>
 <div class="toolbar">
   <span class="group"><button id="play" title="Play / pause (space)">▶</button>
-    <input id="frame" type="range" min="0" value="0" step="1"><span id="tlabel"></span></span>
-  <label>LUT <select id="lut"></select></label>
-  <label><span id="rangeName">Lifetime</span> <input id="dmin" type="number"> – <input id="dmax" type="number"></label>
-  <label>Traces <select id="tsrc"><option value="raw">raw</option><option value="smoothed">smoothed</option></select></label>
-  <label>Show <select id="show"><option value="all">all cells</option><option value="hits">hits</option><option value="sel">selection</option></select></label>
-  <label title="Shift+drag in the image or scatter plot selects cells (L toggles)">Select <span class="seg" id="tool"><button data-v="rect">▭ box</button><button data-v="lasso">✎ lasso</button></span></label>
+    <input id="frame" type="range" min="0" value="0" step="1" title="Frame shown in the image (← / → step one frame)"><span id="tlabel"></span></span>
+  <label title="Colour scale of the lifetime (or ratio) image and plots">LUT <select id="lut"></select></label>
+  <label title="Range of the colour scale and of the lifetime axes: values below the minimum get the first colour, above the maximum the last"><span id="rangeName">Lifetime</span> <input id="dmin" type="number"> – <input id="dmax" type="number"></label>
+  <label title="Show the traces as measured (raw), or averaged over neighbouring frames (smoothed, see smoothing under Screening)">Traces <select id="tsrc"><option value="raw">raw</option><option value="smoothed">smoothed</option></select></label>
+  <label title="Which cells appear in the traces, kymograph, distribution, scatter plot and cell panel: all cells, only the hits, or only the selected cells">Show <select id="show"><option value="all">all cells</option><option value="hits">hits</option><option value="sel">selection</option></select></label>
+  <label title="Shift+drag in the image or scatter plot selects cells (L toggles)">Select <span class="seg" id="tool"><button data-v="rect" title="Shift+drag draws a rectangle">▭ box</button><button data-v="lasso" title="Shift+drag draws a free shape">✎ lasso</button></span></label>
   <span class="sp"></span>
   <button id="theme" title="Light / dark">◐</button>
 </div>
 <main>
   <section class="panel screen">
-    <div class="panel-h"><button id="scrtoggle" class="icon" title="Show / hide">▾</button><h2>Screening</h2>
+    <div class="panel-h"><button id="scrtoggle" class="icon" title="Show / hide">▾</button><h2 title="Choose which cells are hits: timing, quality gates and criteria. Changes apply at once; export the hits or apply the settings to the whole run under Output.">Screening</h2>
       <div class="funnel" id="funnel"></div><span id="scrmod" class="modified"></span><span class="sp"></span>
       <button id="scrreset" title="Back to the settings of the analysis run">Reset</button></div>
     <div class="scrbody" id="scrbody">
@@ -35,91 +35,91 @@
         <h3>Timing <span class="hint">drag S and C · click to go to a frame</span></h3>
         <canvas id="tl" class="timeline"></canvas>
         <div class="row">
-          <label>stim <input id="evs" type="number" min="0" step="1" placeholder="–"></label>
-          <label>cal <input id="evc" type="number" min="0" step="1" placeholder="–"></label>
-          <label title="frames excluded before each transition">margin <input id="evm" type="number" min="0" step="1"></label>
-          <label><input id="evb" type="checkbox"> baseline only</label>
-          <button id="evauto" class="small" title="frames of the analysis run">reset</button>
+          <label title="First frame with the stimulus (0-based). The frames before it are the baseline. Empty = no stimulation">stim <input id="evs" type="number" min="0" step="1" placeholder="–"></label>
+          <label title="First frame with the calibration stimulus, which gives the maximal response (0-based). Empty = no calibration">cal <input id="evc" type="number" min="0" step="1" placeholder="–"></label>
+          <label title="Frames left out just before the stimulation and the calibration, because the change may already start there">margin <input id="evm" type="number" min="0" step="1"></label>
+          <label title="No stimulus in this experiment: the whole time-lapse is baseline"><input id="evb" type="checkbox"> baseline only</label>
+          <button id="evauto" class="small" title="Back to the frames of the analysis run (detected automatically or set in the settings)">reset</button>
         </div>
         <div class="row">
-          <span class="lbl">response window</span><span class="seg" id="winmode"><button data-v="full">full</button><button data-v="n">frames</button></span>
-          <input id="rw" type="number" min="1" step="1" class="w3">
-          <span class="seg" id="anchor"><button data-v="after_stimulation">after S</button><button data-v="before_calibration">before C</button></span>
-          <label>margin <input id="rm" type="number" min="0" step="1" class="w3"></label>
+          <span class="lbl" title="Part of the response used by the 'mean' response metrics">response window</span><span class="seg" id="winmode"><button data-v="full" title="The whole response, from stimulation to calibration">full</button><button data-v="n" title="A fixed number of frames (enter it on the right)">frames</button></span>
+          <input id="rw" type="number" min="1" step="1" class="w3" title="Length of the response window in frames">
+          <span class="seg" id="anchor"><button data-v="after_stimulation" title="The window starts right after the stimulation (early response)">after S</button><button data-v="before_calibration" title="The window ends just before the calibration (late, steady response)">before C</button></span>
+          <label title="Frames skipped between the stimulation or calibration and the window">margin <input id="rm" type="number" min="0" step="1" class="w3"></label>
         </div>
         <div class="row">
-          <label class="slider">smoothing <input id="sm" type="range" min="0" max="10" step="1"><span id="smv" class="val"></span></label>
-          <label class="slider" title="rise time = frames until this fraction of the maximum response">rise <input id="rf" type="range" min="0.5" max="0.95" step="0.05"><span id="rfv" class="val"></span></label>
+          <label class="slider" title="Average each trace over neighbouring frames to reduce noise: radius in frames (1 = average of 3 frames). Used for the metrics and the smoothed traces">smoothing <input id="sm" type="range" min="0" max="10" step="1"><span id="smv" class="val"></span></label>
+          <label class="slider" title="Rise time = number of frames until a cell reaches this fraction of its maximal response (used by the rise_time_frames metric)">rise <input id="rf" type="range" min="0.5" max="0.95" step="0.05"><span id="rfv" class="val"></span></label>
         </div>
       </div>
       <div class="card gates">
-        <h3>Quality gates <span class="hint">every hit must pass</span></h3>
-        <div class="gate"><label><input id="g1" type="checkbox"> calibration − baseline</label><span class="n" id="g1n"></span>
-          <canvas id="g1h" class="hs"></canvas><span class="vals"><input id="g1a" type="number" step="0.05"> – <input id="g1b" type="number" step="0.05"> ns</span></div>
-        <div class="gate"><label><input id="g2" type="checkbox"> |baseline − population| ≤</label><span class="n" id="g2n"></span>
-          <canvas id="g2h" class="hs"></canvas><span class="vals"><input id="g2v" type="number" step="0.05" min="0"> ns</span></div>
-        <div class="gate" id="gate3"><label><input id="cls" type="checkbox"> classify additional channel</label><span class="n" id="cln"></span>
-          <canvas id="clh" class="hs"></canvas><span class="vals"><select id="am"><option value="mean">mean</option><option value="first">first frame</option></select> &gt; <input id="clt" type="number" step="any"> <button id="clotsu" class="small">Otsu</button></span></div>
+        <h3 title="Checks that remove unreliable cells before the criteria are applied. Cells that pass all switched-on gates are 'valid'.">Quality gates <span class="hint">every hit must pass</span></h3>
+        <div class="gate"><label title="Only cells whose response to the calibration (calibration − baseline) lies in this range: removes cells that do not respond to the calibration, or respond implausibly strongly. The histogram shows all cells"><input id="g1" type="checkbox"> calibration − baseline</label><span class="n" id="g1n"></span>
+          <canvas id="g1h" class="hs"></canvas><span class="vals"><input id="g1a" type="number" step="0.05" title="Lowest allowed calibration response (ns); or drag in the histogram"> – <input id="g1b" type="number" step="0.05" title="Highest allowed calibration response (ns)"> ns</span></div>
+        <div class="gate"><label title="Only cells whose baseline differs at most this much from the population baseline: removes outliers, e.g. dead or badly segmented cells"><input id="g2" type="checkbox"> |baseline − population| ≤</label><span class="n" id="g2n"></span>
+          <canvas id="g2h" class="hs"></canvas><span class="vals"><input id="g2v" type="number" step="0.05" min="0" title="Largest allowed difference from the population baseline (ns); or drag in the histogram"> ns</span></div>
+        <div class="gate" id="gate3"><label title="Split the cells in two classes on the intensity of the additional channel (e.g. transfected or not). Adds the class column, which criteria can use"><input id="cls" type="checkbox"> classify additional channel</label><span class="n" id="cln"></span>
+          <canvas id="clh" class="hs"></canvas><span class="vals"><select id="am" title="Intensity per cell: the mean over all frames, or the first frame only"><option value="mean">mean</option><option value="first">first frame</option></select> &gt; <input id="clt" type="number" step="any" title="Intensity above which a cell is in class 1 (drag in the histogram)"> <button id="clotsu" class="small" title="Choose the threshold automatically (Otsu's method, on the log of the intensity)">Otsu</button></span></div>
       </div>
       <div class="card output">
         <h3>Output</h3>
-        <div class="row"><label>sort hits by <select id="sortby"></select></label><select id="sortdir"><option value="1">highest first</option><option value="0">lowest first</option></select></div>
-        <div class="row"><label>.rgn chunks of <input id="chunk" type="number" min="1" step="100" class="w5"></label><label><input id="optpath" type="checkbox"> optimize path</label></div>
-        <div class="row"><button id="route">Compute route</button><span id="routeinfo" class="muted"></span><label><input id="vroute2" type="checkbox"> show in image</label></div>
-        <div class="row exports"><button id="hitsrgn">Hits → .rgn</button><button id="hitstsv">Hits → TSV</button>
-          <button id="scrtoml" title="Apply to the whole run: fast-hippos-cli reapply config.toml --override screening.toml">Settings → TOML</button>
+        <div class="row"><label title="Order of the hits in the exported hit list and .rgn files (before the route is optimized)">sort hits by <select id="sortby"></select></label><select id="sortdir"><option value="1">highest first</option><option value="0">lowest first</option></select></div>
+        <div class="row"><label title="The hits are split over .rgn files of at most this many positions">.rgn chunks of <input id="chunk" type="number" min="1" step="100" class="w5"></label><label title="Order the positions in each .rgn file for the shortest stage route"><input id="optpath" type="checkbox"> optimize path</label></div>
+        <div class="row"><button id="route" title="Calculate the stage route through the hits with the current settings; shown in the image when 'show in image' is on">Compute route</button><span id="routeinfo" class="muted"></span><label title="Draw the route of the .rgn files over the image"><input id="vroute2" type="checkbox"> show in image</label></div>
+        <div class="row exports"><button id="hitsrgn" title="Download the stage positions of the hits as .rgn files for LAS X (one file per chunk)">Hits → .rgn</button><button id="hitstsv" title="Download the hit list as a table (TSV, opens in Excel)">Hits → TSV</button>
+          <button id="scrtoml" title="Download these screening settings as a TOML file, to use them for the whole run (fast-hippos-cli reapply config.toml --override screening.toml) or in a later analysis">Settings → TOML</button>
           <button id="scrapply" hidden title="Redo the screening of the whole run with these settings (all images in the output folder)">↻ Apply to run</button></div>
         <div class="muted applymsg" id="applymsg"></div>
       </div>
       <div class="card crits">
-        <h3>Hits from <span class="seg" id="hitsrc"><button data-v="criteria">criteria</button><button data-v="selection">selection</button></span>
-          <span class="hint"><span class="pill and">AND</span> required · <span class="pill or">OR</span> at least one of these</span><span class="sp"></span><button id="addcrit">+ criterion</button></h3>
+        <h3>Hits from <span class="seg" id="hitsrc"><button data-v="criteria" title="Hits are the valid cells that meet the criteria below">criteria</button><button data-v="selection" title="Hits are cells you picked by hand (with the selection tools)">selection</button></span>
+          <span class="hint"><span class="pill and">AND</span> required · <span class="pill or">OR</span> at least one of these</span><span class="sp"></span><button id="addcrit" title="Add a condition that hits must meet">+ criterion</button></h3>
         <div id="manualbox" class="manual">Hits chosen by hand: <b id="mancount"></b>
-          <button id="usesel">Use selection</button><button id="addsel">Add selection</button><button id="clearmanual">Clear</button></div>
+          <button id="usesel" title="Make the currently selected cells the hits">Use selection</button><button id="addsel" title="Add the currently selected cells to the hits">Add selection</button><button id="clearmanual" title="Remove all hand-picked hits">Clear</button></div>
         <div id="crits"></div>
       </div>
     </div>
   </section>
   <section class="panel viewer">
-    <div class="panel-h"><h2>Image</h2><span id="vinfo" class="muted"></span><span class="sp"></span>
+    <div class="panel-h"><h2 title="The time-lapse with the lifetime as colour and the intensity as brightness. Drag to pan, Ctrl+scroll to zoom, click a cell to select it, double-click to zoom to it.">Image</h2><span id="vinfo" class="muted"></span><span class="sp"></span>
       <button id="vzoom" class="small" title="Zoom: screen pixels per image pixel. Click for 100 % (one image pixel per screen pixel)">100 %</button><button id="vzsel" title="Zoom to the selection, or to the hits (Z)">Zoom to selection</button><button id="vzout" class="icon" title="Zoom out (Ctrl+wheel)">−</button><button id="vzin" class="icon" title="Zoom in (Ctrl+wheel)">+</button><button id="vfit" title="Fit (F)">Fit</button><button id="vfull" class="icon" title="Full screen (Shift+F; Esc to leave)">⤢</button></div>
     <div id="vwrap"><canvas id="vimg"></canvas><canvas id="vsel"></canvas><canvas id="vhov"></canvas><svg id="vsvg" class="selsvg"></svg>
       <div id="vbar"><div id="vbarname"></div><canvas id="vbarc" width="256" height="1"></canvas><div class="ends"><span id="vbar0"></span><span id="vbar1"></span></div></div>
       <div id="loading"></div></div>
     <div class="panel-f">
-      <label>Outlines <select id="outl"><option value="none">selection only</option><option value="hits">hits</option><option value="all">all cells</option></select></label>
-      <label title="colour every cell by a per-cell value (spatial patterns)">Cells <select id="vfill"></select></label>
-      <label>Intensity <select id="isrc"><option value="movie">movie</option><option value="projection">projection</option></select></label>
-      <label class="slider">Brightness <input id="bright" type="range" min="-1" max="1.2" step="0.01" value="0.2"></label>
-      <label><input id="vroute" type="checkbox"> route</label>
+      <label title="Which cell outlines are drawn: only the selected cells, the hits, or all cells">Outlines <select id="outl"><option value="none">selection only</option><option value="hits">hits</option><option value="all">all cells</option></select></label>
+      <label title="Fill every cell with a colour for one of its values (e.g. its response), to see spatial patterns. Off = the lifetime image itself">Cells <select id="vfill"></select></label>
+      <label title="Brightness from the current frame (movie) or from the average over all frames (projection, less noisy)">Intensity <select id="isrc"><option value="movie">movie</option><option value="projection">projection</option></select></label>
+      <label class="slider" title="Brightness of the image">Brightness <input id="bright" type="range" min="-1" max="1.2" step="0.01" value="0.2"></label>
+      <label title="Draw the stage route of the .rgn files over the image"><input id="vroute" type="checkbox"> route</label>
     </div>
   </section>
   <section class="panel traces">
-    <div class="panel-h"><h2>Traces</h2><span id="trinfo" class="muted"></span><span class="sp"></span>
-      <label class="muted">View <select id="tmode"><option value="lines">lines</option><option value="bands">bands</option><option value="density">density</option></select></label>
-      <label class="muted">Color <select id="tcol"><option value="hit">hits</option><option value="cell">per cell</option></select></label></div>
+    <div class="panel-h"><h2 title="Lifetime (or ratio) over time of the cells chosen under 'Show'. Click a trace to select its cell; the shaded blocks are baseline, response and calibration.">Traces</h2><span id="trinfo" class="muted"></span><span class="sp"></span>
+      <label class="muted" title="lines: every cell its own line · bands: median with percentile bands · density: how many cells pass through each point (best for thousands of cells)">View <select id="tmode"><option value="lines">lines</option><option value="bands">bands</option><option value="density">density</option></select></label>
+      <label class="muted" title="Colour the traces by hit / non-hit, or give every cell its own colour">Color <select id="tcol"><option value="hit">hits</option><option value="cell">per cell</option></select></label></div>
     <div class="stack"><canvas id="trb"></canvas><canvas id="trs"></canvas><canvas id="trh"></canvas></div>
   </section>
   <section class="panel kymo">
-    <div class="panel-h"><h2>Kymograph</h2><span class="muted">time ↓ · shift+drag selects a range</span><span class="sp"></span>
-      <label class="muted"><input type="checkbox" id="ksort" checked> sorted on response</label></div>
+    <div class="panel-h"><h2 title="All cells side by side (one column per cell), time downwards, lifetime as colour. Shows at a glance which cells respond and when.">Kymograph</h2><span class="muted">time ↓ · shift+drag selects a range</span><span class="sp"></span>
+      <label class="muted" title="Order the columns from the weakest to the strongest response; off = in cell number order"><input type="checkbox" id="ksort" checked> sorted on response</label></div>
     <div class="stack"><canvas id="kyb"></canvas><canvas id="kyo"></canvas><svg id="ksvg" class="selsvg"></svg></div>
     <div class="axisrow" title="Zoom in on the cells (Ctrl+scroll in the kymograph); drag to move along"><span class="muted">zoom</span>
       <input type="range" id="kzoom" min="0" max="100" value="0" style="flex:1"><span class="muted" id="kinfo"></span></div>
   </section>
   <section class="panel dist">
-    <div class="panel-h"><h2>Distribution</h2><span id="distinfo" class="muted"></span></div>
+    <div class="panel-h"><h2 title="Histogram of the lifetimes of the cells chosen under 'Show', in the current frame">Distribution</h2><span id="distinfo" class="muted"></span></div>
     <div class="stack"><canvas id="hib"></canvas></div>
   </section>
   <section class="panel scatter">
-    <div class="panel-h"><h2>Scatter</h2><span class="sp"></span>
+    <div class="panel-h"><h2 title="Every cell as a point, for two of its values (choose x and y). Shift+drag selects cells; useful to find groups and set thresholds.">Scatter</h2><span class="sp"></span>
       <label class="muted" id="sclassl" hidden title="Outline the cells that are positive in the additional channel (class_additional = 1)"><input type="checkbox" id="sclass"> outline <span class="swatch"></span> additional-channel positive</label></div>
-    <div class="axisrow"><span class="muted">x</span><select id="sx"></select><label class="muted"><input type="checkbox" id="slogx"> log</label></div>
-    <div class="axisrow"><span class="muted">y</span><select id="sy"></select><label class="muted"><input type="checkbox" id="slogy"> log</label></div>
+    <div class="axisrow"><span class="muted">x</span><select id="sx" title="Value on the horizontal axis"></select><label class="muted" title="Logarithmic horizontal axis (for values that span orders of magnitude, e.g. intensities)"><input type="checkbox" id="slogx"> log</label></div>
+    <div class="axisrow"><span class="muted">y</span><select id="sy" title="Value on the vertical axis"></select><label class="muted" title="Logarithmic vertical axis"><input type="checkbox" id="slogy"> log</label></div>
     <div class="stack"><canvas id="scb"></canvas><canvas id="scs"></canvas><canvas id="sch"></canvas><svg id="ssvg" class="selsvg"></svg></div>
   </section>
   <section class="panel cellp">
-    <div class="panel-h"><h2 id="cctitle">Cell</h2><span class="sp"></span><span class="muted">hover or click a cell</span></div>
+    <div class="panel-h"><h2 id="cctitle" title="Close-up and trace of one cell, with all its values">Cell</h2><span class="sp"></span><span class="muted">hover or click a cell</span></div>
     <div id="ccbody" class="ccbody empty">
       <canvas id="cccrop"></canvas>
       <div class="ccright"><div class="stack"><canvas id="cctr"></canvas></div><table class="cclist"><tbody id="cclist"></tbody></table></div>
@@ -127,10 +127,10 @@
     </div>
   </section>
   <section class="panel tablep">
-    <div class="panel-h"><h2>Cells</h2><span id="tinfo" class="muted"></span><span class="sp"></span>
-      <label class="muted">Rows <select id="rows"><option value="all">all</option><option value="hits">hits</option><option value="sel">selection</option><option value="valid">valid</option></select></label>
-      <button id="clearsel" title="Clear selection (Esc)">Clear selection</button><button id="selhits">Select hits</button>
-      <button id="csv">Rows → TSV</button><button id="rgn">Selection → .rgn</button></div>
+    <div class="panel-h"><h2 title="Table of all cells and their values. Click a column header to sort, hover it for its meaning; click a row to select the cell.">Cells</h2><span id="tinfo" class="muted"></span><span class="sp"></span>
+      <label class="muted" title="Rows shown: all cells, the hits, the selected cells, or the valid cells (those that pass the quality gates)">Rows <select id="rows"><option value="all">all</option><option value="hits">hits</option><option value="sel">selection</option><option value="valid">valid</option></select></label>
+      <button id="clearsel" title="Clear selection (Esc)">Clear selection</button><button id="selhits" title="Select all hits (e.g. to look at them together or export them)">Select hits</button>
+      <button id="csv" title="Download the table as shown (rows and sorting) as a TSV file">Rows → TSV</button><button id="rgn" title="Download the stage positions of the selected cells as a .rgn file for LAS X">Selection → .rgn</button></div>
     <div id="tbl"></div>
   </section>
 </main>

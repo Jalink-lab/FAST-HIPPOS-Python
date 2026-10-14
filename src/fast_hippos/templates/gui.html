@@ -119,16 +119,16 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
   <h2 style="margin:0">FAST-HIPPOS has stopped</h2><div class="muted">You can close this tab. Start FAST-HIPPOS again to continue.</div></div>
 <main>
   <section>
-    <div class="tabs"><label class="switch"><input type="checkbox" id="advAll"> Show all advanced settings</label><span class="note" id="advNote"></span></div>
+    <div class="tabs"><label class="switch" title="Open the advanced settings of all sections at once"><input type="checkbox" id="advAll"> Show all advanced settings</label><span class="note" id="advNote"></span></div>
     <div id="form"></div>
   </section>
   <aside class="side">
     <div class="card" style="--h:150"><h2>Run</h2><div style="padding:10px 12px">
       <ul class="checks" id="checks"></ul>
       <div class="runbtns">
-        <button class="primary" id="bRun">▶ Run analysis</button>
+        <button class="primary" id="bRun" title="Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.">▶ Run analysis</button>
         <button id="bReapply" title="Redo event detection, screening and dashboards on the saved output in the output folder, without segmentation (seconds instead of minutes)">↻ Re-apply screening</button>
-        <button id="bStop" disabled>■ Stop</button>
+        <button id="bStop" disabled title="Stop the running analysis. Results of images that were already finished are kept.">■ Stop</button>
       </div>
       <div><span class="state" id="state">Ready</span> <span class="muted" id="stateInfo"></span></div>
       <div class="progress"><div id="bar"></div></div>
@@ -244,12 +244,12 @@ function widget(f) {
       return `<select id="${id}" data-num="int">${opts.join("")}</select>`;
     }
     case "file": case "python": case "folder":
-      return `<div class="row"><input id="${id}" type="text" value="${esc(v ?? "")}" placeholder="${esc(f.placeholder || (f.optional ? "—" : ""))}"><button class="small" data-browse="${f.key}" data-kind="${f.kind}">Browse…</button></div>`;
+      return `<div class="row"><input id="${id}" type="text" value="${esc(v ?? "")}" placeholder="${esc(f.placeholder || (f.optional ? "—" : ""))}"><button class="small" data-browse="${f.key}" data-kind="${f.kind}" title="Choose with a file dialog">Browse…</button></div>`;
     case "model": {
       const custom = !(v in CP_MODELS);
       return `<div class="row"><select id="${id}">${Object.entries(CP_MODELS).map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("")}
         <option value="__custom" ${custom ? "selected" : ""}>custom model file…</option></select></div>
-        ${custom ? `<div class="row"><input id="${id}_path" type="text" value="${esc(v)}"><button class="small" data-browse="${f.key}" data-kind="file">Browse…</button></div>` : ""}
+        ${custom ? `<div class="row"><input id="${id}_path" type="text" value="${esc(v)}"><button class="small" data-browse="${f.key}" data-kind="file" title="Choose a model file you trained yourself">Browse…</button></div>` : ""}
         <div>${cpStatus()}</div>`;
     }
     case "pair": {
@@ -262,18 +262,18 @@ function widget(f) {
       const files = v || [];
       return `<div class="files">${files.map((p, i) => `<div class="file"><span class="name" title="${esc(p)}">${esc(p.split(/[\\/]/).pop())}</span>
           <span class="meta">${fileMeta(INFO[p])}</span><button class="small" data-remove="${i}" title="Remove">✕</button></div>`).join("")}
-        <div class="row"><button data-browse="${f.key}" data-kind="files">Add images…</button><button data-browse="${f.key}" data-kind="tiles" title="A folder with one TIFF per tile, exported from LAS X: stitched by the stage positions of the tiles">Add tile folder…</button>${files.length ? `<button class="link" data-clearfiles>clear</button>` : `<span class="muted">no images selected</span>`}</div></div>`;
+        <div class="row"><button data-browse="${f.key}" data-kind="files" title="Add .tif or .lif files to the list (several at once is possible)">Add images…</button><button data-browse="${f.key}" data-kind="tiles" title="A folder with one TIFF per tile, exported from LAS X: stitched by the stage positions of the tiles">Add tile folder…</button>${files.length ? `<button class="link" data-clearfiles title="Remove all images from the list">clear</button>` : `<span class="muted">no images selected</span>`}</div></div>`;
     }
     case "criteria": {
       const crit = v || [], metrics = Object.keys(SCHEMA.metrics);
       return `<div>${crit.map((c, i) => `<div class="crit" data-crit="${i}">
           <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
           <select data-c="metric" title="${esc(SCHEMA.metrics[c.metric] || "")}">${metrics.map(m => `<option ${m === c.metric ? "selected" : ""}>${m}</option>`).join("")}</select>
-          <select data-c="op">${[["<", "<"], [">", ">"], ["between", "between"]].map(([k, l]) => `<option value="${k}" ${k === c.op ? "selected" : ""}>${l}</option>`).join("")}</select>
-          <input data-c="value" type="number" step="any" value="${c.value ?? ""}">
-          ${c.op === "between" ? `<input data-c="value2" type="number" step="any" value="${c.value2 ?? ""}">` : "<span></span>"}
-          <button class="small" data-c="remove" title="Remove">✕</button></div>`).join("")}
-        <div class="row"><button class="small" data-addcrit>+ criterion</button><span class="muted">${crit.length ? "hover a metric for its meaning; thresholds can be refined later in the dashboard" : "no criteria: all valid cells are listed, refine in the dashboard"}</span></div></div>`;
+          <select data-c="op" title="&lt; below the value · &gt; above the value · between: from the first to the second value">${[["<", "<"], [">", ">"], ["between", "between"]].map(([k, l]) => `<option value="${k}" ${k === c.op ? "selected" : ""}>${l}</option>`).join("")}</select>
+          <input data-c="value" type="number" step="any" value="${c.value ?? ""}" title="Threshold, in the unit of the metric (e.g. ns for lifetimes)">
+          ${c.op === "between" ? `<input data-c="value2" type="number" step="any" value="${c.value2 ?? ""}" title="Upper limit of the range">` : "<span></span>"}
+          <button class="small" data-c="remove" title="Remove this criterion">✕</button></div>`).join("")}
+        <div class="row"><button class="small" data-addcrit title="Add a condition that hits must meet">+ criterion</button><span class="muted">${crit.length ? "hover a metric for its meaning; thresholds can be refined later in the dashboard" : "no criteria: all valid cells are listed, refine in the dashboard"}</span></div></div>`;
     }
     default: return `<input id="${id}" type="text" value="${esc(v ?? "")}">`;
   }
@@ -282,18 +282,20 @@ function fieldHTML(f) {
   const why = unusedReason(f);
   if (why) {  // same field, inputs disabled
     const html = fieldHTMLRaw(f).replace(/<(input|select|button)\b/g, "<$1 disabled");
-    return html.replace(/^<div class="field/, `<div title="${esc("Not used: " + why)}" class="off field`);
+    return html.replace(/^<div title="([^"]*)" class="field/, (m, tip) => `<div title="${esc("Not used: " + why)}&#10;&#10;${tip}" class="off field`);
   }
   return fieldHTMLRaw(f);
 }
 function fieldHTMLRaw(f) {
   const wide = ["files", "criteria", "model"].includes(f.kind) || ["file", "python", "folder"].includes(f.kind);
   const cls = ["field", f.kind === "bool" ? "check" : "", wide ? "wide" : "", isChanged(f) && f.level !== "basic" ? "changed" : ""].join(" ");
-  const label = `<label for="f_${f.key.replace(".", "_")}" title="${esc(f.key)}">${esc(f.label)}</label>`;
+  const label = `<label for="f_${f.key.replace(".", "_")}">${esc(f.label)}</label>`;
+  // hover text: the fuller explanation, and the name of the setting in settings files
+  const tip = esc((f.tip || f.help || "") + "\n\nSetting: " + f.key).replace(/\n/g, "&#10;");
   const hint = hintFor(f);
   const help = (f.help || hint) ? `<div class="help">${esc(f.help || "")}${hint ? (f.help ? " · " : "") + hint : ""}</div>` : "";
-  return f.kind === "bool" ? `<div class="${cls}" data-key="${f.key}">${widget(f)}${label}${help ? `<span class="help">${help}</span>` : ""}</div>`
-    : `<div class="${cls}" data-key="${f.key}">${label}${widget(f)}${help}</div>`;
+  return f.kind === "bool" ? `<div title="${tip}" class="${cls}" data-key="${f.key}">${widget(f)}${label}${help ? `<span class="help">${help}</span>` : ""}</div>`
+    : `<div title="${tip}" class="${cls}" data-key="${f.key}">${label}${widget(f)}${help}</div>`;
 }
 // context-dependent hints, derived from the selected images
 function hintFor(f) {
@@ -318,10 +320,10 @@ function render() {
     html += `<div class="card" style="--h:${HUES[card.title] ?? 212}"><h2>${esc(card.title)}</h2>` +
       (basic.length ? `<div class="body">${basic.map(fieldHTML).join("")}</div>` : `<div class="note">${esc(card.note || "")}</div>`);
     if (subs.length) {
-      html += `<div class="adv"><button class="advtoggle" data-card="${esc(card.title)}">${open ? "▾" : "▸"} Advanced settings` +
+      html += `<div class="adv"><button class="advtoggle" data-card="${esc(card.title)}" title="Show or hide the less common settings of this section. A dot marks settings that differ from the default.">${open ? "▾" : "▸"} Advanced settings` +
         (changed ? ` · <span class="count">${changed} changed</span>` : "") + `</button>`;
       if (open) html += subs.map(a => `<h3>${esc(a.title)}</h3><div class="body">${a.fs.map(fieldHTML).join("")}</div>`).join("") +
-        (changed ? `<div style="padding:0 12px 10px"><button class="small" data-resetcard="${esc(card.title)}">Reset these advanced settings</button></div>` : "");
+        (changed ? `<div style="padding:0 12px 10px"><button class="small" data-resetcard="${esc(card.title)}" title="Set the advanced settings of this section back to their defaults">Reset these advanced settings</button></div>` : "");
       html += `</div>`;
     }
     html += `</div>`;
@@ -345,9 +347,9 @@ function renderResults() {
   if (JOB.state === "running" || !o || !o.images.length) { el.innerHTML = ""; return; }
   const sep = S.input.output.includes("\\") ? "\\" : "/", base = S.input.output.replace(/[\\/]$/, "") + sep;
   const links = [];
-  if (o.index) links.push(`<button class="primary" data-open="${esc(base + "index.html")}">Open overview</button>`);
-  for (const d of o.images) links.push(`<button data-open="${esc(base + d + sep + "dashboard.html")}">Dashboard: ${esc(d)}</button>`);
-  links.push(`<button data-open="${esc(S.input.output)}">Open output folder</button>`);
+  if (o.index) links.push(`<button class="primary" data-open="${esc(base + "index.html")}" title="Overview of the run in the browser: all images, the hits and links to the dashboards">Open overview</button>`);
+  for (const d of o.images) links.push(`<button data-open="${esc(base + d + sep + "dashboard.html")}" title="Interactive dashboard of this image: cells, traces, kymograph and hits">Dashboard: ${esc(d)}</button>`);
+  links.push(`<button data-open="${esc(S.input.output)}" title="Open the output folder in the file explorer">Open output folder</button>`);
   el.innerHTML = `<div class="muted">Results in the output folder${JOB.state === "done" ? "" : " (earlier run)"}:</div>` + links.join("");
 }
 

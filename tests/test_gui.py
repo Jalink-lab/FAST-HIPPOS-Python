@@ -168,3 +168,9 @@ def test_theme_is_kept_between_starts(tmp_path, monkeypatch):
     assert b'data-theme="dark"' in gui._page("t")
     gui.save_prefs({"theme": "<script>", "other": 1})  # only known values are stored
     assert gui.load_prefs() == {"theme": "dark"}
+
+
+def test_every_setting_has_a_hover_explanation():
+    keys = {f["key"] for s in gui.schema()["sections"] for f in s["fields"]}
+    assert {k for k in keys if not gui.TIPS.get(k)} == set()
+    assert set(gui.TIPS) <= keys  # no stale entries

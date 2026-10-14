@@ -81,7 +81,10 @@ FIELDS: dict[str, dict] = {
     # ---- frequency-domain FLIM
     "fdflim.reference": {"label": "Reference phase stack", "widget": "file"},
     "fdflim.background": {"label": "Background phase stack", "widget": "file"},
-    "fdflim.lifetime_from": {"choices": {"phase": "phase", "modulation": "modulation"}},
+    "fdflim.lifetime_from": {"label": "Lifetime from", "choices": {"phase": "phase", "modulation": "modulation"}},
+    "fdflim.phases": {"label": "Phase steps per stack"},
+    "fdflim.frequency_mhz": {"label": "Modulation frequency (MHz)"},
+    "fdflim.tau_ref": {"label": "Reference lifetime (ns)"},
     # ---- pre-processing
     "preprocess.correct_bidirectional": {"label": "Correct bidirectional scanning phase"},
     "preprocess.bidirectional_axis": {"label": "Bidirectional offset along", "choices": {
@@ -109,8 +112,8 @@ FIELDS: dict[str, dict] = {
         "help": "Only needed when Cellpose 4 is not installed in this environment"},
     "segmentation.cellpose_version": {"label": "Cellpose version", "show": CELLPOSE,
         "help": "Empty = 4 for cpsam, else 3"},
-    "segmentation.flow_threshold": {"show": CELLPOSE},
-    "segmentation.cellprob_threshold": {"show": CELLPOSE},
+    "segmentation.flow_threshold": {"label": "Flow threshold", "show": CELLPOSE},
+    "segmentation.cellprob_threshold": {"label": "Cell probability threshold", "show": CELLPOSE},
     "segmentation.channel": {"label": "Segmentation channel", "widget": "channel",
         "help": "Dedicated channel for segmentation; empty = intensity"},
     "segmentation.gamma": {"label": "Gamma before segmentation", "help": "e.g. 0.5 to enhance dim cells; empty = off"},
@@ -178,6 +181,180 @@ FIELDS: dict[str, dict] = {
     "screening.max_hits_per_rgn": {"label": "Hits per .rgn file", "enable": SCREEN},
     "screening.optimize_path": {"label": "Optimize the route", "enable": SCREEN},
     "screening.max_optimization_time": {"label": "Route optimization time (s per file)", "enable": SCREEN},
+}
+
+# Shown when hovering over a setting in the interface: what it does and when to change it, in plain words. The short
+# 'help' line under a field stays; this is the fuller explanation. Every setting has one (checked by a test).
+TIPS: dict[str, str] = {
+    # ---- images
+    "input.files": "The time-lapse images to analyze. Each .tif is one image; a .lif file can hold many images "
+        "(series), and a folder of tiles exported from LAS X is stitched into one image. All are analyzed with the "
+        "same settings, and the screening is done over all of them together.",
+    "input.output": "Folder for all results: tables, plots, dashboards and .rgn files. Each image gets a subfolder. "
+        "An existing output folder is overwritten by a new run, or re-used by 'Re-apply screening'.",
+    "input.modality": "What the pixel values mean, and so how the lifetime (or ratio) per cell is calculated. TCSPC: "
+        "two amplitude images from a 2-component fit (LAS X / TauSeparation). Fast FLIM and TauContrast: an "
+        "intensity and a lifetime channel. Ratio: two intensity channels, the first divided by the second.",
+    "input.tau1": "Lifetime (ns) of the first, short component of the 2-component fit. Must match the value used for "
+        "the fit in LAS X; the cell lifetime is the amplitude-weighted average of τ₁ and τ₂.",
+    "input.tau2": "Lifetime (ns) of the second, long component of the 2-component fit. Must match the value used for "
+        "the fit in LAS X.",
+    "input.additional_channel": "An extra channel, e.g. a transfection or cell-cycle marker. Its mean intensity is "
+        "measured in every cell and can be used to sort, filter or classify cells. Empty = none.",
+    "input.intensity_channel": "The channel with the first FLIM component (TCSPC), the intensity (Fast FLIM, "
+        "TauContrast) or the numerator (ratio). The lifetime, second component or denominator must be the channel "
+        "right after it. Usually 1.",
+    "input.default_frame_interval": "Time between frames (s), used only when the image file does not store it. "
+        "Only affects time axes and times in seconds; the detection works in frames.",
+    "input.pixel_size": "Size of one pixel (µm). Normally read from the file; fill it in only when the file has no "
+        "or a wrong calibration. Affects cell sizes and the stage positions of the hits.",
+    "input.remove_last_frame": "Leave out the last frame of every image, e.g. when it is incomplete because the "
+        "acquisition was stopped during that frame.",
+    "input.series": "Which images (series) of a .lif file to analyze, counted from 0, e.g. '0, 2, 5'. Empty = all "
+        "series. Ignored for .tif files and tile folders.",
+    # ---- frequency-domain FLIM
+    "fdflim.reference": "Phase stack of a dye with a known lifetime, recorded with the same settings. Used to "
+        "calibrate the phase and modulation of the instrument.",
+    "fdflim.phases": "Number of phase steps in each stack (frames per lifetime measurement).",
+    "fdflim.frequency_mhz": "Modulation frequency of the light source in MHz.",
+    "fdflim.tau_ref": "Known lifetime (ns) of the reference dye.",
+    "fdflim.lifetime_from": "Calculate the lifetime from the phase shift or from the demodulation. The phase is "
+        "usually less noisy.",
+    "fdflim.background": "Optional phase stack without sample (background), subtracted before the calculation.",
+    # ---- pre-processing
+    "preprocess.correct_bidirectional": "With bidirectional scanning, the lines scanned forward and backward can be "
+        "slightly shifted, which makes edges look jagged. This measures the shift and corrects it. For tile folders "
+        "and .lif tile scans it is done per tile.",
+    "preprocess.bidirectional_axis": "Direction of the shift between forward and backward scan lines: along y when "
+        "the fast scan direction is vertical in the image (Leica Stellaris), along x when it is horizontal. A "
+        "property of the microscope.",
+    "preprocess.correct_drift": "Align all frames to each other, to correct a slow movement of the sample during the "
+        "time-lapse. Needed when cells visibly move; otherwise traces mix neighbouring cells.",
+    "preprocess.drift_reference": "Frame that the others are aligned to: the first, the last, or each frame to the "
+        "one before it (best for slow, gradual drift).",
+    "preprocess.drift_edge_detect": "Align on the edges in the image instead of the intensity itself. Helps when the "
+        "brightness changes during the experiment.",
+    "preprocess.drift_blur_sigma": "Blurring (pixels) before aligning, so that noise does not disturb the alignment. "
+        "Larger = more robust, less precise.",
+    # ---- segmentation
+    "segmentation.method": "How the cells are found. Cellpose: a deep-learning model (best, uses the GPU). Existing "
+        "label image: cells outlined elsewhere (e.g. in Fiji). Threshold + watershed: a simple classical method, no "
+        "Cellpose needed.",
+    "segmentation.cellpose_model": "The Cellpose model. cyto3: whole cells (Cellpose 3). nuclei: nuclei only. cpsam: "
+        "Cellpose-SAM (Cellpose 4), generally the most accurate but slower. Or a model you trained yourself.",
+    "segmentation.diameter": "Typical cell diameter in pixels. 0 = let Cellpose 3 estimate it per image. Giving it "
+        "is faster and often more consistent.",
+    "segmentation.labelmap": "An image in which every cell has its own number (0 = background), with the same size "
+        "as the analyzed image.",
+    "segmentation.min_cell_size": "Objects smaller than this (pixels) are removed: debris, fragments and noise.",
+    "segmentation.use_gpu": "Run Cellpose on the graphics card, which is much faster. Switch it off only when the "
+        "GPU causes problems.",
+    "segmentation.cellpose3_python": "Python of a separate environment with Cellpose 3, used when Cellpose 3 is not "
+        "installed alongside FAST-HIPPOS. The status line shows whether it works.",
+    "segmentation.cellpose4_python": "Python of a separate environment with Cellpose 4, used when Cellpose 4 is not "
+        "installed alongside FAST-HIPPOS. The status line shows whether it works.",
+    "segmentation.cellpose_version": "Force Cellpose 3 or 4. Empty = 4 for the cpsam model, 3 for the others.",
+    "segmentation.flow_threshold": "Cellpose quality check of the cell shapes. Lower = stricter: fewer, cleaner "
+        "cells. Higher = more cells, including less regular ones. Cellpose's own default is 0.4; here 1.0 (lenient).",
+    "segmentation.cellprob_threshold": "How certain Cellpose must be that a pixel belongs to a cell. Lower (e.g. -2) "
+        "= larger cells and more dim cells; higher = smaller cells and fewer dim ones. Default 0.",
+    "segmentation.channel": "Use another channel to find the cells, e.g. a membrane or nuclear stain. Empty = the "
+        "intensity of the FLIM data.",
+    "segmentation.gamma": "Brighten dim cells before segmentation: values below 1 (e.g. 0.5) lift dark regions. "
+        "Only affects finding the cells, not the measurements. Empty = off.",
+    "segmentation.start_frame": "The cells are found in the average of a range of frames. First frame of that range "
+        "(0-based). Empty = from the start.",
+    "segmentation.end_frame": "Last frame (0-based, included) of the range that is averaged for finding the cells. "
+        "Empty = to the end.",
+    "segmentation.max_circularity": "Remove objects that are too round, e.g. dead or rounded-up cells. A perfect "
+        "circle is 1, so 1 means no filter; 0.9 removes the roundest objects.",
+    "segmentation.min_cell_intensity": "Remove cells whose mean intensity is below this value, e.g. untransfected "
+        "or out-of-focus cells. 0 = no filter.",
+    "segmentation.classifier": "A pixel classifier that recognizes nuclei. With it, the stage position of a hit is "
+        "the centre of its nucleus instead of the centre of the cell outline. Train one with fast-hippos-cli "
+        "train-classifier.",
+    "segmentation.classifier_class": "Which class of the classifier is 'nucleus' (the number used when training).",
+    "segmentation.position_erosion": "The cell outline is shrunk by this many pixels before looking for the nucleus, "
+        "so that a neighbouring nucleus at the edge is not picked.",
+    # ---- display
+    "display.min_lifetime": "Lower end of the colour scale and lifetime axes. Empty = from the data (1st "
+        "percentile). Can also be changed in the dashboard.",
+    "display.max_lifetime": "Upper end of the colour scale and lifetime axes. Empty = from the data (99th "
+        "percentile).",
+    "display.lut": "Colour scale for lifetime images and plots.",
+    "display.smooth_traces": "Average each trace over neighbouring frames to reduce noise: radius in frames (1 = "
+        "average of 3 frames). Also used for the hit criteria. 0 = no smoothing.",
+    "display.overlay_smooth_xy": "Spatial smoothing (pixels) of the lifetime colour overlay in the dashboard. Only "
+        "for display.",
+    "display.overlay_smooth_t": "Temporal smoothing (frames) of the lifetime colour overlay in the dashboard. Only "
+        "for display.",
+    "display.histogram_bins": "Number of bars in the histograms of the dashboard.",
+    "display.dashboard": "Make an interactive dashboard (HTML page) per image, to explore cells, traces and hits.",
+    "display.dashboard_max_size": "Images larger than this (pixels, longest side) are shown downsized in the "
+        "dashboard overview, to keep it fast.",
+    "display.dashboard_max_megapixels": "Size limit of the dashboard movie (pixels × frames, in millions). Above it, "
+        "frames are skipped in the overview so that the page stays responsive.",
+    "display.dashboard_tiles": "For large images: save full-resolution pieces that the dashboard loads when you zoom "
+        "in. Takes extra disk space (folder 'tiles').",
+    "display.save_png_plots": "Also save the plots (traces, kymographs, histograms) as PNG images.",
+    "display.save_tables": "Save tables with the value of every cell in every frame (TSV, opens in Excel).",
+    # ---- stimulation and calibration
+    "events.stimulation_frame": "First frame in which the stimulus acts (0-based). The frames before it are the "
+        "baseline. Empty = found automatically as the first clear jump in the average trace.",
+    "events.calibration_frame": "First frame with the calibration stimulus (e.g. forskolin + IBMX), which gives the "
+        "maximal response. Empty = found automatically as the second jump.",
+    "events.baseline_only": "For experiments without a stimulus: the whole time-lapse is baseline; no stimulation or "
+        "calibration is looked for.",
+    "events.sensitivity": "How far a jump in the average trace must stand out from the noise to count as a "
+        "stimulation or calibration, in units of the noise σ. Lower = more sensitive, but more false detections. "
+        "Only used when the frames are empty.",
+    "events.margin": "Frames left out just before each transition (end of the baseline and end of the response), "
+        "because the change may already start there.",
+    # ---- screening
+    "screening.enabled": "Select hit cells with the criteria and write their stage positions to .rgn files for "
+        "LAS X, to revisit them on the microscope.",
+    "screening.criteria": "Conditions that a cell must meet to be a hit, e.g. response_max_diff > 0.3. AND: must "
+        "pass. OR: at least one of the OR criteria must pass. Hover over a metric for its meaning; thresholds can be "
+        "tuned later in the dashboard.",
+    "screening.stage_positions_file": "Only for images without stage positions of their own: the .lif file of the "
+        "experiment, or a text file with X Y in metres per image (x0 y0 x1 y1 …).",
+    "screening.classify_additional_channel": "Split the cells in two groups on the intensity of the additional "
+        "channel (e.g. transfected or not), with an automatic threshold. Adds a class column to the tables.",
+    "screening.logic": "AND or OR, for criteria that do not set their own.",
+    "screening.baseline_calibration_diff": "Quality check: only cells whose calibration response (calibration − "
+        "baseline) lies in this range can be hits. Removes cells that do not respond to the calibration. Empty = "
+        "off.",
+    "screening.max_baseline_deviation": "Quality check: only cells whose baseline differs at most this much from "
+        "the population baseline can be hits. Removes outliers. Empty = off.",
+    "screening.response_window": "Length (frames) of the part of the response used for the 'mean' response metrics. "
+        "-1 = the whole response, from stimulation to calibration.",
+    "screening.response_window_anchor": "Where that window lies: at the start of the response (after the "
+        "stimulation) or at its end (just before the calibration).",
+    "screening.response_window_margin": "Frames skipped between the anchor and the window, e.g. to leave out the "
+        "first frames after the stimulation.",
+    "screening.rise_time_fraction": "Rise time = number of frames until a cell reaches this fraction of its maximal "
+        "response (0.75 = 75 %).",
+    "screening.additional_channel_metric": "Intensity of the additional channel per cell: the mean over all frames, "
+        "or only the first frame (when the marker bleaches or changes).",
+    "screening.classification_threshold": "Intensity that separates the two classes of the additional channel. "
+        "Empty = chosen automatically (Otsu).",
+    "screening.sort_by": "Order of the hits in the hit list and .rgn files before the route is optimized. Empty = "
+        "cell order.",
+    "screening.sort_descending": "Sort the hits from the highest to the lowest value.",
+    "screening.manual_hits": "Use cells you picked yourself (a TSV exported from a dashboard selection) as hits, "
+        "instead of the criteria.",
+    "screening.random_hits": "Testing only: take this many random cells as hits. Empty = off.",
+    "screening.random_seed": "Testing only: a fixed seed, so that 'random hits' gives the same cells every time.",
+    "screening.n_tiles": "Not used by the Python version: the tile layout comes from the stitched image. Kept for "
+        "settings files of the Fiji version.",
+    "screening.tile_overlap": "Not used by the Python version: the tile overlap comes from the stitched image. Kept "
+        "for settings files of the Fiji version.",
+    "screening.max_hits_per_rgn": "The hits are split over .rgn files of at most this many positions (LAS X can be "
+        "slow with very long lists).",
+    "screening.optimize_path": "Order the positions in each .rgn file for the shortest stage route (typically 13–18 % "
+        "shorter than always going to the nearest next hit).",
+    "screening.max_optimization_time": "Time limit for optimizing the route of each .rgn file. Longer can give a "
+        "slightly shorter route.",
 }
 
 FD = {"input.modality": ["fd_flim"]}
@@ -339,6 +516,7 @@ def schema() -> dict:
             elif "choices" in extra:
                 extra["kind"] = "select"
             spec |= extra
+            spec["tip"] = TIPS.get(key, "")
             items.append(spec)
         sections.append({"name": section.name, "title": SECTIONS.get(section.name, section.name),
                          "show": SECTION_SHOW.get(section.name), "fields": items})
