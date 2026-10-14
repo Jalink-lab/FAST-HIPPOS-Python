@@ -178,7 +178,9 @@ function initScreening() {
   $("addsel").onclick = () => { S.sel.forEach(i => SCR.manual.add(i)); recompute(); };
   $("clearmanual").onclick = () => { SCR.manual.clear(); recompute(); };
   $("scrreset").onclick = () => { const o = JSON.parse(SCR0); Object.assign(e, o.events); Object.assign(p, o.params); SCR.mode = o.mode; eventsTouched = false; fillParams(); recompute(); };
-  const readOut = () => { p.sort_by = $("sortby").value || null; p.sort_descending = $("sortdir").value === "1"; p.max_hits_per_rgn = Math.max(1, numOrNull($("chunk")) ?? 1000); p.optimize_path = $("optpath").checked; if (SCR.route) SCR.route.stale = true; updateScreenUI(); invalidate("viewerHov"); };
+  const readOut = () => { p.sort_by = $("sortby").value || null; p.sort_descending = $("sortdir").value === "1"; p.max_hits_per_rgn = Math.max(1, numOrNull($("chunk")) ?? 1000); p.optimize_path = $("optpath").checked;
+    if (SCR.route) { SCR.route.stale = true; clearTimeout(readOut.t); readOut.t = setTimeout(() => computeRoute(false), 500); }  // a new route right away
+    updateScreenUI(); invalidate("viewerHov"); };
   ["sortby", "sortdir", "optpath"].forEach(id => $(id).onchange = readOut); $("chunk").oninput = readOut;
   $("route").onclick = () => computeRoute(); $("vroute2").checked = S.showRoute;
   $("vroute2").onchange = () => { S.showRoute = $("vroute2").checked; $("vroute").checked = S.showRoute; invalidate("viewerHov"); };
@@ -217,6 +219,12 @@ function renderCriteria() {
 }
 function updateScreenUI() {
   const nh = nHits(), nv = C.valid.reduce((s, v) => s + v, 0), p = SCR.params;
+  // with an optimized route the sort order only decides which hits go into which .rgn file: with one file it changes nothing
+  const sortIdle = p.optimize_path && nh <= (p.max_hits_per_rgn || Infinity), sortRow = $("sortby").closest(".row");
+  sortRow.classList.toggle("idle", sortIdle);
+  sortRow.title = sortIdle ? `All ${nh} hits fit in one .rgn file and the route is optimized, so the sort order does not change the route ` +
+    "(it only orders Hits \u2192 TSV). It decides which hits go into which file when there are more hits than fit in one file; " +
+    "switch off 'optimize path' to visit the hits in this order." : "Which hits come first: they fill the .rgn files in this order";
   // funnel: cells -> pass gates -> hits
   const bar = (n, cls, label) => `<span class="fbar ${cls}" style="width:${Math.max(2, 100 * n / Math.max(1, N))}%"></span><span class="flab">${label}</span>`;
   $("funnel").innerHTML = `<span class="frow">${bar(N, "f0", `${N} cells`)}</span><span class="frow">${bar(nv, "f1", `${nv} valid`)}</span><span class="frow">${bar(nh, "f2", `<b>${nh}</b> hits`)}</span>`;
@@ -260,8 +268,9 @@ function routeFromRun() {
   SCR.route = { chunks, sig: hitSignature(), n: chunks.reduce((s, ch) => s + ch.length, 0), length: routeLength(chunks), unit: "mm", stale: false, fromRun: true };
   updateScreenUI();
 }
-async function computeRoute() {
-  if (SCR.routeBusy) return SCR.route;
+// show: switch the route on in the image (the button); an automatic recompute leaves that as it is
+async function computeRoute(show = true) {
+  if (SCR.routeBusy) { SCR.routeAgain = true; return SCR.route; }  // settings changed meanwhile: once more afterwards
   const ids = sortedHits(); if (!ids.length) { SCR.route = null; updateScreenUI(); return null; }
   SCR.routeBusy = true; updateScreenUI();
   const p = SCR.params, size = p.max_hits_per_rgn || ids.length, chunks = [];
@@ -277,7 +286,9 @@ async function computeRoute() {
     chunks.push(chunk);
   }
   SCR.route = { chunks, sig: hitSignature(), n: ids.length, length: useAbs ? length : length * D.pixel_size * 1e-6, unit: "mm", stale: false, fromRun: false };
-  SCR.routeBusy = false; S.showRoute = true; $("vroute").checked = $("vroute2").checked = true;
+  SCR.routeBusy = false;
+  if (show) { S.showRoute = true; $("vroute").checked = $("vroute2").checked = true; }
+  if (SCR.routeAgain) { SCR.routeAgain = false; setTimeout(() => computeRoute(show)); }
   updateScreenUI(); invalidate("viewerHov");
   return SCR.route;
 }

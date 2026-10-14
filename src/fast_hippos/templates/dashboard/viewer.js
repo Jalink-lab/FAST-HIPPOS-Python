@@ -323,12 +323,14 @@ function initViewer() {
     else if (lastSize) { view.tx += (r.width - lastSize[0]) / 2; view.ty += (r.height - lastSize[1]) / 2; }
     lastSize = [r.width, r.height]; invalidate("viewer");
   }).observe(vwrap);
-  // full screen
-  const panel = vwrap.closest(".panel");
+  // full screen; the time controls (play, frame slider, time) move from the page toolbar into the panel meanwhile
+  const panel = vwrap.closest(".panel"), timeCtl = $("play").closest(".group"), timeHome = [timeCtl.parentNode, timeCtl.nextSibling];
   $("vfull").onclick = () => document.fullscreenElement ? document.exitFullscreen() : panel.requestFullscreen().catch(() => {});
   document.addEventListener("fullscreenchange", () => {
     const full = document.fullscreenElement === panel;
     $("vfull").textContent = full ? "⤡" : "⤢"; $("vfull").title = full ? "Leave full screen (Esc)" : "Full screen (Shift+F; Esc to leave)";
     (full ? panel : document.body).appendChild($("tip"));  // only the full-screen element is shown: keep the tooltip in it
+    if (full) panel.querySelector(".panel-f").prepend(timeCtl); else timeHome[0].insertBefore(timeCtl, timeHome[1]);
+    timeCtl.classList.toggle("fullscreen-time", full);
   });
 }
