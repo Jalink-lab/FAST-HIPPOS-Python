@@ -432,7 +432,8 @@ document.addEventListener("click", async (e) => {
 
 // header buttons
 $("bQuit").onclick = async () => {
-  if (JOB.state === "running" && !confirm("An analysis is running. Stop it and quit FAST-HIPPOS?")) return;
+  if (!confirm(JOB.state === "running" ? "An analysis is running. Stop it and quit FAST-HIPPOS?"
+    : "Are you sure you want to quit FAST-HIPPOS?\n\nThe settings are kept for the next start.")) return;
   try { await api("quit"); } catch { /* already gone */ }
   $("stopped").classList.add("on");
 };
