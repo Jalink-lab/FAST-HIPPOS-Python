@@ -140,7 +140,10 @@ FIELDS: dict[str, dict] = {
     "events.calibration_frame": {"label": "Calibration frame", "widget": "frame",
         "help": "First frame with the calibration. Empty = detect automatically"},
     "events.baseline_only": {"label": "Baseline only (no stimulation)"},
-    "events.sensitivity": {"label": "Detection sensitivity (σ)"},
+    "events.sensitivity": {"label": "Detection threshold (× noise σ)",
+        "help": "How far a jump in the mean trace must stand out from the noise to count as a stimulation or "
+        "calibration. Lower = more sensitive: finds weaker responses, or responses of fewer cells, but also more "
+        "false ones. Default 5; try 3–4 when only a few cells respond, or set the frames by hand."},
     "events.margin": {"label": "Margin (frames)", "help": "Frames excluded before each transition"},
     # ---- screening
     "screening.enabled": {"label": "Screen for hits"},

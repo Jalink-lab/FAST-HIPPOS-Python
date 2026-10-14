@@ -114,7 +114,7 @@ class EventSettings:
     stimulation_frame: int | None = None  # manual; None = automatic detection
     calibration_frame: int | None = None
     baseline_only: bool = False
-    sensitivity: float = 5.0  # min. peak prominence, in robust noise sigmas of the 2nd derivative
+    sensitivity: float = 5.0  # detection threshold: min. peak prominence in noise sigmas of the 2nd derivative; lower = more sensitive
     margin: int = 1  # frames excluded before each transition (end of baseline, end of response)
 
 

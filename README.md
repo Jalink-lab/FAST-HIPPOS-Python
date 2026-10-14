@@ -374,7 +374,8 @@ the visible area when zooming in, so that the dashboard stays responsive.
 - Settings in a graphical interface and TOML files instead of script-parameter dialogs. Frames are 0-based and
   denote the *first* frame with the stimulus: Fiji frames "s,c" become `stimulation_frame = s + 1` and
   `calibration_frame = c + 1`.
-- Stimulation and calibration detection uses a robust noise estimate; the default sensitivity is 5.
+- Stimulation and calibration detection uses a robust noise estimate; the default detection threshold is 5 × the
+  noise σ (lower = more sensitive).
 - TCSPC cell lifetimes pool the fitted amplitudes of all pixels; the Fiji version averages per-pixel lifetimes
   weighted by intensity. The values differ slightly, most for dim cells, so thresholds do not transfer 1:1.
 - The Labkit step that refines positions on the nuclei is replaced by a scikit-learn pixel classifier.

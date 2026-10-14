@@ -57,7 +57,7 @@ dashboard_tiles = true                # larger images: full-resolution tiles loa
 # stimulation_frame = 6
 # calibration_frame = 27
 baseline_only = false
-sensitivity = 5.0                     # robust noise sigmas of the 2nd derivative
+sensitivity = 5.0                     # detection threshold in noise sigmas of the 2nd derivative; lower = more sensitive
 
 [screening]
 enabled = false
