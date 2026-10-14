@@ -66,6 +66,13 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
     _setup_logging(out / "run_log.txt")
     log.info("FAST-HIPPOS (Python) %s%s", __version__, " - re-applying analysis to saved data" if reapply else "")
     (out / "settings_used.json").write_text(json.dumps(settings.to_dict(), indent=2))
+    if not reapply:  # stop now, not after minutes of work, if the settings do not fit the images
+        from .checks import SettingsError, check_inputs
+
+        if problems := check_inputs(settings):
+            for p in problems:
+                log.error(p)
+            raise SettingsError(problems)
 
     results: list[ImageResult] = []
     if reapply:

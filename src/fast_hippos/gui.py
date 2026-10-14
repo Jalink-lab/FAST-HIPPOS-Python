@@ -401,28 +401,13 @@ def inspect_file(path: Path) -> dict:
         return out
     out["size_mb"] = round(path.stat().st_size / 1e6, 1)
     try:
-        if path.suffix.lower() in (".tif", ".tiff"):
-            import tifffile
+        from .io import image_info
 
-            with tifffile.TiffFile(path) as tif:
-                s = tif.series[0]
-                axes, shape = s.axes, s.shape
-                ij = tif.imagej_metadata or {}
-                dims = dict(zip(axes, shape, strict=True))
-                out |= {"frames": dims.get("T", dims.get("Z", 1)), "channels": dims.get("C", 1),
-                        "width": dims.get("X"), "height": dims.get("Y"), "dtype": str(s.dtype),
-                        "frame_interval": ij.get("finterval"), "stitched": "Stitched image" in (ij.get("Info") or "")}
-                tag = tif.pages[0].tags.get("XResolution")
-                if tag and tag.value[0]:
-                    out["pixel_size"] = round(tag.value[1] / tag.value[0], 4)
-        elif path.suffix.lower() == ".lif":
-            from readlif.reader import LifFile
-
-            lif = LifFile(str(path))
-            imgs = list(lif.get_iter_image())
-            first = imgs[0].info
-            out |= {"series": len(imgs), "frames": first["dims"].t, "channels": first["channels"],
-                    "width": first["dims"].x, "height": first["dims"].y}
+        infos = image_info(path)
+        first = {k: v for k, v in infos[0].items() if k != "name"}
+        out |= first
+        if len(infos) > 1:
+            out |= {"series": len(infos), "channels": min(i["channels"] for i in infos), "frames": min(i["frames"] for i in infos)}
     except Exception as e:  # noqa: BLE001 - shown to the user
         out["error"] = f"{type(e).__name__}: {e}"
     return out
@@ -441,6 +426,12 @@ _CELLPOSE_PROBE = (
     "    info['error'] = f'{type(e).__name__}: {e}'\n"
     "print(json.dumps(info))\n"
 )
+
+
+def _check(settings: dict) -> list[str]:
+    from .checks import check_inputs
+
+    return check_inputs(settings_from_plain(settings))
 
 
 def output_info(path: str, job: Job | None = None) -> dict:
@@ -707,6 +698,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "load": lambda q: {"settings": load_toml(Path(q["path"]))},
         "save": lambda q: (Path(q["path"]).write_text(to_toml(q["settings"]), encoding="utf-8"), {"ok": True})[1],
         "validate": lambda q: (settings_from_plain(q["settings"]), {"ok": True})[1],
+        "check": lambda q: {"problems": _check(q["settings"])},
         "run": lambda q: {"run_id": job.start(q["settings"], bool(q.get("reapply")))},
         "apply": lambda q: {"run_id": apply_from_dashboard(job, q["dashboard"], q["toml"], q.get("manual_tsv"))},
         "stop": lambda q: (job.stop(), {"ok": True})[1],

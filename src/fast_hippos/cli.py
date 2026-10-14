@@ -48,7 +48,14 @@ def main(argv: list[str] | None = None) -> int:
         settings = Settings.from_toml(args.config, overrides=args.override)
         if args.command == "run" and not settings.input.files:
             p.error("no input files in [input] files")
-        results = run(settings, reapply=args.command == "reapply")
+        from .checks import SettingsError
+
+        try:
+            results = run(settings, reapply=args.command == "reapply")
+        except SettingsError as e:
+            print(f"Not started: {len(e.problems)} problem{'s' if len(e.problems) > 1 else ''} with the settings (see above).",
+                  file=sys.stderr)
+            return 2
         return 0 if results else 1
     if args.command == "init-config":
         if args.path.exists():

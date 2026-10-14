@@ -329,22 +329,28 @@ function renderResults() {
 }
 
 // ---------------------------------------------------------------- checks before running
+// the same checks of the settings against the images as at the start of a run (server side, metadata only)
+const SRV = { key: "", problems: [] };
+function serverCheck() {
+  const key = JSON.stringify(S); if (key === SRV.key) return;
+  SRV.key = key; clearTimeout(serverCheck.t);
+  serverCheck.t = setTimeout(async () => {
+    let problems; try { problems = (await api("check", { settings: S })).problems; } catch (e) { problems = [e.message]; }
+    if (SRV.key === key) { SRV.problems = problems; renderChecks(); }
+  }, 350);
+}
 function checks() {
-  const out = [], ff = fileFacts(), add = (level, msg) => out.push([level, msg]);
-  if (!S.input.files.length) add("err", "Add one or more images");
-  ff.files.filter(f => !f.exists || f.error).forEach(f => add("err", `${f.name}: ${f.exists ? "cannot be read" : "not found"}`));
+  const out = [], ff = fileFacts(), add = (level, msg, input = false) => out.push([level, msg, input]);
+  serverCheck();
+  SRV.problems.forEach(m => add("err", m, true));  // images, channels, frames, files
   if (!S.input.output) add("err", "Choose an output folder");
   const o = outputState();
   if (o && o.images.length) add("warn", `The output folder has results of ${o.images.length} image${o.images.length > 1 ? "s" : ""}: a new run overwrites them; Re-apply screening reuses them`);
-  if (S.segmentation.method === "labelmap" && !S.segmentation.labelmap) add("err", "Choose the label image");
   if (S.segmentation.method === "cellpose") {
     const r = CP[`${cpVersion()}|${cpPython()}`];
     if (r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== cpVersion())) add("err", `Cellpose ${cpVersion()} is not available (Advanced → Segmentation)`);
     else if (r && r.cellpose && !r.gpu && S.segmentation.use_gpu) add("warn", "No GPU found: Cellpose will run on the CPU (slow)");
   }
-  const st = S.events.baseline_only ? null : S.events.stimulation_frame, ca = S.events.baseline_only ? null : S.events.calibration_frame;
-  if (st != null && ca != null && ca <= st) add("err", "The calibration frame must come after the stimulation frame");
-  if (Number.isFinite(ff.frames) && [st, ca].some(x => x != null && x >= ff.frames)) add("err", `Frames must be below ${ff.frames}`);
   if (S.display.min_lifetime != null && S.display.max_lifetime != null && S.display.max_lifetime <= S.display.min_lifetime) add("err", "Colour scale: the maximum must be larger than the minimum");
   if (S.screening.enabled) {
     if (!S.screening.stage_positions_file && !ff.stitched) add("warn", "No stage positions: hits are found, but no .rgn files are written");
@@ -359,7 +365,9 @@ function renderChecks() {
   const cs = checks(), icon = { err: "✕", warn: "!", ok: "✓" };
   $("checks").innerHTML = cs.map(([l, m]) => `<li class="${l}"><span class="i">${icon[l]}</span><span>${esc(m)}</span></li>`).join("");
   const blocked = cs.some(c => c[0] === "err") || JOB.state === "running", o = outputState();
-  $("bRun").disabled = blocked; $("bReapply").disabled = blocked || !(o && o.images.length);
+  // re-applying uses the saved results, not the images: only problems with the other settings block it
+  const blockedReapply = cs.some(c => c[0] === "err" && !c[2]) || JOB.state === "running";
+  $("bRun").disabled = blocked; $("bReapply").disabled = blockedReapply || !(o && o.images.length);
   $("bReapply").title = o && o.images.length ? `Redo event detection, screening and dashboards for ${o.images.join(", ")} without segmentation (seconds instead of minutes)`
     : "Needs the results of an earlier run in the output folder";
 }
