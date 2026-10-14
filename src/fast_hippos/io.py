@@ -44,9 +44,13 @@ class ImageData:
 
 
 def iter_images(path: Path, series: list[int] | None = None) -> Iterator[ImageData]:
-    """Yield all images (series) in a file."""
+    """Yield all images (series) in a file; a folder of tiles is stitched into one image."""
     suffix = path.suffix.lower()
-    if suffix in (".tif", ".tiff"):
+    if path.is_dir():
+        from .stitch import stitch_folder
+
+        yield stitch_folder(path)
+    elif suffix in (".tif", ".tiff"):
         yield read_tiff(path)
     elif suffix == ".lif":
         yield from read_lif(path, series)
@@ -57,11 +61,16 @@ def iter_images(path: Path, series: list[int] | None = None) -> Iterator[ImageDa
         raise ValueError(f"Unsupported file type: {path} (supported: .tif, .lif, .npy)")
 
 
-def image_info(path: Path) -> list[dict]:
+def image_info(path: Path, lif: Path | None = None) -> list[dict]:
     """Size of every image (series) in a file from its metadata only, with the axes interpreted as by
-    iter_images: [{name, frames, channels, width, height, ...}]. Fast, also for large files."""
+    iter_images: [{name, frames, channels, width, height, ...}]. Fast, also for large files. For a folder of tiles:
+    the stitched image (lif: where the tile positions are, if not next to the tiles)."""
     path = Path(path)
     suffix = path.suffix.lower()
+    if path.is_dir():
+        from .stitch import stitched_info
+
+        return [stitched_info(path, lif)]
     if suffix in (".tif", ".tiff"):
         with tifffile.TiffFile(path) as tif:
             s = tif.series[0]
@@ -188,15 +197,11 @@ def _lif_stage_position(img) -> tuple[float, float] | None:
 
 
 def lif_stage_positions(path: Path, n: int | None = None) -> np.ndarray:
-    """Stage positions (n, 2) in m of the first n series of a .lif file."""
-    positions = []
-    for k, image in enumerate(read_lif(path)):
-        if n is not None and k >= n:
-            break
-        if image.stage_position is None:
-            raise ValueError(f"No stage position found for series {k} in {path.name}")
-        positions.append(image.stage_position)
-    return np.array(positions, dtype=float)
+    """Stage positions (n, 2) in m of the first n tiles / images of a .lif file, from its header only (every tile of
+    a tile scan has its own position; X and Y as in the OME-XML, see stitch.py)."""
+    from .stitch import lif_stage_positions as positions
+
+    return positions(path)[:n]
 
 
 def write_tiff(

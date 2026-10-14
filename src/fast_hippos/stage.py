@@ -29,12 +29,20 @@ class StageInfo:
     n_tiles: tuple[int, int]  # (nx, ny)
     tile_size: tuple[float, float] | None = None  # (w, h) in m
     overlap: float = 0.0  # fraction
+    # Written by the Python stitching only (lines after the Fiji ones, which Fiji ignores):
+    origin: tuple[float, float] | None = None  # stage (X, Y) in m whose tile corner is the image origin
+    bidirectional: float | None = None  # px, bidirectional phase correction already applied per tile
 
     @property
     def origin_tile(self) -> int:
         """Tile whose top-left corner is the image origin of a stitched image (scanning right-to-left
         when the overlap is negative)."""
         return self.n_tiles[0] - 1 if self.overlap < 0 else 0
+
+    @property
+    def origin_xy(self) -> tuple[float, float]:
+        """Stage (X, Y) in m of the image origin: given by the Python stitching, else that of the origin tile."""
+        return self.origin if self.origin is not None else tuple(self.positions[self.origin_tile])
 
 
 def parse_stitched_info(info: str) -> StageInfo | None:
@@ -46,6 +54,7 @@ def parse_stitched_info(info: str) -> StageInfo | None:
     positions = np.empty((0, 2))
     tile_size = None
     overlap = 0.0
+    origin = bidirectional = None
     for key, value in zip(lines[2::2], lines[3::2], strict=False):
         if key == "Stage coordinates:":
             positions = np.array([float(v) for v in value.split(",")]).reshape(-1, 2)
@@ -54,16 +63,30 @@ def parse_stitched_info(info: str) -> StageInfo | None:
             tile_size = (w, h)
         elif key == "overlap (%):":
             overlap = float(value) / 100
-    return StageInfo(positions, (nx, ny), tile_size, overlap)
+        elif key == ORIGIN_KEY:
+            x, y = (float(v) for v in value.split(","))
+            origin = (x, y)
+        elif key == BIDIRECTIONAL_KEY:
+            bidirectional = float(value)
+    return StageInfo(positions, (nx, ny), tile_size, overlap, origin, bidirectional)
+
+
+ORIGIN_KEY = "Image origin (stage coordinates):"
+BIDIRECTIONAL_KEY = "Bidirectional correction per tile (px):"
 
 
 def stitched_info_block(stage: StageInfo) -> str:
-    """Inverse of parse_stitched_info (used to keep the metadata on the saved labelmap)."""
+    """Inverse of parse_stitched_info (used to keep the metadata on the saved labelmap). The Fiji lines come first
+    and in the Fiji order (the macro reads them by line number); the Python-only lines follow."""
     coords = ",".join(f"{v:.10g}" for v in stage.positions.ravel())
     text = f"Stitched image with tile layout:\n{stage.n_tiles[0]},{stage.n_tiles[1]}\nStage coordinates:\n{coords}\n"
     if stage.tile_size:
         text += f"Tile size (um):\n{stage.tile_size[0] * 1e6:.6g},{stage.tile_size[1] * 1e6:.6g}\n"
     text += f"overlap (%):\n{stage.overlap * 100:.6g}\n"
+    if stage.origin is not None:
+        text += f"{ORIGIN_KEY}\n{stage.origin[0]:.10g},{stage.origin[1]:.10g}\n"
+    if stage.bidirectional is not None:
+        text += f"{BIDIRECTIONAL_KEY}\n{stage.bidirectional:.4g}\n"
     return text
 
 

@@ -80,6 +80,13 @@ def test_stitched_info_roundtrip():
     np.testing.assert_allclose(parsed.positions, info.positions)
     np.testing.assert_allclose(parsed.tile_size, info.tile_size)
     assert parsed.overlap == pytest.approx(0.1)
+    assert parsed.origin is None and parsed.origin_xy == pytest.approx((0.01, 0.02))  # first tile (Fiji)
+    # the Python stitching adds the image origin and the bidirectional correction after the Fiji lines
+    info.origin, info.bidirectional = (0.0095, 0.0195), 0.9
+    block = stage.stitched_info_block(info)
+    assert block.splitlines()[6] == "overlap (%):"
+    parsed = stage.parse_stitched_info(block)
+    assert parsed.origin_xy == pytest.approx((0.0095, 0.0195)) and parsed.bidirectional == pytest.approx(0.9)
 
 
 def test_full_run(tmp_path, synthetic):

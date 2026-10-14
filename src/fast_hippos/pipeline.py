@@ -88,7 +88,8 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
             positions_all = stage.read_positions_file(Path(settings.screening.stage_positions_file))
         index = 0
         for path in settings.input.files:
-            for image in iter_images(Path(path), settings.input.series):
+            images = [_stitch(Path(path), settings, out)] if Path(path).is_dir() else iter_images(Path(path), settings.input.series)
+            for image in images:
                 log.info("--- %s", image.name)
                 result = process_image(image, index, settings, positions_all)
                 if result is not None:
@@ -108,6 +109,27 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
     write_index(results, settings, out)
     log.info("Done. Output in %s", out)
     return results
+
+
+def _reg_channels(settings: Settings) -> list[int]:
+    """1-based channels used for the bidirectional and drift correction."""
+    c = settings.input.intensity_channel
+    return [c, c + 1] if settings.input.modality in (Modality.TCSPC, Modality.RATIO) else [c]
+
+
+def _stitch(folder: Path, settings: Settings, out: Path) -> ImageData:
+    """Stitch a folder of tiles (bidirectional correction per tile, if on) and save the result in the output folder,
+    where Fiji or a next run can use it as an ordinary stitched image."""
+    from .stitch import stitch_folder
+
+    p, sc = settings.preprocess, settings.screening
+    lif = sc.stage_positions_file if sc.stage_positions_file and Path(sc.stage_positions_file).suffix.lower() == ".lif" else None
+    image = stitch_folder(folder, lif, settings.input.pixel_size, p.bidirectional_axis if p.correct_bidirectional else None,
+                          _reg_channels(settings))
+    path = out / f"{_safe(image.name)}.tif"
+    write_tiff(path, image.data, "TCYX", image.pixel_size, image.frame_interval, image.info)
+    log.info("Stitched image saved: %s", path)
+    return image
 
 
 def _setup_logging(path: Path) -> None:
@@ -131,9 +153,11 @@ def process_image(
     s_in, s_seg, s_disp = settings.input, settings.segmentation, settings.display
     if s_in.remove_last_frame and image.n_frames > 1:
         image.data = image.data[:-1]
-    c = s_in.intensity_channel
-    reg_channels = [c, c + 1] if s_in.modality in (Modality.TCSPC, Modality.RATIO) else [c]
-    if settings.preprocess.correct_bidirectional:
+    reg_channels = _reg_channels(settings)
+    stitched = stage.parse_stitched_info(image.info)
+    if stitched is not None and stitched.bidirectional is not None:
+        log.info("Bidirectional phase correction: done per tile when stitching (%.2f px)", stitched.bidirectional)
+    elif settings.preprocess.correct_bidirectional:
         image.data, _ = preprocess.correct_bidirectional(image.data, reg_channels, settings.preprocess.bidirectional_axis)
     if settings.preprocess.correct_drift and image.n_frames > 1:
         p = settings.preprocess
@@ -233,9 +257,10 @@ def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.nda
         overlap = info.overlap
         tile_size = info.tile_size or stage.tile_size_from_image(width, height, px, n_tiles, overlap)
         positions = info.positions
-        origin = info.origin_tile
+        origin_xy = info.origin_xy
         log.info("Stitched image: %d x %d tiles, overlap %.1f %%", n_tiles[0], n_tiles[1], overlap * 100)
-        result.stage_info_block = stage.stitched_info_block(stage.StageInfo(positions, n_tiles, tile_size, overlap))
+        result.stage_info_block = stage.stitched_info_block(stage.StageInfo(positions, n_tiles, tile_size, overlap,
+                                                                            info.origin, info.bidirectional))
     else:
         # one image = one tile (fixes the macro dividing a single tile by the number of tiles, issue I16)
         tile_size = (width * px * 1e-6, height * px * 1e-6)
@@ -248,8 +273,9 @@ def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.nda
         else:
             log.warning("No stage position for %s: using (0, 0)", image.name)
             position = (0.0, 0.0)
-        positions, origin = np.array([position], dtype=float), 0
-    result.stage_xy = tuple(positions[origin])
+        positions = np.array([position], dtype=float)
+        origin_xy = tuple(positions[0])
+    result.stage_xy = tuple(float(v) for v in origin_xy)
     result.tile_size = tuple(tile_size)
     w, h = tile_size
     result.tiles = [(-p[1] - w / 2, -p[0] - h / 2, w, h) for p in positions]

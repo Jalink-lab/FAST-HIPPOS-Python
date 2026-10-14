@@ -257,6 +257,15 @@ interval), stim/cal frames; then rerun hit finding only.
 - **Stitch_tiles.ijm** — Grid/Collection stitching (snake by rows; Right & Down, or Left & Down for
   negative overlap), no registration; pixel size corrected by (w−1)/w (Leica export error); writes the
   Info metadata block of §6.5.
+  Python port (`stitch.py`, no Fiji): tile positions from the LAS X MetaData `.xml` next to the tiles or from the
+  `.lif` header (readlif), converted as Bio-Formats does (`PosX, PosY`; swap if `SwapXY`, then negate X if
+  `FlipX`, Y if `FlipY`; child images without scanner settings inherit them from their parent), kept in
+  `tile_positions.tsv` next to the tiles; tiles placed at their stage positions rounded to pixels (any layout,
+  overlap allowed: later tile on top), pixel size `Length / N` from the Leica XML; bidirectional offset measured
+  once over all tiles and applied per tile. Writes the Info block of §6.5 plus two lines Fiji ignores
+  (`Image origin (stage coordinates):` / `x,y` — stage position whose tile corner is the image origin, used
+  instead of the origin tile; `Bidirectional correction per tile (px):` / `s` — no second correction on the
+  stitched image). Validated: pixel-identical to `Stitch_tiles.ijm` 0 % on testforbram (3×3 tiles, 512 px).
 - **Inspect_and_select_traces_.ijm** — interactive: hover/click in RGB overlay, traces plot or sorted
   kymograph highlights the same cell in all views; click opens a zoomed single-cell movie; ctrl-drag on
   the sorted kymograph or a ROI selects multiple cells → `Selected_cells` table + `.rgn`.
@@ -322,9 +331,10 @@ Cellpose 3 (cyto3) and Cellpose 4 (cpsam) run from their own separate Python env
 | `events` | stim/cal detection, windows, response order | `measure_lifetime_traces` |
 | `screening` | metrics, gates, criteria, classification | `find_hits` |
 | `stage` | stitched metadata, tile geometry, positions, path optimization, `.rgn` | `register_hit`, `optimizePath`, `generate_rgn_file` |
+| `stitch` | tile positions (LAS X MetaData / `.lif` header → `tile_positions.tsv`), stitching by stage position | `Stitch_tiles.ijm` |
 | `pipeline` | per-image processing, re-apply, run-level screening output | main macro body |
 | `dashboard`, `viewer_data`, `templates/` | self-contained HTML dashboards + run index | all image/plot windows, Inspect_and_select_traces |
-| `cli` | `fast-hippos-cli run / reapply / init-config / train-classifier / demo` | - |
+| `cli` | `fast-hippos-cli run / reapply / stitch / init-config / train-classifier / demo` | - |
 
 Dashboard (`templates/dashboard/*`, assembled into one self-contained HTML by `dashboard.py`):
 `core.js` (state, layered redraw scheduling, selection), `plot.js`, `viewer.js` (overview + lazily loaded

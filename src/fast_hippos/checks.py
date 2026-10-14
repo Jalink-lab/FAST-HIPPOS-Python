@@ -31,13 +31,15 @@ def check_inputs(settings: Settings) -> list[str]:
     problems: list[str] = []
     if not s_in.files:
         problems.append("No images selected (Images).")
+    positions_file = settings.screening.stage_positions_file
+    lif = Path(positions_file) if positions_file and Path(positions_file).suffix.lower() == ".lif" else None
     for f in s_in.files:
         path = Path(f)
         if not path.exists():
             problems.append(f"Image not found: {path}")
             continue
         try:
-            infos = image_info(path)
+            infos = image_info(path, lif)
         except Exception as e:  # noqa: BLE001 - reported to the user
             problems.append(f"{path.name} cannot be read: {e}")
             continue

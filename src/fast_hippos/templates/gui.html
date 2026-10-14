@@ -167,6 +167,7 @@ function fileMeta(f) {
   if (!f.exists) return `<span class="bad">not found</span>`;
   if (f.error) return `<span class="bad">${esc(f.error)}</span>`;
   const parts = [];
+  if (f.tiles) parts.push(`${f.tiles} tiles, stitched`);
   if (f.series) parts.push(`${f.series} series`);
   if (f.width) parts.push(`${f.width}×${f.height} px`);
   if (f.frames) parts.push(`${f.frames} frames`);
@@ -240,7 +241,7 @@ function widget(f) {
       const files = v || [];
       return `<div class="files">${files.map((p, i) => `<div class="file"><span class="name" title="${esc(p)}">${esc(p.split(/[\\/]/).pop())}</span>
           <span class="meta">${fileMeta(INFO[p])}</span><button class="small" data-remove="${i}" title="Remove">✕</button></div>`).join("")}
-        <div class="row"><button data-browse="${f.key}" data-kind="files">Add images…</button>${files.length ? `<button class="link" data-clearfiles>clear</button>` : `<span class="muted">no images selected</span>`}</div></div>`;
+        <div class="row"><button data-browse="${f.key}" data-kind="files">Add images…</button><button data-browse="${f.key}" data-kind="tiles" title="A folder with one TIFF per tile, exported from LAS X: stitched by the stage positions of the tiles">Add tile folder…</button>${files.length ? `<button class="link" data-clearfiles>clear</button>` : `<span class="muted">no images selected</span>`}</div></div>`;
     }
     case "criteria": {
       const crit = v || [], metrics = Object.keys(SCHEMA.metrics);
@@ -406,11 +407,12 @@ document.addEventListener("click", async (e) => {
     const f = FIELD[b.dataset.browse], kind = b.dataset.kind, cur = get(f.key);
     const initial = Array.isArray(cur) ? cur[0] || S.input.output || "" : cur || "";
     const types = kind === "files" ? "files" : kind === "python" ? "python" : "file";
-    const r = (await api("browse", { kind: kind === "files" ? "files" : kind === "folder" ? "folder" : "file", title: f.label, initial, types })).result;
+    const r = (await api("browse", { kind: kind === "files" ? "files" : kind === "folder" || kind === "tiles" ? "folder" : "file",
+      title: kind === "tiles" ? "Folder with tiles" : f.label, initial, types })).result;
     if (!r || (Array.isArray(r) && !r.length)) return;
-    if (kind === "files") {
-      const files = [...new Set([...(cur || []), ...r])]; set(f.key, files);
-      if (!S.input.output || S.input.output === "output") set("input.output", r[0].replace(/[\\/][^\\/]*$/, "") + "/FAST-HIPPOS_output");
+    if (kind === "files" || kind === "tiles") {
+      const added = kind === "tiles" ? [r] : r, files = [...new Set([...(cur || []), ...added])]; set(f.key, files);
+      if (!S.input.output || S.input.output === "output") set("input.output", added[0].replace(/[\\/][^\\/]*$/, "") + "/FAST-HIPPOS_output");
       inspect(files);
     } else set(f.key, r);
     render(); return;

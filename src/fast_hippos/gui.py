@@ -60,7 +60,8 @@ SCREEN = {"screening.enabled": [True]}
 FIELDS: dict[str, dict] = {
     # ---- input
     "input.files": {"label": "Images", "widget": "files",
-        "help": "Time-lapse images: .tif (ImageJ hyperstack) or .lif. Several files are analyzed in one run."},
+        "help": "Time-lapse images: .tif (ImageJ hyperstack) or .lif, or a folder of tiles exported from LAS X "
+        "(stitched by the stage positions of the tiles). Several are analyzed in one run."},
     "input.output": {"label": "Output folder", "widget": "folder"},
     "input.modality": {"label": "Image type", "choices": {
         "tcspc": "Fitted TCSPC data / TauSeparation (2 lifetime components)", "fast_flim": "Fast FLIM",
@@ -144,8 +145,8 @@ FIELDS: dict[str, dict] = {
     "screening.enabled": {"label": "Screen for hits"},
     "screening.criteria": {"label": "Hit criteria", "widget": "criteria", "enable": SCREEN},
     "screening.stage_positions_file": {"label": "Stage positions", "widget": "file", "enable": SCREEN,
-        "help": "Text file (x0 y0 x1 y1 …, m) or the .lif file. Not needed for "
-        "images stitched with 'Stitch tiles' (stored in the image)."},
+        "help": "Text file (x0 y0 x1 y1 …, m) or the .lif file. Not needed for images stitched with 'Stitch "
+        "tiles' (stored in the image), nor for tile folders with LAS X's MetaData folder."},
     "screening.classify_additional_channel": {"label": "Classify cells on the additional channel", "enable": SCREEN},
     "screening.logic": {"label": "Default criterion logic", "choices": {"OR": "OR", "AND": "AND"}, "enable": SCREEN},
     "screening.baseline_calibration_diff": {"label": "Gate: calibration − baseline", "widget": "pair", "enable": SCREEN,
@@ -399,7 +400,8 @@ def inspect_file(path: Path) -> dict:
     out: dict = {"path": str(path), "name": path.name, "exists": path.exists()}
     if not path.exists():
         return out
-    out["size_mb"] = round(path.stat().st_size / 1e6, 1)
+    if path.is_file():
+        out["size_mb"] = round(path.stat().st_size / 1e6, 1)
     try:
         from .io import image_info
 

@@ -119,12 +119,17 @@ def correct_bidirectional(data: np.ndarray, channels: list[int], axis: str = "y"
     """Shift the even scan lines by -s/2 and the odd ones by +s/2 to align both scan directions. axis "y": the
     scan lines are columns (fast scan axis vertical), shifted along y; "x": rows, shifted along x.
     (Stitched images: tiles with an odd width swap even and odd lines, so their offsets cancel out here;
-    tile-by-tile correction belongs to the stitching.)"""
+    tile-by-tile correction is done by the stitching, see stitch.py.)"""
     s = estimate_bidirectional_shift(summed_image(data, channels), axis)
     if abs(s) < MIN_BIDIRECTIONAL_SHIFT:
         log.info("Bidirectional phase correction (along %s): %.2f px, not applied", axis, s)
         return data, s
     log.info("Bidirectional phase correction (along %s): %.2f px", axis, s)
+    return apply_bidirectional(data, s, axis), s
+
+
+def apply_bidirectional(data: np.ndarray, s: float, axis: str = "y") -> np.ndarray:
+    """Shift the even scan lines of a (T, C, Y, X) stack by -s/2 and the odd ones by +s/2 (float32 result)."""
     out = np.empty(data.shape, np.float32)
     lines = (lambda k: (..., slice(None), slice(k, None, 2))) if axis == "y" else (lambda k: (..., slice(k, None, 2), slice(None)))
     along = -2 if axis == "y" else -1
@@ -136,7 +141,7 @@ def correct_bidirectional(data: np.ndarray, channels: list[int], axis: str = "y"
 
     with ThreadPoolExecutor(min(8, os.cpu_count() or 4)) as pool:
         list(pool.map(frame, range(data.shape[0])))
-    return out, s
+    return out
 
 
 def _local_variance(img: np.ndarray, radius: int) -> np.ndarray:

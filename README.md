@@ -54,7 +54,7 @@ tables. In the dashboard you can change the hit criteria after the analysis and 
 
 | Step | |
 |---|---|
-| **Input** | Multi-channel time-lapse `.tif` files (ImageJ hyperstacks) or Leica `.lif` files; several images per run. Fitted two-component TCSPC data (LAS X lifetime components / TauSeparation), Fast FLIM, TauContrast, frequency-domain FLIM, ratio imaging, or intensity only. An optional additional channel, e.g. a transfection marker, is measured per cell. |
+| **Input** | Multi-channel time-lapse `.tif` files (ImageJ hyperstacks), Leica `.lif` files, or folders of tiles exported from LAS X (stitched by their stage positions); several images per run. Fitted two-component TCSPC data (LAS X lifetime components / TauSeparation), Fast FLIM, TauContrast, frequency-domain FLIM, ratio imaging, or intensity only. An optional additional channel, e.g. a transfection marker, is measured per cell. |
 | **Pre-processing** | Optional correction of the bidirectional-scanning phase and of drift. |
 | **Segmentation** | Cellpose 3 or Cellpose 4 (Cellpose-SAM), on the GPU when available, of a projection of (part of) the time-lapse. Or an existing label image, or a threshold with watershed. Cells can be filtered on size, circularity and intensity. |
 | **Traces** | Lifetime (or ratio, or intensity) and intensity of every cell in every frame. For TCSPC the fitted amplitudes of all pixels of a cell are pooled. |
@@ -103,15 +103,15 @@ Double-click the desktop shortcut (or `fast-hippos.exe`). The interface opens in
 
 A typical run:
 
-1. **Images**: *Add images…* and choose the output folder. Each image shows its size, number of frames and
+1. **Images**: *Add images…* (or *Add tile folder…*, see [Stitching tiles](#stitching-tiles)) and choose the output folder. Each image shows its size, number of frames and
    channels, pixel size, frame interval and whether its stage positions are stored in it. Choose the image type,
    τ₁ and τ₂ for TCSPC data, and the additional channel, if any.
 2. **Cell segmentation**: Cellpose with a model (`cyto3`, `nuclei`, `cpsam` or your own), or an existing label
    image. The interface checks the Cellpose environment and shows its version and GPU.
 3. **Stimulation and calibration**: leave the frames empty for automatic detection, set them, or choose *Baseline
    only*.
-4. **Screening**: switch it on, add hit criteria, and choose the stage positions (not needed for images stitched
-   with the Fiji *Stitch tiles* command, which stores them in the image).
+4. **Screening**: switch it on, add hit criteria, and choose the stage positions (not needed for tile folders and
+   for images stitched with the Fiji *Stitch tiles* command, which store them in the image).
 5. **Run analysis**. The log shows the progress; when the run is done, *Open overview* and *Dashboard* open the
    results.
 
@@ -249,10 +249,33 @@ the additional channel, by Otsu's method or a manual threshold.
 | `baseline_dev_pop` | `baseline_mean` − population baseline |
 | `additional_intensity` | intensity in the additional channel (mean over time, or first frame) |
 
-**Stage positions** come from the metadata that the Fiji *Stitch tiles* command stores in a stitched image, from a
-text file with the tile positions, or from the `.lif` file. Hit positions are the cell centroids, or, with a nuclei
+**Stage positions** come from the metadata of a stitched image (stitched by FAST-HIPPOS or by the Fiji *Stitch
+tiles* command), from a text file with the tile positions, or from the `.lif` file. Hit positions are the cell centroids, or, with a nuclei
 classifier (`fast-hippos-cli train-classifier`, a scikit-learn random forest trained on a few scribbles), the
 centre of the nucleus.
+
+### Stitching tiles
+
+LAS X can stitch a tile scan, but the stitched image has only one stage position, while the screening needs the
+position of every tile. Export the tiles instead (one TIFF per tile, `name_s0.tif`, `name_s1.tif`, …) and add the
+folder with *Add tile folder…*, or put the folder in `[input] files`. FAST-HIPPOS then
+
+- reads the tile positions from the `MetaData` folder that LAS X writes next to exported TIFFs, or, if that is
+  missing, from the `.lif` file chosen as *Stage positions* (only its header is read, in a fraction of a second).
+  The positions are those that Bio-Formats puts in the OME-XML and *Stitch tiles* stores: the Leica tile
+  position with the scanner's SwapXY / FlipX / FlipY applied;
+- saves them next to the tiles in `tile_positions.tsv`, which is used from then on (the `.lif` is not needed
+  again);
+- measures the bidirectional phase offset once over all tiles and corrects every tile before stitching (if
+  *Correct bidirectional scanning phase* is on);
+- puts every tile at its stage position, rounded to whole pixels, so irregular tile scans work too (where tiles
+  overlap, the later tile covers the earlier one for now; no blending or registration yet);
+- saves the stitched image in the output folder as `<name>_STITCHED.tif`, with the tile positions in its metadata
+  as *Stitch tiles* writes them, so that it can be used again by FAST-HIPPOS or by the Fiji version.
+
+Pixel size: Leica's `Length / NumberOfElements`, which matches the stage steps (the pixel size in exported
+TIFFs is slightly too large, hence *Correct pixel size* in *Stitch tiles*). On the test data the result is
+pixel-identical to *Stitch tiles* with 0 % overlap. Without analysis: `fast-hippos-cli stitch <folder>`.
 
 **Routes.** The hits in each `.rgn` file are ordered by a nearest-neighbour tour improved with 2-opt, typically
 13–18 % shorter than nearest neighbour alone.
@@ -266,6 +289,7 @@ fast-hippos-cli init-config experiment.toml    # annotated example settings file
 fast-hippos-cli run experiment.toml            # full analysis
 fast-hippos-cli reapply experiment.toml        # screening and dashboards again, without segmentation
 fast-hippos-cli reapply experiment.toml --override screening.toml   # with changed screening settings
+fast-hippos-cli stitch tiles_folder [--lif scan.lif] [--bidirectional y]   # stitch exported tiles only
 fast-hippos-cli train-classifier projection.tif scribbles.tif nuclei.joblib
 fast-hippos-cli demo                           # a synthetic experiment, opens its dashboard
 fast-hippos-cli gui                            # the interface, with a console window
@@ -350,7 +374,8 @@ the visible area when zooming in, so that the dashboard stays responsive.
 - TCSPC cell lifetimes pool the fitted amplitudes of all pixels; the Fiji version averages per-pixel lifetimes
   weighted by intensity. The values differ slightly, most for dim cells, so thresholds do not transfer 1:1.
 - The Labkit step that refines positions on the nuclei is replaced by a scikit-learn pixel classifier.
-- Stitching tiles is still done with the Fiji *Stitch tiles* command.
+- Tiles are stitched by their stage positions, without Fiji (Grid/Collection stitching); see
+  [Stitching tiles](#stitching-tiles).
 
 The full specification and the validation against Fiji are in [`docs/SPEC.md`](docs/SPEC.md); the reference macro
 is in [`reference/fiji_v0.9.5`](reference/fiji_v0.9.5).

@@ -24,6 +24,12 @@ def main(argv: list[str] | None = None) -> int:
             "--override", type=Path, action="append", default=[], metavar="TOML",
             help="TOML file whose sections override the config (e.g. screening settings saved from a dashboard)",
         )
+    s = sub.add_parser("stitch", help="stitch a folder of tiles exported from LAS X by the stage positions of the tiles")
+    s.add_argument("folder", type=Path, help="folder with one TIFF per tile (name_s0.tif, name_s1.tif, ...)")
+    s.add_argument("--lif", type=Path, help="the .lif file, if the folder has no LAS X MetaData folder")
+    s.add_argument("--output", type=Path, help="stitched TIFF (default: <name>_STITCHED.tif next to the folder)")
+    s.add_argument("--pixel-size", type=float, help="µm, overrides the metadata")
+    s.add_argument("--bidirectional", choices=["y", "x"], help="bidirectional phase correction per tile along this axis")
     i = sub.add_parser("init-config", help="write an annotated example config")
     i.add_argument("path", type=Path, nargs="?", default=Path("fast_hippos.toml"))
     t = sub.add_parser("train-classifier", help="train the nuclei pixel classifier from scribbles")
@@ -57,6 +63,18 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 2
         return 0 if results else 1
+    if args.command == "stitch":
+        import logging
+
+        from .io import write_tiff
+        from .stitch import stitch_folder
+
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        image = stitch_folder(args.folder, args.lif, args.pixel_size, args.bidirectional)
+        path = args.output or args.folder.parent / f"{image.name}.tif"
+        write_tiff(path, image.data, "TCYX", image.pixel_size, image.frame_interval, image.info)
+        print(f"Wrote {path}")
+        return 0
     if args.command == "init-config":
         if args.path.exists():
             p.error(f"{args.path} exists")
