@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="__FH_THEME__">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -452,12 +452,12 @@ document.addEventListener("click", async (e) => {
 });
 
 // header buttons
-// light / dark, as in the dashboard; the choice is remembered in this browser (empty = follow the system)
-try { const t = localStorage.getItem("fh-theme"); if (t) document.documentElement.dataset.theme = t; } catch { /* no storage */ }
+// light / dark, as in the dashboard; the choice is kept in ~/.fast_hippos (the page gets it from the server; empty =
+// follow the system), not in the browser, whose storage is per port and the port changes at every start
 $("bTheme").onclick = () => {
   const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   document.documentElement.dataset.theme = cur === "light" ? "dark" : "light";
-  try { localStorage.setItem("fh-theme", document.documentElement.dataset.theme); } catch { /* no storage */ }
+  api("prefs", { theme: document.documentElement.dataset.theme }).catch(() => {});
 };
 $("bQuit").onclick = async () => {
   if (!confirm(JOB.state === "running" ? "An analysis is running. Stop it and quit FAST-HIPPOS?"

@@ -40,6 +40,7 @@ log = logging.getLogger(__name__)
 STATE_DIR = Path.home() / ".fast_hippos"
 LAST_SETTINGS = STATE_DIR / "last_settings.toml"
 INSTANCE = STATE_DIR / "gui_instance.json"  # port of a running GUI, so that a second start reuses it
+PREFS = STATE_DIR / "gui_prefs.json"  # interface preferences (light / dark); not in the browser: the port changes
 IDLE_TIMEOUT = 15 * 60  # s without any request from a browser (and no run) after which the GUI stops
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
@@ -615,9 +616,24 @@ def _png_url(name: str) -> str:  # (not imported from .dashboard: that pulls in 
     return "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
 
 
+def load_prefs() -> dict:
+    try:
+        return json.loads(PREFS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_prefs(changes: dict) -> dict:
+    prefs = load_prefs() | {k: v for k, v in changes.items() if k == "theme" and v in ("", "light", "dark")}
+    STATE_DIR.mkdir(exist_ok=True)
+    PREFS.write_text(json.dumps(prefs), encoding="utf-8")
+    return prefs
+
+
 def _page(token: str) -> bytes:
     html = resources.files("fast_hippos").joinpath("templates", "gui.html").read_text(encoding="utf-8")
     html = html.replace("__FH_LOGO__", _png_url("logo.png")).replace("__FH_ICON__", _png_url("favicon.png"))
+    html = html.replace("__FH_THEME__", load_prefs().get("theme", ""))  # in the page itself: no flash of the other theme
     return html.replace("__FH_TOKEN__", token).encode("utf-8")
 
 
@@ -710,6 +726,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "status": lambda q: job.status(int(q.get("since", 0))),
         "open": lambda q: (open_path(q["path"]), {"ok": True})[1],
         "quit": lambda q: (quit_server(), {"ok": True})[1],
+        "prefs": lambda q: save_prefs(q),
     }
 
     class Handler(BaseHTTPRequestHandler):

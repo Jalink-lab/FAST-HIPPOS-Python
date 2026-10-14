@@ -156,3 +156,15 @@ def test_cellpose_check_is_cached(tmp_path, monkeypatch):
     assert calls == ["env/python.exe"]
     gui.check_cellpose("env/python.exe", fresh=True)
     assert calls == ["env/python.exe"] * 2
+
+
+def test_theme_is_kept_between_starts(tmp_path, monkeypatch):
+    """The light / dark choice is stored in the state folder and put in the page: the browser's own storage would be
+    lost, because every start uses another port."""
+    monkeypatch.setattr(gui, "STATE_DIR", tmp_path)
+    monkeypatch.setattr(gui, "PREFS", tmp_path / "gui_prefs.json")
+    assert b'data-theme=""' in gui._page("t")  # nothing chosen: follow the system
+    gui.save_prefs({"theme": "dark"})
+    assert b'data-theme="dark"' in gui._page("t")
+    gui.save_prefs({"theme": "<script>", "other": 1})  # only known values are stored
+    assert gui.load_prefs() == {"theme": "dark"}
