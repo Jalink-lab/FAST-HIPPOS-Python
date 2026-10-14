@@ -300,7 +300,7 @@ def analyze(result: ImageResult, settings: Settings) -> None:
     """Events, sorting, metrics, classification and hits (cheap; re-run by `reapply`)."""
     sc = settings.screening
     result.kymo_smoothed = kymograph.smooth_time(result.kymo, settings.display.smooth_traces)
-    ev = events.determine(kymograph.population_mean(result.kymo), settings.events)
+    ev = events.determine(kymograph.population_mean(result.kymo), settings.events, result.kymo)
     result.events = ev
     result.order = events.response_order(result.kymo, ev)
     metrics = screening.compute_metrics(result.hit_kymo, ev, sc, result.additional)

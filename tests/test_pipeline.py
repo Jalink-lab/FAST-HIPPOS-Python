@@ -40,10 +40,32 @@ def test_event_detection(synthetic):
     image, truth = synthetic
     intensity, lifetime = modalities.tcspc(image.channel(1), image.channel(2), 0.6, 3.4)
     kymo = kymograph.cell_values(intensity, lifetime, truth.labels, Modality.TCSPC)
-    ev = events.determine(kymograph.population_mean(kymo), EventSettings())
+    ev = events.determine(kymograph.population_mean(kymo), EventSettings(), kymo)
     assert (ev.stimulation, ev.calibration) == (truth.stimulation, truth.calibration)
     assert ev.baseline == slice(0, truth.stimulation - 1)
     assert ev.response == slice(truth.stimulation, truth.calibration - 1)
+
+
+def test_no_transition_in_a_short_flat_trace():
+    """5 frames: the MAD of d2 rests on 3 values and can be ~0 (two nearly equal), so that a flat trace showed a
+    'stimulation'; the noise expected from the cells is the floor."""
+    kymo = np.random.default_rng(4).normal(3.3, 0.05, size=(5, 1600))  # (T, N), no transition
+    # a mean trace with the second differences of the flat testforbram data (5 frames): 0.00018, -0.00053, -0.00054
+    mean = 3.3 + np.array([0.0, 0.0, 0.00018, -0.00017, -0.00106])
+    np.testing.assert_allclose(events.second_derivative(mean)[1:-1], [0.00018, -0.00053, -0.00054], atol=1e-12)
+    assert events.detect(mean, 5) == (2, None)  # the MAD alone sees a 0.0002 ns "stimulation"
+    assert events.detect(mean, 5, kymo) == (None, None)
+    ev = events.determine(mean, EventSettings(), kymo)
+    assert ev.baseline_only and ev.detected
+
+
+def test_cell_noise_floor_keeps_real_steps():
+    rng = np.random.default_rng(5)
+    kymo = rng.normal(2.5, 0.1, size=(12, 400))
+    kymo[4:] += 0.15  # stimulation at frame 4; the noise of the mean's d2 is 0.1 * sqrt(6 / 400) = 0.012 ns
+    assert events.detect(kymograph.population_mean(kymo), 5, kymo) == (4, None)
+    assert events.cell_noise_sigma(kymo) == pytest.approx(0.1 * np.sqrt(6) / np.sqrt(400), rel=0.15)
+    assert events.cell_noise_sigma(kymo[:2]) == 0.0  # too short to estimate
 
 
 def test_screening_finds_responders(synthetic):

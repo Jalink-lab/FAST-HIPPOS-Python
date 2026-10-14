@@ -85,7 +85,23 @@ def noise_sigma(x: np.ndarray) -> float:
     return sigma if sigma > 0 else float(np.std(core))
 
 
-def detect(mean_trace: np.ndarray, sensitivity: float) -> tuple[int | None, int | None]:
+def cell_noise_sigma(kymo: np.ndarray) -> float:
+    """Noise of the second derivative of the population mean, from the cells: per frame the robust spread over the
+    cells of their own second differences, divided by sqrt(number of cells); the median over the frames. Unlike
+    noise_sigma it does not depend on the number of frames. (T, N) kymograph; 0 if it cannot be estimated."""
+    k = np.asarray(kymo, dtype=float)
+    if k.ndim != 2 or k.shape[0] < 3:
+        return 0.0
+    d2 = k[2:] - 2 * k[1:-1] + k[:-2]  # (T - 2, N)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # frames without finite values
+        mad = np.nanmedian(np.abs(d2 - np.nanmedian(d2, axis=1, keepdims=True)), axis=1)
+        sigma = 1.4826 * mad / np.sqrt(np.maximum(np.isfinite(d2).sum(axis=1), 1))
+        value = float(np.nanmedian(sigma))
+    return value if np.isfinite(value) else 0.0
+
+
+def detect(mean_trace: np.ndarray, sensitivity: float, kymo: np.ndarray | None = None) -> tuple[int | None, int | None]:
     """Find up to two upward transitions in the population-mean trace.
 
     A step up between frames i and i+1 gives a positive peak of the second derivative at i, so the
@@ -95,9 +111,17 @@ def detect(mean_trace: np.ndarray, sensitivity: float) -> tuple[int | None, int 
 
     The Fiji macro used std(d2), which is dominated by the transitions themselves: a large calibration
     step can hide a clear stimulation (SPEC issue I17).
+
+    With few frames the MAD of d2 rests on a handful of values and can be close to 0 (5 frames: 3 values), so that
+    a flat trace shows a "transition". With the kymograph, sigma is at least the noise expected from the cells
+    (cell_noise_sigma). The larger of the two is used: noise that all cells share (e.g. laser drift) is only in the
+    first.
     """
     d2 = second_derivative(mean_trace)
-    tol = sensitivity * noise_sigma(d2)
+    sigma = noise_sigma(d2)
+    if kymo is not None:
+        sigma = max(sigma, cell_noise_sigma(kymo))
+    tol = sensitivity * sigma
     peaks, _props = find_peaks(d2, prominence=max(0, tol))
     if peaks.size == 0:
         return None, None
@@ -108,7 +132,9 @@ def detect(mean_trace: np.ndarray, sensitivity: float) -> tuple[int | None, int 
     return int(top[0]), int(top[1])
 
 
-def determine(mean_trace: np.ndarray, settings: EventSettings) -> Events:
+def determine(mean_trace: np.ndarray, settings: EventSettings, kymo: np.ndarray | None = None) -> Events:
+    """Events from the settings, or detected in the population-mean trace (kymo: (T, N) cell traces, for the noise
+    floor, see detect)."""
     n = len(mean_trace)
     if settings.baseline_only or n < 2:
         log.info("Baseline-only mode")
@@ -117,7 +143,7 @@ def determine(mean_trace: np.ndarray, settings: EventSettings) -> Events:
         ev = Events(n, settings.stimulation_frame, settings.calibration_frame, margin=settings.margin)
         log.info("Manual stimulation / calibration frames: %s / %s", ev.stimulation, ev.calibration)
         return ev
-    s, c = detect(mean_trace, settings.sensitivity)
+    s, c = detect(mean_trace, settings.sensitivity, kymo)
     if s is None:
         log.warning("No stimulation or calibration detected; treating the whole trace as baseline")
         return Events(n, baseline_only=True, detected=True, margin=settings.margin)
