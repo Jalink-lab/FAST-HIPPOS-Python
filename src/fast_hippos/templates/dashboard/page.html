@@ -82,7 +82,7 @@
   </section>
   <section class="panel viewer">
     <div class="panel-h"><h2>Image</h2><span id="vinfo" class="muted"></span><span class="sp"></span>
-      <button id="vzsel" title="Zoom to the selection, or to the hits (Z)">Zoom to selection</button><button id="vzout" class="icon" title="Zoom out (Ctrl+wheel)">−</button><button id="vzin" class="icon" title="Zoom in (Ctrl+wheel)">+</button><button id="vfit" title="Fit (F)">Fit</button></div>
+      <button id="vzsel" title="Zoom to the selection, or to the hits (Z)">Zoom to selection</button><button id="vzout" class="icon" title="Zoom out (Ctrl+wheel)">−</button><button id="vzin" class="icon" title="Zoom in (Ctrl+wheel)">+</button><button id="vfit" title="Fit (F)">Fit</button><button id="vfull" class="icon" title="Full screen (Shift+F; Esc to leave)">⤢</button></div>
     <div id="vwrap"><canvas id="vimg"></canvas><canvas id="vsel"></canvas><canvas id="vhov"></canvas><svg id="vsvg" class="selsvg"></svg>
       <div id="vbar"><div id="vbarname"></div><canvas id="vbarc" width="256" height="1"></canvas><div class="ends"><span id="vbar0"></span><span id="vbar1"></span></div></div>
       <div id="loading"></div></div>
@@ -136,7 +136,7 @@
 </main>
 <p class="help">Click a cell, trace, kymograph column, point or row to select it; <kbd>Ctrl</kbd>+click adds/removes;
 <kbd>Shift</kbd>+drag selects a box or lasso (image, scatter) or a range (kymograph). Drag to pan, <kbd>Ctrl</kbd>+scroll to zoom,
-double-click a cell to zoom to it. <kbd>Space</kbd> play, <kbd>←</kbd>/<kbd>→</kbd> frames, <kbd>Z</kbd> zoom to selection, <kbd>F</kbd> fit,
+double-click a cell to zoom to it. <kbd>Space</kbd> play, <kbd>←</kbd>/<kbd>→</kbd> frames, <kbd>Z</kbd> zoom to selection, <kbd>F</kbd> fit, <kbd>Shift</kbd>+<kbd>F</kbd> full screen,
 <kbd>L</kbd> box/lasso, <kbd>Esc</kbd> clear. <span id="ver"></span></p>
 <div id="tip"></div>
 <script id="fh-data" type="application/json">__FH_DATA__</script>

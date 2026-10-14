@@ -314,5 +314,20 @@ function initViewer() {
   fm.onchange = () => { S.fillMetric = fm.value; fillsChanged(); };
   $("vscale").checked = S.scalebar; $("vscale").onchange = () => { S.scalebar = $("vscale").checked; invalidate("viewerHov"); };
   hitRGB = hexToRgb(css("--hit"));
-  new ResizeObserver(() => { if (!view.fitted || view.auto) fitView(false); invalidate("viewer"); }).observe(vwrap);
+  // when the size changes (window, full screen): refit, or keep the same spot in the middle when zoomed in
+  let lastSize = null;
+  new ResizeObserver(() => {
+    const r = vwrap.getBoundingClientRect();
+    if (!view.fitted || view.auto) fitView(false);
+    else if (lastSize) { view.tx += (r.width - lastSize[0]) / 2; view.ty += (r.height - lastSize[1]) / 2; }
+    lastSize = [r.width, r.height]; invalidate("viewer");
+  }).observe(vwrap);
+  // full screen
+  const panel = vwrap.closest(".panel");
+  $("vfull").onclick = () => document.fullscreenElement ? document.exitFullscreen() : panel.requestFullscreen().catch(() => {});
+  document.addEventListener("fullscreenchange", () => {
+    const full = document.fullscreenElement === panel;
+    $("vfull").textContent = full ? "⤡" : "⤢"; $("vfull").title = full ? "Leave full screen (Esc)" : "Full screen (Shift+F; Esc to leave)";
+    (full ? panel : document.body).appendChild($("tip"));  // only the full-screen element is shown: keep the tooltip in it
+  });
 }
