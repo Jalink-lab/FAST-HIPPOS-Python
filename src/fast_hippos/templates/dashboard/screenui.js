@@ -196,11 +196,11 @@ function renderCriteria() {
   box.classList.toggle("disabled", SCR.mode === "selection"); $("manualbox").style.display = SCR.mode === "selection" ? "" : "none";
   p.criteria.forEach((c, k) => {
     const row = document.createElement("div"); row.className = "crit";
-    row.innerHTML = `<button class="pill ${c.logic.toLowerCase()}" title="AND: required · OR: at least one of the OR criteria">${c.logic}</button>
+    row.innerHTML = `<button class="pill ${c.logic.toLowerCase()}" title="Click to switch. AND: every hit must pass this criterion. OR: a hit must pass at least one of the OR criteria">${c.logic}</button>
       <select class="m"></select>
-      <div class="seg op"><button data-v="&lt;" title="lower than">&lt;</button><button data-v="&gt;" title="higher than">&gt;</button><button data-v="between" title="between the two values">↔</button></div>
+      <div class="seg op"><button data-v="&lt;" title="Hit when the value is lower than the threshold">&lt;</button><button data-v="&gt;" title="Hit when the value is higher than the threshold">&gt;</button><button data-v="between" title="Hit when the value lies between the two values">↔</button></div>
       <span class="vals"><input class="v" type="number" step="any" title="Threshold, in the unit of the metric (e.g. ns); or drag in the histogram"><input class="v2" type="number" step="any" title="Upper limit of the range"></span>
-      <canvas class="hs" title="drag to set the threshold"></canvas><span class="n" title="Number of cells that pass this criterion"></span><button class="x" title="Remove this criterion">✕</button>`;
+      <canvas class="hs" title="Histogram of this value over all cells; drag to set the threshold"></canvas><span class="n" title="Number of cells that pass this criterion"></span><button class="x" title="Remove this criterion">✕</button>`;
     const ms = row.querySelector(".m"); METRIC_KEYS.forEach(m => ms.add(new Option(m, m))); ms.value = c.metric; ms.title = D.screen.metrics[c.metric] || "";
     const v1 = row.querySelector(".v"), v2 = row.querySelector(".v2");
     const showV2 = () => { v2.style.display = c.op === "between" ? "" : "none"; };

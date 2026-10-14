@@ -165,3 +165,19 @@ function inPolygon(x, y, poly) {
   }
   return inside;
 }
+
+// Hover texts (title attributes) are drawn by the browser, which makes them very wide; break them into lines of
+// about 60 characters when the mouse comes over them (works for titles set later too; already short lines stay).
+function wrapTitle(t, n = 60) {
+  return t.split("\n").map(line => {
+    if (line.length <= n) return line;
+    const out = []; let cur = "";
+    for (const w of line.split(" ")) { if (cur && cur.length + 1 + w.length > n) { out.push(cur); cur = w; } else cur = cur ? cur + " " + w : w; }
+    return out.concat(cur ? [cur] : []).join("\n");
+  }).join("\n");
+}
+document.addEventListener("mouseover", (e) => {
+  for (let el = e.target; el && el.nodeType === 1; el = el.parentNode) {
+    if (el.title) { const w = wrapTitle(el.title); if (w !== el.title) el.title = w; return; }
+  }
+}, true);

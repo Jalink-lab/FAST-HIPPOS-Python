@@ -147,6 +147,21 @@ async function api(name, body = {}) {
   const r = await fetch("/api/" + name, { method: "POST", headers: { "Content-Type": "application/json", "X-FH-Token": TOKEN }, body: JSON.stringify(body) });
   const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
 }
+// Hover texts (title attributes) are drawn by the browser, which makes them very wide; break them into lines of
+// about 60 characters when the mouse comes over them (works for titles set later too; already short lines stay).
+function wrapTitle(t, n = 60) {
+  return t.split("\n").map(line => {
+    if (line.length <= n) return line;
+    const out = []; let cur = "";
+    for (const w of line.split(" ")) { if (cur && cur.length + 1 + w.length > n) { out.push(cur); cur = w; } else cur = cur ? cur + " " + w : w; }
+    return out.concat(cur ? [cur] : []).join("\n");
+  }).join("\n");
+}
+document.addEventListener("mouseover", (e) => {
+  for (let el = e.target; el && el.nodeType === 1; el = el.parentNode) {
+    if (el.title) { const w = wrapTitle(el.title); if (w !== el.title) el.title = w; return; }
+  }
+}, true);
 function toast(msg, ms = 2500) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", ms); }
 
 let SCHEMA, S, DEFAULTS, ADV_ALL = false, INFO = {}, CP = {}, OUT = {}, JOB = { n: 0, state: "idle", run_id: 0 };
