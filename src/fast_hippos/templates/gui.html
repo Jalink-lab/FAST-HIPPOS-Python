@@ -155,7 +155,7 @@ function fileFacts() {
   const files = (S.input.files || []).map(p => INFO[p]).filter(Boolean);
   const num = (k) => files.map(f => f[k]).filter(v => v != null);
   return { files, channels: Math.max(0, ...num("channels")), frames: Math.min(Infinity, ...num("frames")),
-           stitched: files.length > 0 && files.every(f => f.stitched), interval: files.length > 0 && files.every(f => f.frame_interval) };
+           positions: files.length > 0 && files.every(f => f.stitched || f.positions), interval: files.length > 0 && files.every(f => f.frame_interval) };
 }
 async function inspect(paths) {
   const todo = paths.filter(p => !(p in INFO)); if (!todo.length) return;
@@ -174,8 +174,9 @@ function fileMeta(f) {
   if (f.channels) parts.push(`${f.channels} ch`);
   if (f.pixel_size) parts.push(`${f.pixel_size} µm/px`);
   if (f.frame_interval) parts.push(`${(+f.frame_interval).toFixed(2)} s/frame`);
-  parts.push(f.size_mb >= 1000 ? `${(f.size_mb / 1000).toFixed(1)} GB` : `${f.size_mb} MB`);
-  return esc(parts.join(" · ")) + (f.stitched ? ` <span class="chip ok">stitched · stage positions</span>` : "");
+  if (f.size_mb != null) parts.push(f.size_mb >= 1000 ? `${(f.size_mb / 1000).toFixed(1)} GB` : `${f.size_mb} MB`);
+  return esc(parts.join(" · ")) + (f.stitched ? ` <span class="chip ok">stitched · stage positions</span>`
+    : f.positions ? ` <span class="chip ok">stage position</span>` : "");
 }
 
 // ---------------------------------------------------------------- Cellpose status
@@ -223,7 +224,7 @@ function widget(f) {
       return `<select id="${id}" data-num="int">${opts.join("")}</select>`;
     }
     case "file": case "python": case "folder":
-      return `<div class="row"><input id="${id}" type="text" value="${esc(v ?? "")}" placeholder="${f.optional ? "—" : ""}"><button class="small" data-browse="${f.key}" data-kind="${f.kind}">Browse…</button></div>`;
+      return `<div class="row"><input id="${id}" type="text" value="${esc(v ?? "")}" placeholder="${esc(f.placeholder || (f.optional ? "—" : ""))}"><button class="small" data-browse="${f.key}" data-kind="${f.kind}">Browse…</button></div>`;
     case "model": {
       const custom = !(v in CP_MODELS);
       return `<div class="row"><select id="${id}">${Object.entries(CP_MODELS).map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("")}
@@ -277,7 +278,7 @@ function fieldHTMLRaw(f) {
 // context-dependent hints, derived from the selected images
 function hintFor(f) {
   const ff = fileFacts();
-  if (f.key === "screening.stage_positions_file" && ff.stitched) return "<b>the selected images carry their stage positions</b>";
+  if (f.key === "screening.stage_positions_file" && ff.positions) return "<b>the selected images carry their stage positions</b>";
   if (f.key === "input.modality" && ff.files.length && ["tcspc", "ratio"].includes(get(f.key)) && ff.channels < 2) return `<span style="color:var(--warn)">needs 2 channels, the images have ${ff.channels}</span>`;
   if (f.key === "input.default_frame_interval" && ff.files.length && !ff.interval) return `<span style="color:var(--warn)">used: not all images have a frame interval</span>`;
   return "";
@@ -354,7 +355,7 @@ function checks() {
   }
   if (S.display.min_lifetime != null && S.display.max_lifetime != null && S.display.max_lifetime <= S.display.min_lifetime) add("err", "Colour scale: the maximum must be larger than the minimum");
   if (S.screening.enabled) {
-    if (!S.screening.stage_positions_file && !ff.stitched) add("warn", "No stage positions: hits are found, but no .rgn files are written");
+    if (!S.screening.stage_positions_file && !ff.positions) add("warn", "Not every image has stage positions: hits are found, but their .rgn positions are not real (Screening, advanced: Stage positions file)");
     if (!S.screening.criteria.length && !S.screening.manual_hits && !S.screening.random_hits) add("warn", "No hit criteria: every valid cell becomes a hit");
     if (S.screening.classify_additional_channel && !S.input.additional_channel) add("warn", "Classification needs an additional channel");
     if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
@@ -406,7 +407,7 @@ document.addEventListener("click", async (e) => {
   if (b.dataset.browse) {
     const f = FIELD[b.dataset.browse], kind = b.dataset.kind, cur = get(f.key);
     const initial = Array.isArray(cur) ? cur[0] || S.input.output || "" : cur || "";
-    const types = kind === "files" ? "files" : kind === "python" ? "python" : "file";
+    const types = f.filetypes || (kind === "files" ? "files" : kind === "python" ? "python" : "file");
     const r = (await api("browse", { kind: kind === "files" ? "files" : kind === "folder" || kind === "tiles" ? "folder" : "file",
       title: kind === "tiles" ? "Folder with tiles" : f.label, initial, types })).result;
     if (!r || (Array.isArray(r) && !r.length)) return;

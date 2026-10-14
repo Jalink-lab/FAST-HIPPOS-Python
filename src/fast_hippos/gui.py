@@ -144,9 +144,12 @@ FIELDS: dict[str, dict] = {
     # ---- screening
     "screening.enabled": {"label": "Screen for hits"},
     "screening.criteria": {"label": "Hit criteria", "widget": "criteria", "enable": SCREEN},
-    "screening.stage_positions_file": {"label": "Stage positions", "widget": "file", "enable": SCREEN,
-        "help": "Text file (x0 y0 x1 y1 …, m) or the .lif file. Not needed for images stitched with 'Stitch "
-        "tiles' (stored in the image), nor for tile folders with LAS X's MetaData folder."},
+    "screening.stage_positions_file": {"label": "Stage positions file (.lif or text file)", "widget": "file",
+        "enable": SCREEN, "filetypes": "positions", "placeholder": "none — positions from the images",
+        "help": "Either the .lif file of the experiment, or a text file (.txt, .tsv, .csv) with one X Y pair in "
+        "metres per image, in the order of the images: x0 y0 x1 y1 … Rarely needed: tile folders, stitched images, "
+        ".lif files and TIFFs exported by LAS X (with their MetaData folder) carry their stage positions. A .lif "
+        "only fills in for images without a position; a text file overrides the positions in the images."},
     "screening.classify_additional_channel": {"label": "Classify cells on the additional channel", "enable": SCREEN},
     "screening.logic": {"label": "Default criterion logic", "choices": {"OR": "OR", "AND": "AND"}, "enable": SCREEN},
     "screening.baseline_calibration_diff": {"label": "Gate: calibration − baseline", "widget": "pair", "enable": SCREEN,
@@ -205,8 +208,7 @@ LAYOUT = [
          ("Automatic detection", ["events.sensitivity", "events.margin"]),
          ("Traces", ["display.smooth_traces"]),
      ]},
-    {"title": "Screening", "basic": ["screening.enabled", "screening.criteria", "screening.stage_positions_file",
-                                     "screening.classify_additional_channel"],
+    {"title": "Screening", "basic": ["screening.enabled", "screening.criteria", "screening.classify_additional_channel"],
      "advanced": [
          ("Criteria", ["screening.logic", "screening.rise_time_fraction"]),
          ("Response window", ["screening.response_window", "screening.response_window_anchor",
@@ -214,7 +216,7 @@ LAYOUT = [
          ("Quality gates", ["screening.baseline_calibration_diff", "screening.max_baseline_deviation"]),
          ("Additional channel", ["screening.additional_channel_metric", "screening.classification_threshold"]),
          ("Hit list", ["screening.sort_by", "screening.sort_descending", "screening.manual_hits"]),
-         ("Stage positions and .rgn files", ["screening.n_tiles", "screening.tile_overlap", "screening.max_hits_per_rgn",
+         ("Stage positions and .rgn files", ["screening.stage_positions_file", "screening.n_tiles", "screening.tile_overlap", "screening.max_hits_per_rgn",
                                              "screening.optimize_path", "screening.max_optimization_time"]),
          ("Testing", ["screening.random_hits", "screening.random_seed"]),
      ]},
@@ -500,6 +502,7 @@ print(json.dumps(r))
 FILETYPES = {
     "files": [["Images", "*.tif *.tiff *.lif"], ["All files", "*.*"]],
     "file": [["All files", "*.*"]],
+    "positions": [["Stage positions: .lif file or text file", "*.lif *.txt *.tsv *.csv"], ["All files", "*.*"]],
     "python": [["Python", "python.exe python"], ["All files", "*.*"]],
     "toml": [["Settings", "*.toml"], ["All files", "*.*"]],
 }

@@ -208,6 +208,12 @@ def positions_from_lif(path: Path, n: int) -> tuple[np.ndarray, float | None, st
     return scan.positions, scan.pixel_size, f"{path.name}, '{scan.name}' ({scan.flags})"
 
 
+def lif_images(path: Path) -> dict[str, _TileScan]:
+    """Stage positions and pixel size of every image in a .lif file with a position, by its full name as readlif
+    gives it (image.path + last part of image.name)."""
+    return {s.name: s for s in _tile_scans(_lif_header(path))}
+
+
 def lif_stage_positions(path: Path) -> np.ndarray:
     """(n, 2) stage positions (m) of all tiles and images with a stage position in a .lif file, in file order
     (as Stitch_tiles.ijm, which takes the first n). Images without any position are left out."""
@@ -283,6 +289,33 @@ def tile_layout(folder: Path, lif: Path | None = None, pixel_size: float | None 
     return layout
 
 
+def tiff_metadata(path: Path) -> tuple[tuple[float, float] | None, float | None]:
+    """(stage position (m), pixel size (µm)) of a TIFF exported by LAS X, from MetaData/<name>.xml next to it
+    (None where not found). A tile of an exported tile scan (name_s3.tif) gets the position of its tile in
+    MetaData/name.xml. An image that LAS X stitched itself has one position: that of its centre."""
+    path = Path(path)
+    meta = path.parent / "MetaData"
+    m = re.search(r"_s(\d+)$", path.stem)
+    candidates = [(meta / f"{path.stem}.xml", None)] + ([(meta / f"{path.stem[: m.start()]}.xml", int(m.group(1)))] if m else [])
+    for xml, tile in candidates:
+        if not xml.exists():
+            continue
+        try:
+            scans = _tile_scans(ET.parse(xml).getroot())
+        except (ET.ParseError, ValueError) as e:
+            log.warning("%s: %s", xml, e)
+            return None, None
+        if not scans:
+            return None, None
+        scan = scans[0]
+        if tile is None and len(scan.positions) == 1:
+            return tuple(float(v) for v in scan.positions[0]), scan.pixel_size
+        if tile is not None and tile < len(scan.positions):
+            return tuple(float(v) for v in scan.positions[tile]), scan.pixel_size
+        return None, scan.pixel_size
+    return None, None
+
+
 def _tiff_pixel_size(path: Path) -> float | None:
     """Pixel size (µm) from the TIFF calibration, corrected as 'Correct pixel size' in Stitch_tiles.ijm."""
     with tifffile.TiffFile(path) as tif:
@@ -321,7 +354,15 @@ def stitch_folder(folder: Path, lif: Path | None = None, pixel_size: float | Non
     shapes = {im.data.shape for im in images}
     if len(shapes) > 1:
         raise ValueError(f"Tiles in {folder} differ in size: {sorted(shapes)}")
-    tiles = [im.data for im in images]
+    data, info = stitch_tiles([im.data for im in images], layout, bidirectional, channels, folder.name)
+    return ImageData(data, _stitched_name(layout.files), folder, layout.pixel_size, images[0].frame_interval, info,
+                     extra={"tiles": len(images)})
+
+
+def stitch_tiles(tiles: list[np.ndarray], layout: TileLayout, bidirectional: str | None = None,
+                 channels: list[int] | None = None, label: str = "") -> tuple[np.ndarray, str]:
+    """Stitch (T, C, h, w) tiles by their layout: the (T, C, Y, X) image and its stitched metadata block. See
+    stitch_folder for the bidirectional correction."""
     shift = None
     if bidirectional:
         chans = channels or list(range(1, tiles[0].shape[1] + 1))
@@ -335,11 +376,9 @@ def stitch_folder(folder: Path, lif: Path | None = None, pixel_size: float | Non
     data = fuse(tiles, layout.offsets_px(), layout.shape)
     info = layout.stage_info(shift)
     nx, ny = info.n_tiles
-    log.info("Stitched %d tiles (%d x %d) from %s: %d x %d px, positions from %s", len(tiles), nx, ny, folder.name,
+    log.info("Stitched %d tiles (%d x %d) from %s: %d x %d px, positions from %s", len(tiles), nx, ny, label,
              data.shape[-1], data.shape[-2], layout.source)
-    name = _stitched_name(layout.files)
-    return ImageData(data, name, folder, layout.pixel_size, images[0].frame_interval, stage.stitched_info_block(info),
-                     extra={"tiles": len(tiles)})
+    return data, stage.stitched_info_block(info)
 
 
 def _stitched_name(files: list[str]) -> str:
@@ -357,4 +396,4 @@ def stitched_info(folder: Path, lif: Path | None = None) -> dict:
         t, c, _, _ = _tcyx_shape(s.shape, s.axes)
     h, w = layout.shape
     return {"name": _stitched_name(layout.files), "frames": t, "channels": c, "width": w, "height": h,
-            "pixel_size": layout.pixel_size, "stitched": True, "tiles": len(layout.files)}
+            "pixel_size": round(layout.pixel_size, 4), "stitched": True, "tiles": len(layout.files)}

@@ -43,17 +43,19 @@ class ImageData:
         return self.data[:, c - 1].astype(np.float32)
 
 
-def iter_images(path: Path, series: list[int] | None = None) -> Iterator[ImageData]:
-    """Yield all images (series) in a file; a folder of tiles is stitched into one image."""
+def iter_images(path: Path, series: list[int] | None = None, bidirectional: str | None = None,
+                channels: list[int] | None = None) -> Iterator[ImageData]:
+    """Yield all images (series) in a file; a folder of tiles, or a tile scan in a .lif, is stitched into one image
+    (bidirectional, channels: per-tile phase correction, see stitch.stitch_folder)."""
     suffix = path.suffix.lower()
     if path.is_dir():
         from .stitch import stitch_folder
 
-        yield stitch_folder(path)
+        yield stitch_folder(path, bidirectional=bidirectional, channels=channels)
     elif suffix in (".tif", ".tiff"):
         yield read_tiff(path)
     elif suffix == ".lif":
-        yield from read_lif(path, series)
+        yield from read_lif(path, series, bidirectional, channels)
     elif suffix == ".npy":
         arr = np.load(path)
         yield ImageData(_to_tcyx(arr, "TCYX"[-arr.ndim :]), path.stem, path)
@@ -79,17 +81,36 @@ def image_info(path: Path, lif: Path | None = None) -> list[dict]:
             info = {"name": path.stem, "frames": t, "channels": c, "width": w, "height": h, "dtype": str(s.dtype),
                     "frame_interval": ij.get("finterval"), "stitched": "Stitched image" in (ij.get("Info") or "")}
             tag = tif.pages[0].tags.get("XResolution")
-            if tag and tag.value[0]:
+            if tag and tag.value[0] and str(ij.get("unit", "")) in (*_UNIT_TO_UM, "pixel"):  # as read_tiff
                 info["pixel_size"] = round(tag.value[1] / tag.value[0], 4)
-            return [info]
+        if not info["stitched"]:
+            from .stitch import tiff_metadata
+
+            position, pixel_size = tiff_metadata(path)
+            info["positions"] = position is not None
+            if pixel_size and "pixel_size" not in info:
+                info["pixel_size"] = round(pixel_size, 4)
+        return [info]
     if suffix == ".lif":
         from readlif.reader import LifFile
 
+        from .stitch import TileLayout, lif_images
+
+        scans = lif_images(path)
         out = []
         for img in LifFile(str(path)).get_iter_image():
-            dims = img.info["dims"]
-            out.append({"name": img.info.get("name", path.stem), "frames": max(dims.t, 1), "channels": img.info["channels"],
-                        "width": dims.x, "height": dims.y})
+            dims = img.dims
+            info = {"name": img.name, "frames": max(dims.t, dims.z, 1), "channels": img.channels,
+                    "width": dims.x, "height": dims.y}
+            scan = scans.get(_lif_full_name(img))
+            if scan is not None:
+                info["positions"] = True
+                if scan.pixel_size:
+                    info["pixel_size"] = round(scan.pixel_size, 4)
+                if dims.m > 1 and len(scan.positions) == dims.m and scan.pixel_size:
+                    h, w = TileLayout([""] * dims.m, scan.positions, (dims.x, dims.y), scan.pixel_size).shape
+                    info |= {"width": w, "height": h, "tiles": dims.m, "stitched": True}
+            out.append(info)
         return out
     if suffix == ".npy":
         arr = np.load(path, mmap_mode="r")
@@ -127,7 +148,14 @@ def read_tiff(path: Path) -> ImageData:
         frame_interval = ij.get("finterval")
         info = ij.get("Info", "") or ""
     data = _to_tcyx(arr, axes)
-    return ImageData(data, path.stem, path, pixel_size, frame_interval, info)
+    position = None
+    if "Stitched image" not in info:  # LAS X export: stage position (and pixel size) in MetaData/<name>.xml
+        from .stitch import tiff_metadata
+
+        position, meta_pixel_size = tiff_metadata(path)
+        if meta_pixel_size and (pixel_size is None or unit == "pixel"):  # more exact than the TIFF scale
+            pixel_size = meta_pixel_size
+    return ImageData(data, path.stem, path, pixel_size, frame_interval, info, stage_position=position)
 
 
 def _to_tcyx(arr: np.ndarray, axes: str) -> np.ndarray:
@@ -152,48 +180,53 @@ def _to_tcyx(arr: np.ndarray, axes: str) -> np.ndarray:
     return np.ascontiguousarray(np.transpose(arr, order))  # native dtype; channel() converts
 
 
-def read_lif(path: Path, series: list[int] | None = None) -> Iterator[ImageData]:
+def read_lif(path: Path, series: list[int] | None = None, bidirectional: str | None = None,
+             channels: list[int] | None = None) -> Iterator[ImageData]:
+    """The images (series) of a .lif file, with their own stage position and pixel size from the header. A tile scan
+    is stitched by the positions of its tiles."""
     try:
         from readlif.reader import LifFile
     except ImportError as err:
         raise ImportError("Reading .lif files requires 'readlif': uv sync --extra lif") from err
+    from .stitch import TileLayout, lif_images, stitch_tiles
+
     lif = LifFile(str(path))
+    scans = lif_images(path)
     indices = series if series is not None else range(lif.num_images)
     for i in indices:
         img = lif.get_image(i)
-        nt, nc = img.dims.t, img.channels
-        nz = img.dims.z
+        nt, nz, nm = img.dims.t, img.dims.z, max(img.dims.m, 1)
         if nz > 1 and nt > 1:
             raise ValueError(f"{path.name} series {i}: z-stacks with time frames are not supported")
-        n = max(nt, nz)
-        frames = []
-        for t in range(n):
-            chans = [
-                np.asarray(img.get_frame(z=t if nz > 1 else 0, t=t if nt > 1 else 0, c=c)) for c in range(nc)
-            ]
-            frames.append(np.stack(chans))
-        data = np.stack(frames)
-        pixel_size = 1.0 / img.scale[0] if img.scale and img.scale[0] else None  # scale is px/µm
+        scan = scans.get(_lif_full_name(img))
+        # readlif's scale is (N - 1) / Length; Length / N from the header matches the stage steps (see stitch.py)
+        pixel_size = scan.pixel_size if scan and scan.pixel_size else (1.0 / img.scale[0] if img.scale and img.scale[0] else None)
         frame_interval = None
         if nt > 1 and len(img.scale) > 3 and img.scale[3]:
             frame_interval = 1.0 / img.scale[3]
         name = f"{path.stem} - {img.name.replace('/', '-')}"
-        stage = _lif_stage_position(img)
-        yield ImageData(data, name, path, pixel_size, frame_interval, stage_position=stage, extra={"series": i})
+        if nm > 1:
+            if scan is None or len(scan.positions) != nm or not pixel_size:
+                raise ValueError(f"{path.name} series {i} ('{img.name}'): tile scan of {nm} tiles without their positions")
+            layout = TileLayout([f"tile {m}" for m in range(nm)], scan.positions, (img.dims.x, img.dims.y), pixel_size,
+                                f"{path.name} ({scan.flags})")
+            data, info = stitch_tiles([_lif_tile(img, m) for m in range(nm)], layout, bidirectional, channels, name)
+            yield ImageData(data, name, path, pixel_size, frame_interval, info, extra={"series": i, "tiles": nm})
+        else:
+            stage = tuple(float(v) for v in scan.positions[0]) if scan is not None else None
+            yield ImageData(_lif_tile(img, 0), name, path, pixel_size, frame_interval, stage_position=stage, extra={"series": i})
 
 
-def _lif_stage_position(img) -> tuple[float, float] | None:
-    """Stage position (m) of a .lif series, from the Leica XML (best effort, unverified on all LAS X versions)."""
-    try:
-        root = img.xml_root if hasattr(img, "xml_root") else None
-        if root is None:
-            return None
-        for el in root.iter():
-            if "StagePosX" in el.attrib and "StagePosY" in el.attrib:
-                return float(el.attrib["StagePosX"]), float(el.attrib["StagePosY"])
-    except (AttributeError, ValueError):
-        pass
-    return None
+def _lif_tile(img, m: int) -> np.ndarray:
+    """Tile m of a readlif image as (T, C, Y, X); z-slices count as frames."""
+    nt, nz = img.dims.t, img.dims.z
+    return np.stack([np.stack([np.asarray(img.get_frame(z=t if nz > 1 else 0, t=t if nt > 1 else 0, c=c, m=m))
+                               for c in range(img.channels)]) for t in range(max(nt, nz))])
+
+
+def _lif_full_name(img) -> str:
+    """Full name of a readlif image as stitch.lif_images keys it ('project/folder/image')."""
+    return img.path + img.name.rsplit("/", 1)[-1]
 
 
 def lif_stage_positions(path: Path, n: int | None = None) -> np.ndarray:

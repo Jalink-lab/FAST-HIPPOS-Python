@@ -266,6 +266,10 @@ interval), stim/cal frames; then rerun hit finding only.
   (`Image origin (stage coordinates):` / `x,y` — stage position whose tile corner is the image origin, used
   instead of the origin tile; `Bidirectional correction per tile (px):` / `s` — no second correction on the
   stitched image). Validated: pixel-identical to `Stitch_tiles.ijm` 0 % on testforbram (3×3 tiles, 512 px).
+  Single images get their stage position the same way: `.lif` input per image from the header (tile scans are
+  stitched; readlif alone read only tile 0), exported TIFFs from `MetaData/<name>.xml` (tile k of
+  `MetaData/<base>.xml` for `<base>_s<k>.tif`; pixel size `Length / N` too). `screening.stage_positions_file`
+  is then only a fallback: a text file overrides the image positions, a `.lif` there only fills in.
 - **Inspect_and_select_traces_.ijm** — interactive: hover/click in RGB overlay, traces plot or sorted
   kymograph highlights the same cell in all views; click opens a zoomed single-cell movie; ctrl-drag on
   the sorted kymograph or a ROI selects multiple cells → `Selected_cells` table + `.rgn`.

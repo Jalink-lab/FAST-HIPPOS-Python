@@ -84,14 +84,24 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
         results.sort(key=lambda r: r.index)
     else:
         positions_all = None
-        if settings.screening.enabled and settings.screening.stage_positions_file:
-            positions_all = stage.read_positions_file(Path(settings.screening.stage_positions_file))
+        positions_file = settings.screening.stage_positions_file
+        if settings.screening.enabled and positions_file:
+            positions_all = stage.read_positions_file(Path(positions_file))
+        # a text file overrides the positions in the images; a .lif only fills in where an image has none
+        override = positions_file is not None and Path(positions_file).suffix.lower() != ".lif"
+        p = settings.preprocess
+        bidirectional = p.bidirectional_axis if p.correct_bidirectional else None
         index = 0
         for path in settings.input.files:
-            images = [_stitch(Path(path), settings, out)] if Path(path).is_dir() else iter_images(Path(path), settings.input.series)
+            if Path(path).is_dir():
+                images = [_stitch(Path(path), settings, out)]
+            else:
+                images = iter_images(Path(path), settings.input.series, bidirectional, _reg_channels(settings))
             for image in images:
                 log.info("--- %s", image.name)
-                result = process_image(image, index, settings, positions_all)
+                if image.extra.get("tiles") and not Path(path).is_dir():  # a tile scan in a .lif, stitched
+                    _save_stitched(image, out)
+                result = process_image(image, index, settings, positions_all, override)
                 if result is not None:
                     results.append(result)
                 index += 1
@@ -126,10 +136,14 @@ def _stitch(folder: Path, settings: Settings, out: Path) -> ImageData:
     lif = sc.stage_positions_file if sc.stage_positions_file and Path(sc.stage_positions_file).suffix.lower() == ".lif" else None
     image = stitch_folder(folder, lif, settings.input.pixel_size, p.bidirectional_axis if p.correct_bidirectional else None,
                           _reg_channels(settings))
-    path = out / f"{_safe(image.name)}.tif"
+    _save_stitched(image, out)
+    return image
+
+
+def _save_stitched(image: ImageData, out: Path) -> None:
+    path = out / f"{_safe(image.name)}{'' if image.name.endswith('_STITCHED') else '_STITCHED'}.tif"
     write_tiff(path, image.data, "TCYX", image.pixel_size, image.frame_interval, image.info)
     log.info("Stitched image saved: %s", path)
-    return image
 
 
 def _setup_logging(path: Path) -> None:
@@ -148,7 +162,7 @@ def _setup_logging(path: Path) -> None:
 
 
 def process_image(
-    image: ImageData, index: int, settings: Settings, positions_all: np.ndarray | None = None
+    image: ImageData, index: int, settings: Settings, positions_all: np.ndarray | None = None, override: bool = True
 ) -> ImageResult | None:
     s_in, s_seg, s_disp = settings.input, settings.segmentation, settings.display
     if s_in.remove_last_frame and image.n_frames > 1:
@@ -208,7 +222,7 @@ def process_image(
         shape=(n_frames, height, width), unit=modalities.UNITS[s_in.modality], kymo=kymo, kymo_smoothed=kymo_s,
         additional=additional, base=pd.DataFrame(),
     )
-    _stage_geometry(result, image, positions_all, settings)
+    _stage_geometry(result, image, positions_all, settings, override)
     base = pd.DataFrame({
         "image": image.name, "tile": index, "cell": stats["label"].to_numpy(),
         "area_px": stats["area_px"].to_numpy(), "mean_intensity": stats["mean_intensity"].to_numpy(),
@@ -245,7 +259,8 @@ def _safe(name: str) -> str:
     return "".join(ch if ch not in '<>:"/\\|?*' else "_" for ch in name).strip()
 
 
-def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.ndarray | None, settings: Settings):
+def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.ndarray | None, settings: Settings,
+                    override: bool = True):
     """Stage position of the image origin, tile size and tile outlines (only needed for screening)."""
     if not settings.screening.enabled:
         return
@@ -264,7 +279,7 @@ def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.nda
     else:
         # one image = one tile (fixes the macro dividing a single tile by the number of tiles, issue I16)
         tile_size = (width * px * 1e-6, height * px * 1e-6)
-        if positions_all is not None:
+        if positions_all is not None and (override or image.stage_position is None):
             if result.index >= len(positions_all):
                 raise ValueError(f"Stage positions file has {len(positions_all)} positions; image {result.index} has none")
             position = positions_all[result.index]

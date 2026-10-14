@@ -110,8 +110,8 @@ A typical run:
    image. The interface checks the Cellpose environment and shows its version and GPU.
 3. **Stimulation and calibration**: leave the frames empty for automatic detection, set them, or choose *Baseline
    only*.
-4. **Screening**: switch it on, add hit criteria, and choose the stage positions (not needed for tile folders and
-   for images stitched with the Fiji *Stitch tiles* command, which store them in the image).
+4. **Screening**: switch it on and add hit criteria. Stage positions are read from the images themselves (see
+   below); only images without them need a *Stage positions file* (advanced settings).
 5. **Run analysis**. The log shows the progress; when the run is done, *Open overview* and *Dashboard* open the
    results.
 
@@ -249,8 +249,12 @@ the additional channel, by Otsu's method or a manual threshold.
 | `baseline_dev_pop` | `baseline_mean` − population baseline |
 | `additional_intensity` | intensity in the additional channel (mean over time, or first frame) |
 
-**Stage positions** come from the metadata of a stitched image (stitched by FAST-HIPPOS or by the Fiji *Stitch
-tiles* command), from a text file with the tile positions, or from the `.lif` file. Hit positions are the cell centroids, or, with a nuclei
+**Stage positions** are read from the images: the metadata of a stitched image (stitched by FAST-HIPPOS or by the
+Fiji *Stitch tiles* command), the header of a `.lif` file (every image its own position; a tile scan is stitched),
+or the `MetaData` folder that LAS X writes next to exported TIFFs (a single tile `name_s3.tif` gets the position of
+tile 3; an image stitched by LAS X gets its one position, that of its centre). The pixel size of LAS X exports is
+also taken from there. Only for other images, choose a *Stage positions file* (advanced): a text file with one
+X Y pair in metres per image (overrides the images), or the `.lif` file (only for images without a position). Hit positions are the cell centroids, or, with a nuclei
 classifier (`fast-hippos-cli train-classifier`, a scikit-learn random forest trained on a few scribbles), the
 centre of the nucleus.
 

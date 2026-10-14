@@ -200,3 +200,54 @@ def test_run_on_tile_folder(tmp_path):
     assert len(r.tiles) == 4
     (again,) = run(s, reapply=True)  # the saved results keep the stage geometry
     np.testing.assert_allclose(again.cells["abs_x_m"], cells["abs_x_m"])
+
+
+def test_single_tiff_position_from_lasx_metadata(tmp_path):
+    """A tile of an exported tile scan, analyzed on its own, gets its tile's stage position and the exact pixel size;
+    an image with one position (e.g. stitched by LAS X) gets that one."""
+    from fast_hippos.io import read_tiff
+
+    folder = _tile_folder(tmp_path, _scene(), SNAKE)
+    image = read_tiff(folder / "scan_s4.tif")
+    assert image.stage_position == pytest.approx((-(0.04 + 16e-6), -(0.06 + 19e-6)))
+    assert image.pixel_size == pytest.approx(PX)
+    info = image_info(folder / "scan_s4.tif")[0]
+    assert info["positions"] and info["pixel_size"] == pytest.approx(PX)
+    single = tmp_path / "single"
+    (single / "MetaData").mkdir(parents=True)
+    tifffile.imwrite(single / "merged.tif", _scene()[..., :32, :32], imagej=True, metadata={"axes": "TCYX"})
+    (single / "MetaData" / "merged.xml").write_text(_leica_xml([(5, 7)]))
+    assert read_tiff(single / "merged.tif").stage_position == pytest.approx((-(0.04 + 7e-6), -(0.06 + 5e-6)))
+    tifffile.imwrite(single / "other.tif", _scene()[..., :32, :32], imagej=True, metadata={"axes": "TCYX"})
+    assert read_tiff(single / "other.tif").stage_position is None
+    assert not image_info(single / "other.tif")[0]["positions"]
+
+
+def _run_tile(tmp_path, positions_file=None):
+    from fast_hippos.config import Settings
+    from fast_hippos.pipeline import run
+    from fast_hippos.synthetic import make_timelapse
+
+    image, _ = make_timelapse(size=64, n_frames=30, seed=2)
+    folder = tmp_path / "export"
+    (folder / "MetaData").mkdir(parents=True)
+    tifffile.imwrite(folder / "field.tif", image.data, imagej=True, metadata={"axes": "TCYX"})
+    (folder / "MetaData" / "field.xml").write_text(_leica_xml([(0, 0)], tile=64))
+    s = Settings()
+    s.input.files = [folder / "field.tif"]
+    s.input.output = tmp_path / "out"
+    s.segmentation.method = "threshold"
+    s.segmentation.diameter = 18
+    s.screening.enabled = True
+    s.screening.random_hits = 3
+    s.screening.stage_positions_file = positions_file
+    (r,) = run(s)
+    return r
+
+
+def test_run_uses_position_from_image_and_text_file_overrides(tmp_path):
+    r = _run_tile(tmp_path / "a")
+    assert r.stage_xy == pytest.approx((-0.04, -0.06))  # from MetaData/field.xml
+    text = tmp_path / "positions.txt"
+    text.write_text("0.0123 0.0456\n")
+    assert _run_tile(tmp_path / "b", text).stage_xy == pytest.approx((0.0123, 0.0456))
