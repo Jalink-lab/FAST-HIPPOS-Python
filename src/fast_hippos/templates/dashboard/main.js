@@ -52,7 +52,7 @@ function initControls() {
     else if (e.key === "ArrowLeft") { e.preventDefault(); setFrame(S.frame - 1); }
     else if (e.key === "Escape") select(-1);
     else if (e.key === "z") $("vzsel").click();
-    else if (e.key === "f") fitView();
+    else if (e.key === "f") fitView(true, true);
     else if (e.key === "F") $("vfull").click();
     else if (e.key === "l") { S.tool = S.tool === "lasso" ? "rect" : "lasso"; setTool(S.tool); }
   });

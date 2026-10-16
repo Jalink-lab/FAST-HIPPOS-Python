@@ -255,12 +255,38 @@ function outlinesChanged() { outlineVersion++; invalidate("viewerSel", "viewerHo
 function imageChanged() { renderVersion++; lastComp.clear(); invalidate("viewer", "cell"); }
 
 // ---- navigation
-function fitView(redraw = true) {
+function fitView(redraw = true, smooth = false) {  // smooth: glide there (the Fit button); else at once (start, resizing)
   const r = vwrap.getBoundingClientRect(); if (!r.width) return;
-  view.s = Math.min(r.width / W0, r.height / H0); view.tx = (r.width - W0 * view.s) / 2; view.ty = (r.height - H0 * view.s) / 2; view.fitted = true; view.auto = true;
+  const s = Math.min(r.width / W0, r.height / H0), tx = (r.width - W0 * s) / 2, ty = (r.height - H0 * s) / 2;
+  view.fitted = true; view.auto = true;
+  if (smooth) { glideTo(s, tx, ty); return; }
+  glide = null; view.s = s; view.tx = tx; view.ty = ty;
   if (redraw) invalidate("viewer");
 }
-function zoomAt(mx, my, f) { view.auto = false; const s = Math.max(0.01, Math.min(32, view.s * f)); view.tx = mx - (mx - view.tx) * s / view.s; view.ty = my - (my - view.ty) * s / view.s; view.s = s; invalidate("viewer"); }
+// Zooming glides to the new view instead of jumping: the view moves to a target in ~160 ms (ease-out). Between two
+// views that differ in scale there is one image point that stays at the same screen spot (the cursor when zooming
+// with the wheel); the scale is interpolated logarithmically around that point, so the movement looks like one zoom.
+// A new step during a glide starts from the current view towards the next target, so quick wheel notches add up.
+let glide = null;
+const viewTarget = () => glide ? { s: glide.s1, tx: glide.x1, ty: glide.y1 } : view;
+function glideTo(s1, x1, y1, ms = 160) {
+  glide = { s0: view.s, x0: view.tx, y0: view.ty, s1, x1, y1, t0: performance.now(), ms };
+  const step = (now) => {
+    const g = glide; if (!g) return;
+    const f = Math.min(1, (now - g.t0) / g.ms), e = 1 - Math.pow(1 - f, 3);
+    if (Math.abs(g.s1 - g.s0) > 1e-9 * g.s0) {
+      const s = g.s0 * Math.pow(g.s1 / g.s0, e), px = (g.x1 - g.x0) / (g.s0 - g.s1), py = (g.y1 - g.y0) / (g.s0 - g.s1);
+      view.tx = g.x0 + (g.s0 - s) * px; view.ty = g.y0 + (g.s0 - s) * py; view.s = s;
+    } else { view.tx = g.x0 + (g.x1 - g.x0) * e; view.ty = g.y0 + (g.y1 - g.y0) * e; }
+    invalidate("viewer");
+    if (f < 1) requestAnimationFrame(step); else { view.s = g.s1; view.tx = g.x1; view.ty = g.y1; glide = null; }
+  };
+  requestAnimationFrame(step);
+}
+function zoomAt(mx, my, f) {
+  view.auto = false; const t = viewTarget(), s = Math.max(0.01, Math.min(32, t.s * f));
+  glideTo(s, mx - (mx - t.tx) * s / t.s, my - (my - t.ty) * s / t.s);
+}
 function cellBox(i) {
   if (C.bbox_x0 && C.bbox_x0[i] !== null) return [C.bbox_x0[i], C.bbox_y0[i], C.bbox_x1[i], C.bbox_y1[i]];
   const r = Math.sqrt((C.area_px[i] || 100) / Math.PI) * 1.2; return [POSX[i] - r, POSY[i] - r, POSX[i] + r, POSY[i] + r];
@@ -271,8 +297,8 @@ function zoomTo(ids) {
   for (const i of ids) { const b = cellBox(i); x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]); }
   const pad = Math.max(20, 0.15 * Math.max(x1 - x0, y1 - y0)); x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   const r = vwrap.getBoundingClientRect(); view.auto = false;
-  view.s = Math.min(32, Math.min(r.width / (x1 - x0), r.height / (y1 - y0)));
-  view.tx = r.width / 2 - (x0 + x1) / 2 * view.s; view.ty = r.height / 2 - (y0 + y1) / 2 * view.s; invalidate("viewer");
+  const s = Math.min(32, Math.min(r.width / (x1 - x0), r.height / (y1 - y0)));
+  glideTo(s, r.width / 2 - (x0 + x1) / 2 * s, r.height / 2 - (y0 + y1) / 2 * s);
 }
 function imgCoords(ev) { const r = vwrap.getBoundingClientRect(); return [(ev.clientX - r.left - view.tx) / view.s, (ev.clientY - r.top - view.ty) / view.s]; }
 function labelAt(x, y) {
@@ -289,8 +315,8 @@ function labelAt(x, y) {
 }
 function initViewer() {
   let drag = null;
-  vwrap.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const r = vwrap.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.004)); }, { passive: false });
-  vwrap.addEventListener("pointerdown", (e) => { if (e.shiftKey) return; vwrap.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty, moved: false }; });
+  vwrap.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const r = vwrap.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0022)); }, { passive: false });
+  vwrap.addEventListener("pointerdown", (e) => { if (e.shiftKey) return; glide = null; vwrap.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty, moved: false }; });
   vwrap.addEventListener("pointermove", (e) => {
     if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; if (drag.moved) { view.auto = false; view.tx = drag.tx + dx; view.ty = drag.ty + dy; invalidate("viewer"); } return; }
     const [x, y] = imgCoords(e); setHover(labelAt(x, y), e);
@@ -305,7 +331,7 @@ function initViewer() {
     selectMany(list, add);
   });
   const zc = (f) => { const r = vwrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, f); };
-  $("vzin").onclick = () => zc(1.6); $("vzout").onclick = () => zc(1 / 1.6); $("vfit").onclick = () => fitView();
+  $("vzin").onclick = () => zc(1.4); $("vzout").onclick = () => zc(1 / 1.4); $("vfit").onclick = () => fitView(true, true);
   $("vzsel").onclick = () => zoomTo(S.sel.size ? [...S.sel] : HIT.map((h, i) => h ? i : -1).filter(i => i >= 0));
   $("outl").value = S.outl; $("outl").onchange = () => { S.outl = $("outl").value; outlinesChanged(); };
   $("isrc").onchange = () => { S.isrc = $("isrc").value; imageChanged(); };
@@ -313,7 +339,7 @@ function initViewer() {
   $("vroute").checked = S.showRoute; $("vroute").onchange = () => { S.showRoute = $("vroute").checked; invalidate("viewerHov"); };
   const fm = $("vfill"); fm.add(new Option("lifetime image", "")); METRIC_KEYS.forEach(k => fm.add(new Option(k, k)));
   fm.onchange = () => { S.fillMetric = fm.value; fillsChanged(); };
-  $("vzoom").onclick = () => { const r = vwrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1 / view.s); };
+  $("vzoom").onclick = () => { const r = vwrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1 / viewTarget().s); };
   hitRGB = hexToRgb(css("--hit"));
   // when the size changes (window, full screen): refit, or keep the same spot in the middle when zoomed in
   let lastSize = null;

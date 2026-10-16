@@ -60,9 +60,10 @@ class HistSlider {
     let vals = Array.from(this.o.values()).filter(v => Number.isFinite(v) && (!this.o.log || v > 0)).map(tr).sort((p, q) => p - q);
     if (!vals.length) { this.g = null; x.fillStyle = css("--muted"); x.font = "11px system-ui"; x.fillText("no values", 6, h / 2 + 4); return; }
     const mode = this.o.mode(), [a, b] = this.o.get();
+    // axis: 1st-99th percentile of the data (plus a margin), not widened for the markers: a marker that lies outside
+    // is drawn at the edge with an arrow, so that the bars stay put while a marker is dragged
     let lo = vals[Math.floor(vals.length * 0.01)], hi = vals[Math.min(vals.length - 1, Math.floor(vals.length * 0.99))];
     const marks = mode === "abs" ? [-a, a] : mode === "between" ? [a, b] : [a];
-    for (const t of marks) if (Number.isFinite(t) && (!this.o.log || t > 0)) { lo = Math.min(lo, tr(t)); hi = Math.max(hi, tr(t)); }
     if (hi <= lo) hi = lo + 1; const pad = (hi - lo) * 0.04; lo -= pad; hi += pad; this.g = { lo, hi };
     const nb = Math.max(20, Math.min(64, Math.floor(w / 5))), cnt = new Float64Array(nb);
     for (const v of vals) { const k = Math.floor((v - lo) / (hi - lo) * nb); if (k >= 0 && k < nb) cnt[k]++; }
@@ -70,7 +71,16 @@ class HistSlider {
     const passes = (u) => { const v = this.o.log ? Math.pow(10, u) : u; return mode === "lt" ? v < a : mode === "gt" ? v > a : mode === "between" ? v > a && v < b : Math.abs(v) <= a; };
     for (let k = 0; k < nb; k++) { const ok = passes(lo + (k + 0.5) / nb * (hi - lo)); x.fillStyle = ok ? pc : base; x.globalAlpha = ok ? 0.85 : 0.3; const bh = Math.sqrt(cnt[k] / mx) * (h - 3); x.fillRect(k * bw + 0.5, h - bh, Math.max(1, bw - 1), bh); }
     x.globalAlpha = 1; x.strokeStyle = css("--text"); x.lineWidth = 2;
-    for (const t of marks) if (Number.isFinite(t) && (!this.o.log || t > 0)) { const px = (tr(t) - lo) / (hi - lo) * w; x.beginPath(); x.moveTo(px, 0); x.lineTo(px, h); x.stroke(); x.fillStyle = css("--text"); x.fillRect(px - 3, 0, 6, 5); }
+    for (const t of marks) {
+      if (!Number.isFinite(t) || (this.o.log && t <= 0)) continue;
+      const px = (tr(t) - lo) / (hi - lo) * w; x.fillStyle = css("--text");
+      if (px < 0 || px > w) {  // beyond the axis: an arrow at that edge
+        const e = px < 0 ? 1 : w - 1, d = px < 0 ? 1 : -1;
+        x.beginPath(); x.moveTo(e, h / 2); x.lineTo(e + d * 8, h / 2 - 6); x.lineTo(e + d * 8, h / 2 + 6); x.closePath(); x.fill();
+        continue;
+      }
+      x.beginPath(); x.moveTo(px, 0); x.lineTo(px, h); x.stroke(); x.fillRect(px - 3, 0, 6, 5);
+    }
   }
 }
 
