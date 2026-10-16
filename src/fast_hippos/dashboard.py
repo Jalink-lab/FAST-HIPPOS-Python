@@ -190,7 +190,9 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
         # where the routes start (centre of the first tile of the scan, stage frame in m), as in the run
         "route_start": [result.tiles[0][0] + result.tiles[0][2] / 2, result.tiles[0][1] + result.tiles[0][3] / 2] if result.tiles else None,
         "population_baseline": cells.attrs.get("population_baseline") if hasattr(cells, "attrs") else None,
-        "cells": _columns(cells),
+        # pos_x/y_px is the cell position used for the stage positions (the centroid, or the centre of the nucleus with
+        # a nuclei classifier); the centroid itself stays in the tables of the output folder
+        "cells": _columns(cells.drop(columns=["centroid_x", "centroid_y"], errors="ignore")),
         "luts": _luts(),
     }
 

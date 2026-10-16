@@ -10,7 +10,7 @@ const KR = b64f32(D.kymo), KA = b64f32(D.additional);
 const LUTS = {}; for (const [k, v] of Object.entries(D.luts)) LUTS[k] = b64bytes(v);
 Object.keys(C).filter(k => k.startsWith("pass_")).forEach(k => delete C[k]);  // recomputed live
 const HAS_ABS = (C.abs_x_m || []).some(v => v !== null);
-const POSX = Float64Array.from(C.pos_x_px ?? C.centroid_x, v => v ?? NaN), POSY = Float64Array.from(C.pos_y_px ?? C.centroid_y, v => v ?? NaN);
+const POSX = Float64Array.from(C.pos_x_px, v => v ?? NaN), POSY = Float64Array.from(C.pos_y_px, v => v ?? NaN);
 
 // screening state (recomputed in the browser by FHScreen = templates/screening.js, identical to Python)
 const SCR = {
