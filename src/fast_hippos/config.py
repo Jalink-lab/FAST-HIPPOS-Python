@@ -205,6 +205,10 @@ class Settings:
                 setattr(section, name, _resolve(base, value))
         return settings
 
+    @classmethod
+    def from_dict(cls, data: dict) -> Settings:
+        return _from_dict(cls, data)
+
     def to_dict(self) -> dict[str, Any]:
         return _to_plain(asdict(self))
 

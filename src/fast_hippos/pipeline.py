@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 import shutil
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -15,7 +17,7 @@ import pandas as pd
 
 from . import __version__, events, kymograph, modalities, plots, preprocess, screening, segmentation, stage
 from .config import Modality, Settings
-from .io import ImageData, iter_images, write_tiff
+from .io import ImageData, iter_images, safe_name, write_tiff
 from .viewer_data import ViewerData, prepare
 
 log = logging.getLogger("fast_hippos")
@@ -47,6 +49,7 @@ class ImageResult:
     order: np.ndarray | None = None
     cells: pd.DataFrame | None = None
     classification_threshold: float | None = None
+    source: str = ""  # the input file (or tile folder) the image came from
 
     @property
     def n_cells(self) -> int:
@@ -61,22 +64,43 @@ class ImageResult:
 
 
 def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
+    """Analyze the images (one output folder holds one run: a new run first removes the results of the previous one),
+    or, with reapply, redo the analysis after segmentation for the images of the run in the output folder. For a
+    reapply, `settings` are those of that run with other event / screening / display settings (reapply_settings)."""
     out = Path(settings.input.output)
     out.mkdir(parents=True, exist_ok=True)
-    _setup_logging(out / "run_log.txt")
-    log.info("FAST-HIPPOS (Python) %s%s", __version__, " - re-applying analysis to saved data" if reapply else "")
-    (out / "settings_used.json").write_text(json.dumps(settings.to_dict(), indent=2))
+    _close_logging()  # the log of an earlier run in this process is moved along with that run
+    info = run_info(out) if reapply else None
+    if reapply and not info:
+        raise ValueError(f"No analysis results in {out}: run the analysis first")
     if not reapply:  # stop now, not after minutes of work, if the settings do not fit the images
         from .checks import SettingsError, check_inputs
 
-        if problems := check_inputs(settings):
+        problems = check_inputs(settings)
+        if not problems:
+            try:
+                moved = clear_run(out, input_paths(settings))
+            except ValueError as e:
+                problems = str(e).splitlines()
+        if problems:
+            _setup_logging(out / "run_log.txt")
             for p in problems:
                 log.error(p)
             raise SettingsError(problems)
+        _start_run_file(out, settings)
+    _setup_logging(out / "run_log.txt")
+    log.info("FAST-HIPPOS (Python) %s%s", __version__, " - re-applying the analysis after segmentation" if reapply else "")
+    if not reapply and moved:
+        log.info("The results of the previous run in this folder were moved to %s%s (removed when this run is complete, "
+                 "kept if it is not): %s", PREVIOUS_RUN, os.sep, ", ".join(moved))
+    (out / "settings_used.json").write_text(json.dumps(settings.to_dict(), indent=2))
 
     results: list[ImageResult] = []
     if reapply:
-        for meta in sorted(out.glob("*/meta.json")):
+        log.info("Re-applying stimulation detection, screening and dashboards to the %d image(s) of the run of %s "
+                 "in this folder (segmentation and traces are kept): %s", len(info["images"]), info.get("started", "?"),
+                 ", ".join(i["name"] for i in info["images"]))
+        for meta in (d / "meta.json" for d, _ in _result_folders(out)):
             result = load_result(meta.parent)
             analyze(result, settings)
             save_tables(result, settings)
@@ -100,13 +124,16 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
             for image in images:
                 log.info("--- %s", image.name)
                 if image.extra.get("tiles") and not Path(path).is_dir():  # a tile scan in a .lif, stitched
-                    _save_stitched(image, out)
+                    image.extra["stitched_file"] = _save_stitched(image, out)
+                if "stitched_file" in image.extra:
+                    _record_file(out, image.extra["stitched_file"])
                 result = process_image(image, index, settings, positions_all, override)
                 if result is not None:
                     results.append(result)
                 index += 1
     if not results:
-        log.warning("No images with cells were analyzed")
+        log.warning("No images with cells were analyzed%s", "" if reapply else
+                    f"; the previous run (if any) is kept in {PREVIOUS_RUN}{os.sep}")
         return results
     if settings.screening.enabled:
         write_screening_outputs(results, settings, out)
@@ -117,8 +144,153 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
     from .dashboard import write_index
 
     write_index(results, settings, out)
+    _write_run_file(out, results, reapply, info["started"] if reapply else None)
     log.info("Done. Output in %s", out)
     return results
+
+
+# ---------------------------------------------------------------- the run in an output folder
+
+RUN_FILE = "run.json"  # the images of the run in an output folder, its input files and the files it wrote next to them
+PREVIOUS_RUN = "_previous_run"  # where the last complete run waits while a new run is running (removed when it is done)
+REAPPLY_SECTIONS = ("events", "screening", "display")  # what a re-apply may change
+# settings in those sections that only take effect in a full run (overlay, dashboard image, stage positions): a re-apply
+# keeps the values of the run, so that the record of the run stays true
+RUN_TIME_ONLY = {"display": ("overlay_smooth_xy", "overlay_smooth_t", "dashboard_max_size", "dashboard_max_megapixels",
+                             "dashboard_tiles"), "screening": ("stage_positions_file",)}
+# files that a run writes in the output folder itself (they go with the run)
+_RUN_OUTPUTS = re.compile(r"(index\.html|cell_coordinates\.tsv|hits\.tsv|hits_\d+-\d+\.tsv|HITS_.*\.rgn|hit_positions\.png|"
+                          r"hit_chunks\.json|screening_from_dashboard\.toml|settings_used\.json|run\.json|run_log\.txt)")
+_QUIET = ("settings_used.json", "run.json", "run_log.txt")  # moved along, but not worth listing to the user
+
+
+def _result_folders(out: Path) -> list[tuple[Path, dict]]:
+    """The image result folders in an output folder, with their meta.json: only folders that FAST-HIPPOS wrote
+    (meta.json with a name and a version, and the traces next to it); anything else in the folder is never touched."""
+    found = []
+    for meta_path in sorted(Path(out).glob("*/meta.json")):
+        try:
+            meta = json.loads(meta_path.read_text())
+        except (OSError, ValueError):
+            continue
+        if isinstance(meta, dict) and "name" in meta and "version" in meta and (meta_path.parent / "traces.npz").exists():
+            found.append((meta_path.parent, meta))
+    return found
+
+
+def _read_run_file(out: Path) -> dict:
+    try:
+        info = json.loads((Path(out) / RUN_FILE).read_text(encoding="utf-8"))
+        return info if isinstance(info, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def run_info(out: Path) -> dict | None:
+    """The run in an output folder: {"started", "reapplied", "version", "complete", "inputs", "files", "images":
+    [{"name", "folder", "source", "cells", "index"}], "previous_run"}; None if the folder holds no results. The images
+    are read from the image folders themselves."""
+    out = Path(out)
+    folders = _result_folders(out)
+    if not folders:
+        return None
+    images = sorted(({"name": m["name"], "folder": d.name, "source": m.get("source", ""), "cells": m.get("n_cells"),
+                      "index": m.get("index", 0)} for d, m in folders), key=lambda i: i["index"])
+    info = _read_run_file(out)
+    if "started" not in info:  # results of an earlier version: when the first image result was written
+        first = min((d / "meta.json").stat().st_mtime for d, _ in folders)
+        info["started"] = time.strftime("%Y-%m-%d %H:%M", time.localtime(first))
+    return info | {"images": images, "previous_run": (out / PREVIOUS_RUN).is_dir()}
+
+
+def input_paths(settings: Settings) -> list[Path]:
+    """Every file or folder that a run reads."""
+    s_in, seg, sc, fd = settings.input, settings.segmentation, settings.screening, settings.fdflim
+    paths = list(s_in.files) + [seg.labelmap, seg.classifier, sc.stage_positions_file, sc.manual_hits, fd.reference,
+                                fd.background]
+    return [Path(p).resolve() for p in paths if p]
+
+
+def clear_plan(out: Path, keep: list[Path] = ()) -> dict:
+    """What a new run in this output folder would move away: {"folders": image result folders, "files": files of the
+    run next to them, "blocked": reasons why it cannot (a file the new run reads lies inside a result folder)}. Files in
+    `keep` (the inputs of the new run) are never moved."""
+    out = Path(out).resolve()
+    keep = [Path(k).resolve() for k in keep]
+    folders = [d for d, _ in _result_folders(out)]
+    blocked = [f"{k} is inside {d.name}{os.sep}, a result of the previous run that a new run moves away: move it out of "
+               "the output folder first, or choose another output folder" for d in folders for k in keep if k.is_relative_to(d)]
+    files = {out / n for n in _read_run_file(out).get("files", []) if (out / n).is_file() and (out / n).parent == out}
+    files |= {p for p in out.iterdir() if p.is_file() and _RUN_OUTPUTS.fullmatch(p.name)} if out.is_dir() else set()
+    files = sorted(p for p in files if p not in keep)
+    return {"folders": [d.name for d in folders], "files": [p.name for p in files], "blocked": blocked}
+
+
+def clear_run(out: Path, keep: list[Path] = ()) -> list[str]:
+    """Before a new run: move the results of the previous run to PREVIOUS_RUN (they are removed once the new run is
+    complete; if it is not, they stay there). If PREVIOUS_RUN already exists, an earlier attempt did not finish: its
+    partial results are removed and the complete run in PREVIOUS_RUN is kept. Raises ValueError when a file that the
+    new run reads would be moved. Returns the names of what was moved (or removed)."""
+    out = Path(out)
+    plan = clear_plan(out, keep)
+    if plan["blocked"]:
+        raise ValueError("\n".join(plan["blocked"]))
+    prev = out / PREVIOUS_RUN
+    if prev.is_dir() and _read_run_file(out).get("complete", True):
+        shutil.rmtree(prev)  # left over from a complete run (its removal failed): the folder holds the newer run
+    partial = prev.is_dir()
+    prev.mkdir(exist_ok=True)
+    for name in plan["folders"] + plan["files"]:
+        src = out / name
+        if partial:
+            shutil.rmtree(src) if src.is_dir() else src.unlink()
+        else:
+            shutil.move(str(src), str(prev / name))
+    return [n + "/" for n in plan["folders"]] + [n for n in plan["files"] if n not in _QUIET]
+
+
+def _start_run_file(out: Path, settings: Settings) -> None:
+    """run.json at the start of a run: not complete yet, and every file the run writes next to the image folders is
+    added as soon as it exists (so that a run that does not finish leaves no unknown files)."""
+    info = {"version": __version__, "started": time.strftime("%Y-%m-%d %H:%M"), "complete": False,
+            "inputs": [str(f) for f in settings.input.files], "files": [], "images": []}
+    (Path(out) / RUN_FILE).write_text(json.dumps(info, indent=2), encoding="utf-8")
+
+
+def _record_file(out: Path, name: str) -> None:
+    info = _read_run_file(out)
+    info["files"] = sorted(set(info.get("files", [])) | {name})
+    (Path(out) / RUN_FILE).write_text(json.dumps(info, indent=2), encoding="utf-8")
+
+
+def _write_run_file(out: Path, results: list[ImageResult], reapply: bool, started: str | None = None) -> None:
+    """run.json when a run (or re-apply) is complete; the previous run is then removed."""
+    now = time.strftime("%Y-%m-%d %H:%M")
+    info = _read_run_file(out)
+    info |= {"version": __version__, "started": started or info.get("started", now), "complete": True,
+             "images": [{"name": r.name, "folder": r.out_dir.name, "source": r.source, "cells": r.n_cells,
+                         "index": r.index} for r in results]}
+    if reapply:
+        info["reapplied"] = now
+    (Path(out) / RUN_FILE).write_text(json.dumps(info, indent=2), encoding="utf-8")
+    shutil.rmtree(Path(out) / PREVIOUS_RUN, ignore_errors=True)
+
+
+def reapply_settings(out: Path, changes: dict) -> dict:
+    """Settings for re-applying the analysis in an output folder: those of the run in it (settings_used.json), with
+    the event, screening and display settings taken from `changes`, key by key (the images, segmentation and traces
+    stay those of the run, and so do the RUN_TIME_ONLY settings, which a re-apply cannot change)."""
+    out = Path(out)
+    used = out / "settings_used.json"
+    if not used.exists() or not run_info(out):
+        raise ValueError(f"No analysis results in {out}: run the analysis first")
+    base = json.loads(used.read_text())
+    for section in REAPPLY_SECTIONS:
+        if isinstance(changes.get(section), dict):
+            kept = {k: base.get(section, {})[k] for k in RUN_TIME_ONLY.get(section, ()) if k in base.get(section, {})}
+            base[section] = base.get(section, {}) | changes[section] | kept
+    base["input"]["output"] = str(out)
+    return base
 
 
 def _reg_channels(settings: Settings) -> list[int]:
@@ -136,22 +308,28 @@ def _stitch(folder: Path, settings: Settings, out: Path) -> ImageData:
     lif = sc.stage_positions_file if sc.stage_positions_file and Path(sc.stage_positions_file).suffix.lower() == ".lif" else None
     image = stitch_folder(folder, lif, settings.input.pixel_size, p.bidirectional_axis if p.correct_bidirectional else None,
                           _reg_channels(settings))
-    _save_stitched(image, out)
+    image.extra["stitched_file"] = _save_stitched(image, out)
     return image
 
 
-def _save_stitched(image: ImageData, out: Path) -> None:
+def _save_stitched(image: ImageData, out: Path) -> str:
     path = out / f"{_safe(image.name)}{'' if image.name.endswith('_STITCHED') else '_STITCHED'}.tif"
     write_tiff(path, image.data, "TCYX", image.pixel_size, image.frame_interval, image.info)
     log.info("Stitched image saved: %s", path)
+    return path.name
+
+
+def _close_logging() -> None:
+    logger = logging.getLogger("fast_hippos")
+    for h in list(logger.handlers):
+        logger.removeHandler(h)
+        h.close()
 
 
 def _setup_logging(path: Path) -> None:
     logger = logging.getLogger("fast_hippos")
     logger.setLevel(logging.INFO)
-    for h in list(logger.handlers):
-        logger.removeHandler(h)
-        h.close()
+    _close_logging()
     fmt = logging.Formatter("%(asctime)s %(levelname)-7s %(message)s", "%H:%M:%S")
     for handler in (logging.FileHandler(path, mode="w", encoding="utf-8"), logging.StreamHandler()):
         handler.setFormatter(fmt)
@@ -221,6 +399,7 @@ def process_image(
         name=image.name, out_dir=out_dir, index=index, pixel_size=pixel_size, frame_interval=frame_interval,
         shape=(n_frames, height, width), unit=modalities.UNITS[s_in.modality], kymo=kymo, kymo_smoothed=kymo_s,
         additional=additional, base=pd.DataFrame(),
+        source=str(image.source) + (f" (series {image.extra['series']})" if "series" in image.extra else ""),
     )
     _stage_geometry(result, image, positions_all, settings, override)
     base = pd.DataFrame({
@@ -255,8 +434,7 @@ def process_image(
     return result
 
 
-def _safe(name: str) -> str:
-    return "".join(ch if ch not in '<>:"/\\|?*' else "_" for ch in name).strip()
+_safe = safe_name
 
 
 def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.ndarray | None, settings: Settings,
@@ -342,7 +520,7 @@ def save_image_outputs(result: ImageResult, labels, projection, lifetime, settin
         "name": result.name, "index": result.index, "pixel_size_um": px, "frame_interval_s": fi,
         "shape": list(result.shape), "n_cells": result.n_cells, "unit": result.unit,
         "stage_xy_m": result.stage_xy, "tile_size_m": result.tile_size, "tiles": result.tiles,
-        "stage_info_block": result.stage_info_block, "version": __version__,
+        "stage_info_block": result.stage_info_block, "version": __version__, "source": result.source,
     }
     (d / "meta.json").write_text(json.dumps(meta, indent=2))
     result.base.to_csv(d / "cells_base.tsv", sep="\t", index=False)
@@ -385,6 +563,7 @@ def load_result(d: Path) -> ImageResult:
         stage_xy=tuple(meta["stage_xy_m"]) if meta["stage_xy_m"] else None,
         tile_size=tuple(meta["tile_size_m"]) if meta["tile_size_m"] else None,
         tiles=[tuple(t) for t in meta["tiles"]], stage_info_block=meta["stage_info_block"],
+        source=meta.get("source", ""),
     )
 
 

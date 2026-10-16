@@ -31,6 +31,14 @@ def test_image_info_matches_reading(tmp_path):
         assert (info["frames"], info["channels"], info["height"], info["width"]) == read_tiff(p).data.shape, axes
 
 
+def test_two_images_with_the_same_result_folder(tmp_path):
+    s = _settings(tmp_path)
+    (tmp_path / "b").mkdir()
+    s.input.files.append(_image(tmp_path / "b" / "IMG.tif"))  # img.tif and IMG.tif: one folder on Windows
+    problems = check_inputs(s)
+    assert len(problems) == 1 and "would share the result folder" in problems[0]
+
+
 def test_additional_channel_that_does_not_exist(tmp_path):
     s = _settings(tmp_path, additional_channel=3)  # the image has 2 channels
     problems = check_inputs(s)

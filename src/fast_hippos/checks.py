@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import Modality, Settings
-from .io import image_info
+from .io import image_info, safe_name
 
 
 class SettingsError(ValueError):
@@ -33,6 +33,7 @@ def check_inputs(settings: Settings) -> list[str]:
         problems.append("No images selected (Images).")
     positions_file = settings.screening.stage_positions_file
     lif = Path(positions_file) if positions_file and Path(positions_file).suffix.lower() == ".lif" else None
+    folders: dict[str, str] = {}  # result folder (lower case) -> the image that gets it
     for f in s_in.files:
         path = Path(f)
         if not path.exists():
@@ -46,7 +47,15 @@ def check_inputs(settings: Settings) -> list[str]:
         if path.suffix.lower() == ".lif" and s_in.series:
             infos = [infos[i] for i in s_in.series if 0 <= i < len(infos)]
         for info in infos:
-            problems += _check_image(path.name if len(infos) == 1 else f"{path.name} ({info['name']})", info, settings)
+            # the image name as the analysis gives it (see io.read_lif), and so the name of its result folder
+            name = f"{path.stem} - {info['name'].replace('/', '-')}" if path.suffix.lower() == ".lif" else info["name"]
+            label = path.name if len(infos) == 1 else f"{path.name} ({info['name']})"
+            key = safe_name(name).lower()
+            if key in folders:
+                problems.append(f"{label} and {folders[key]} would share the result folder '{safe_name(name)}': rename one "
+                                "of them (Images).")
+            folders.setdefault(key, label)
+            problems += _check_image(label, info, settings)
     if seg.method == "labelmap" and (seg.labelmap is None or not Path(seg.labelmap).exists()):
         problems.append(f"Label image not found: {seg.labelmap} (Cell segmentation)." if seg.labelmap
                         else "No label image chosen (Cell segmentation).")

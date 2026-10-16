@@ -70,9 +70,15 @@ async function guiApi(name, body = {}) {
   const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
 }
 async function applyToRun() {
-  if (!confirm("Apply these screening settings to the whole run?\n\nEvent detection, screening, hit lists, .rgn files and the dashboards of all images in this output folder are redone (no segmentation). The dashboard reloads when it is done.")) return;
-  const { toml, manual } = screeningToml(), msg = $("applymsg"), btn = $("scrapply");
   const dashboard = decodeURIComponent(location.pathname.replace(/^\/files\//, ""));
+  let info = null; try { info = (await guiApi("runinfo", { dashboard })).run; } catch { /* the question below then names no images */ }
+  const imgs = info ? info.images.map(i => i.name) : [];
+  const list = imgs.slice(0, 12).map(n => "  • " + n).join("\n") + (imgs.length > 12 ? `\n  … and ${imgs.length - 12} more` : "");
+  if (!confirm(`Apply these screening settings to the whole run${info ? ` of ${info.started}` : ""} in this output folder`
+      + (imgs.length ? `, ${imgs.length} image${imgs.length === 1 ? "" : "s"}:\n\n${list}` : "?") + "\n\nFor every image, stimulation detection, "
+      + "screening, hit lists, .rgn files and the dashboard are redone with these settings; segmentation and traces are kept. "
+      + "This dashboard reloads when it is done.\n\nContinue?")) return;
+  const { toml, manual } = screeningToml(), msg = $("applymsg"), btn = $("scrapply");
   btn.disabled = true; msg.textContent = "starting…";
   let run;
   try { run = (await guiApi("apply", { dashboard, toml, manual_tsv: manual })).run_id; }

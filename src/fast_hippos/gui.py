@@ -19,7 +19,6 @@ import os
 import secrets
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 import urllib.parse
@@ -620,13 +619,31 @@ def _check(settings: dict) -> list[str]:
     return check_inputs(settings_from_plain(settings))
 
 
-def output_info(path: str, job: Job | None = None) -> dict:
-    """Whether an output folder holds results that 'reapply' can use (they can then be opened via the GUI)."""
+def output_info(path: str, job: Job | None = None, settings: dict | None = None) -> dict:
+    """The run in an output folder, if any: which images a re-apply would process, and (with the page's settings)
+    exactly what a new run would move away first ("plan", see pipeline.clear_plan). Its results can then also be
+    opened via the GUI."""
+    from .pipeline import clear_plan, input_paths, run_info
+
     out = Path(path) if path else None
-    images = sorted(p.parent.name for p in out.glob("*/traces.npz")) if out and out.is_dir() else []
-    if images and job is not None:
+    exists = bool(out and out.is_dir())
+    info = run_info(out) if exists else None
+    if info and job is not None:
         job.roots.add(out.resolve())
-    return {"exists": bool(out and out.is_dir()), "images": images, "index": bool(out and (out / "index.html").exists())}
+    result = {"exists": exists, "images": [i["folder"] for i in info["images"]] if info else [], "run": info,
+              "index": bool(exists and (out / "index.html").exists())}
+    if settings is not None and exists:
+        result["plan"] = clear_plan(out, input_paths(settings_from_plain(settings)))
+    return result
+
+
+def start_reapply(job: Job, gui_settings: dict) -> int:
+    """'Re-apply screening' in the GUI: the run in the output folder with the event, screening and display settings
+    of the page; the page's own settings are remembered for the next start."""
+    from .pipeline import reapply_settings
+
+    merged = reapply_settings(Path(gui_settings["input"]["output"]), gui_settings)
+    return job.start(merged, reapply=True, remember=gui_settings)
 
 
 CELLPOSE_CACHE = STATE_DIR / "cellpose_check.json"
@@ -716,7 +733,9 @@ class Job:
         self.roots: set[Path] = set()  # output folders whose files may be served (dashboards)
         self.lock = threading.Lock()
 
-    def start(self, settings: dict, reapply: bool, source: str = "gui") -> int:
+    def start(self, settings: dict, reapply: bool, source: str = "gui", remember: dict | None = None) -> int:
+        """Run (or re-apply) with these settings, in a subprocess. remember: settings of the page, kept for the next
+        start of the GUI (None: leave them, e.g. for 'Apply to run' from a dashboard)."""
         if self.state == "running":
             raise ValueError("A run is already in progress")
         settings_from_plain(settings)  # validate before starting
@@ -725,8 +744,9 @@ class Job:
         toml = out / SETTINGS_NAME
         header = f"# FAST-HIPPOS {__version__} settings, written by the GUI\n# Run again with: fast-hippos-cli run {SETTINGS_NAME}"
         toml.write_text(to_toml(settings, header), encoding="utf-8")
-        STATE_DIR.mkdir(exist_ok=True)
-        LAST_SETTINGS.write_text(to_toml(settings, header), encoding="utf-8")
+        if remember is not None:
+            STATE_DIR.mkdir(exist_ok=True)
+            LAST_SETTINGS.write_text(to_toml(remember, header), encoding="utf-8")
         cmd = [_python(), "-u", "-m", "fast_hippos.cli", "reapply" if reapply else "run", str(toml)]
         with self.lock:
             self.lines, self.state, self.output = [f"$ fast-hippos {cmd[4]} {toml}"], "running", str(out)
@@ -753,6 +773,13 @@ class Job:
             with self.lock:
                 self.state = "stopped"
             self.proc.terminate()
+            from .pipeline import PREVIOUS_RUN
+
+            previous = Path(self.output) / PREVIOUS_RUN if self.output else None
+            if previous and previous.is_dir():
+                with self.lock:
+                    self.lines.append(f"Stopped. The results of the previous run are kept in {previous}; "
+                                      "move them back to use them again.")
 
     def status(self, since: int) -> dict:
         with self.lock:
@@ -769,24 +796,20 @@ class Job:
 
 def apply_from_dashboard(job: Job, dashboard: str, toml_text: str, manual_tsv: str | None = None) -> int:
     """Re-apply the screening settings of a dashboard to its whole run (the 'Apply to run' button)."""
-    out = Path(dashboard).parent.parent  # <output>/<image>/dashboard.html
-    used = out / "settings_used.json"
-    if not used.exists():
-        raise ValueError(f"No settings_used.json in {out}: run the analysis again with this version first")
-    base = json.loads(used.read_text(encoding="utf-8"))
-    override = out / "screening_from_dashboard.toml"  # kept as a record of what was applied
-    override.write_text(toml_text, encoding="utf-8")
-    if manual_tsv:
-        import tomllib
+    import tomllib
 
-        name = tomllib.loads(toml_text).get("screening", {}).get("manual_hits") or "manual_hits.tsv"
-        (out / name).write_text(manual_tsv, encoding="utf-8")
-    with tempfile.TemporaryDirectory() as tmp:
-        base_toml = Path(tmp) / "base.toml"
-        base_toml.write_text(to_toml(base), encoding="utf-8")
-        merged = Settings.from_toml(base_toml, overrides=[override]).to_dict()
-    merged["input"]["output"] = str(out)
-    return job.start(merged, reapply=True, source="dashboard")
+    from .pipeline import reapply_settings
+
+    out = Path(dashboard).parent.parent  # <output>/<image>/dashboard.html
+    (out / "screening_from_dashboard.toml").write_text(toml_text, encoding="utf-8")  # a record of what was applied
+    changes = tomllib.loads(toml_text)
+    manual = changes.get("screening", {}).get("manual_hits")
+    if manual_tsv:
+        manual = manual or "manual_hits.tsv"
+        (out / manual).write_text(manual_tsv, encoding="utf-8")
+    if manual and not Path(manual).is_absolute():  # a hit list named in the dashboard's settings lives in the folder
+        changes.setdefault("screening", {})["manual_hits"] = str(out / manual)
+    return job.start(reapply_settings(out, changes), reapply=True, source="dashboard")
 
 
 # ---------------------------------------------------------------- server
@@ -904,12 +927,15 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "browse": lambda q: {"result": browse(q["kind"], q.get("title", "FAST-HIPPOS"), q.get("initial", ""), q.get("types", "file"))},
         "inspect": lambda q: {"files": [inspect_file(Path(p)) | {"path": p} for p in q["paths"]]},
         "cellpose": lambda q: check_cellpose(q.get("python"), bool(q.get("fresh"))),
-        "output": lambda q: output_info(q.get("path", ""), job),
+        "output": lambda q: output_info(q.get("path", ""), job, q.get("settings")),
         "load": lambda q: {"settings": load_toml(Path(q["path"]))},
         "save": lambda q: (Path(q["path"]).write_text(to_toml(q["settings"]), encoding="utf-8"), {"ok": True})[1],
         "validate": lambda q: (settings_from_plain(q["settings"]), {"ok": True})[1],
         "check": lambda q: {"problems": _check(q["settings"])},
-        "run": lambda q: {"run_id": job.start(q["settings"], bool(q.get("reapply")))},
+        "run": lambda q: {"run_id": start_reapply(job, q["settings"]) if q.get("reapply")
+                          else job.start(q["settings"], False, remember=q["settings"])},
+        # the run that 'Apply to run' in a dashboard would process (<output>/<image>/dashboard.html)
+        "runinfo": lambda q: output_info(str(Path(q["dashboard"]).parent.parent)),
         "apply": lambda q: {"run_id": apply_from_dashboard(job, q["dashboard"], q["toml"], q.get("manual_tsv"))},
         "stop": lambda q: (job.stop(), {"ok": True})[1],
         "status": lambda q: job.status(int(q.get("since", 0))),

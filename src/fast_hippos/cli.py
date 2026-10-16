@@ -17,7 +17,8 @@ def main(argv: list[str] | None = None) -> int:
 
     r = sub.add_parser("run", help="analyze the images listed in a config file")
     r.add_argument("config", type=Path)
-    a = sub.add_parser("reapply", help="re-run event detection, screening and dashboards on saved output (no segmentation)")
+    a = sub.add_parser("reapply", help="redo stimulation detection, screening and dashboards for the images of the run in "
+                       "the output folder (no segmentation), with the [events], [screening] and [display] settings of the config")
     a.add_argument("config", type=Path)
     for sp in (r, a):
         sp.add_argument(
@@ -54,6 +55,13 @@ def main(argv: list[str] | None = None) -> int:
         settings = Settings.from_toml(args.config, overrides=args.override)
         if args.command == "run" and not settings.input.files:
             p.error("no input files in [input] files")
+        if args.command == "reapply":  # the run in the output folder, with this config's event / screening / display settings
+            from .pipeline import reapply_settings
+
+            try:
+                settings = Settings.from_dict(reapply_settings(settings.input.output, settings.to_dict()))
+            except ValueError as e:
+                p.error(str(e))
         from .checks import SettingsError
 
         try:
@@ -62,6 +70,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Not started: {len(e.problems)} problem{'s' if len(e.problems) > 1 else ''} with the settings (see above).",
                   file=sys.stderr)
             return 2
+        except BaseException:  # also a stop (Ctrl+C): say where the previous run is
+            from .pipeline import PREVIOUS_RUN
+
+            previous = Path(settings.input.output) / PREVIOUS_RUN
+            if args.command == "run" and previous.is_dir():
+                import logging
+
+                logging.getLogger("fast_hippos").error("The run did not finish. The results of the previous run are kept "
+                                                       "in %s; move them back to use them again.", previous)
+            raise
         return 0 if results else 1
     if args.command == "stitch":
         import logging

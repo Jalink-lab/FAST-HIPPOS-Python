@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import make_result
 from fast_hippos import gui
 from fast_hippos.config import Criterion, Settings
 
@@ -55,10 +56,20 @@ def test_invalid_settings_are_reported():
 
 
 def test_output_info(tmp_path):
-    assert gui.output_info(str(tmp_path / "missing")) == {"exists": False, "images": [], "index": False}
-    (tmp_path / "img1").mkdir()
-    (tmp_path / "img1" / "traces.npz").write_bytes(b"")
-    assert gui.output_info(str(tmp_path))["images"] == ["img1"]
+    assert gui.output_info(str(tmp_path / "missing")) == {"exists": False, "images": [], "run": None, "index": False}
+    make_result(tmp_path / "img1", "img 1", source="a.tif")
+    (tmp_path / "notes").mkdir()
+    (tmp_path / "notes" / "meta.json").write_text("[1, 2]")  # not a FAST-HIPPOS result: ignored, never moved
+    (tmp_path / "index.html").write_text("x")
+    info = gui.output_info(str(tmp_path))
+    assert info["images"] == ["img1"]
+    assert info["run"]["images"][0] | {} == {"name": "img 1", "folder": "img1", "source": "a.tif", "cells": 5, "index": 0}
+    assert info["run"]["started"]  # from the folder itself for results without run.json
+    s = Settings()
+    s.input.files = [tmp_path / "img1" / "labels_corrected.tif"]  # an input inside a result folder: blocks a new run
+    plan = gui.output_info(str(tmp_path), settings=s.to_dict())["plan"]
+    assert plan["folders"] == ["img1"] and plan["files"] == ["index.html"]
+    assert len(plan["blocked"]) == 1 and "labels_corrected.tif" in plan["blocked"][0]
 
 
 def test_api_requires_token():
@@ -84,14 +95,15 @@ def test_api_requires_token():
 
 
 class FakeJob(gui.Job):
-    def start(self, settings, reapply, source="gui"):
+    def start(self, settings, reapply, source="gui", remember=None):
         self.started = (settings, reapply, source)
+        self.remembered = remember
         return 1
 
 
 def test_apply_from_dashboard(tmp_path):
     out = tmp_path / "out"
-    (out / "img").mkdir(parents=True)
+    make_result(out / "img", "img")
     base = Settings()
     base.input.files = [tmp_path / "img.tif"]
     base.input.output = out
@@ -108,6 +120,35 @@ def test_apply_from_dashboard(tmp_path):
     assert settings["segmentation"]["cellpose3_python"] == str(tmp_path / "cp3" / "python.exe")  # rest kept
     assert Path(settings["screening"]["manual_hits"]) == out / "img_manual_hits.tsv"
     assert (out / "img_manual_hits.tsv").read_text().endswith("img\t3")
+    assert job.remembered is None  # a dashboard does not change the settings the GUI starts with
+
+
+def test_reapply_from_the_gui_uses_the_run_in_the_folder(tmp_path):
+    """Re-apply in the GUI: the images and segmentation of the run in the output folder, the screening of the page;
+    the page's own settings are remembered."""
+    out = tmp_path / "out"
+    make_result(out / "img", "img")
+    run = Settings()
+    run.input.files = [tmp_path / "run_image.tif"]
+    run.input.output = out
+    run.segmentation.diameter = 31
+    (out / "settings_used.json").write_text(json.dumps(run.to_dict()))
+    page = Settings()
+    page.input.files = [tmp_path / "other.tif"]  # the Images list now holds something else
+    page.input.output = out
+    page.segmentation.diameter = 12
+    page.screening.criteria = [Criterion("baseline_mean", ">", 2.7)]
+    page.display.dashboard_tiles = not run.display.dashboard_tiles  # only takes effect in a full run: the run's value stays
+    job = FakeJob()
+    gui.start_reapply(job, page.to_dict())
+    settings, reapply, _ = job.started
+    assert reapply and settings["input"]["files"] == [str(tmp_path / "run_image.tif")]
+    assert settings["segmentation"]["diameter"] == 31
+    assert settings["screening"]["criteria"][0]["value"] == 2.7
+    assert settings["display"]["dashboard_tiles"] == run.display.dashboard_tiles
+    assert job.remembered["input"]["files"] == [str(tmp_path / "other.tif")]
+    with pytest.raises(ValueError, match="No analysis results"):
+        gui.start_reapply(job, {**page.to_dict(), "input": {**page.to_dict()["input"], "output": str(tmp_path / "empty")}})
 
 
 def test_served_files_stay_in_output_folders(tmp_path):

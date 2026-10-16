@@ -1,7 +1,10 @@
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
 
+from conftest import make_result
 from fast_hippos import events, kymograph, modalities, screening, stage
 from fast_hippos.config import Criterion, EventSettings, Modality, ScreeningSettings, Settings
 from fast_hippos.pipeline import run
@@ -153,6 +156,75 @@ def test_full_run(tmp_path, synthetic):
     again = run(settings, reapply=True)
     assert again[0].cells["hit"].sum() < cells["hit"].sum()
     assert not stale.exists()  # chunk files of an earlier run are removed
+
+
+def test_new_run_replaces_the_previous_one(tmp_path, synthetic):
+    """One output folder holds one run: a new run moves the results of the previous one away (also of images that are
+    not in the new run) and removes them when it is complete; other files stay. run.json lists images and inputs."""
+    image, _ = synthetic
+    src = save_tiff(image, tmp_path / "new.tif")
+    out = tmp_path / "out"
+    make_result(out / "old_image", "old image")
+    (out / "old_STITCHED.tif").write_bytes(b"x")
+    (out / "run.json").write_text(json.dumps({"started": "2026-01-01 10:00", "files": ["old_STITCHED.tif"], "complete": True}))
+    (out / "HITS_old.rgn").write_text("x")
+    (out / "my_notes.txt").write_text("keep")
+    settings = Settings()
+    settings.input.files = [src]
+    settings.input.output = out
+    settings.segmentation.method = "threshold"
+    settings.segmentation.diameter = 18
+    run(settings)
+    assert not (out / "old_image").exists() and not (out / "old_STITCHED.tif").exists() and not (out / "HITS_old.rgn").exists()
+    assert not (out / "_previous_run").exists()  # removed once the new run is complete
+    assert (out / "my_notes.txt").read_text() == "keep"
+    from fast_hippos.pipeline import run_info
+
+    info = run_info(out)
+    assert [i["name"] for i in info["images"]] == ["new"] and info["images"][0]["source"] == str(src)
+    assert info["complete"] and info["inputs"] == [str(src)]
+    log = (out / "run_log.txt").read_text(encoding="utf-8")
+    assert "moved to _previous_run" in log and "old_image/" in log
+    # a re-apply processes the images of that run and says so
+    run(settings, reapply=True)
+    log = (out / "run_log.txt").read_text(encoding="utf-8")
+    assert "to the 1 image(s) of the run of" in log and ": new" in log
+    rj = json.loads((out / "run.json").read_text())
+    assert rj["reapplied"] and rj["started"] == info["started"]
+
+
+def test_new_run_never_moves_its_own_inputs(tmp_path, synthetic, monkeypatch):
+    """A stitched image of the previous run used as input stays; a file the run reads inside a result folder blocks the
+    run before anything is moved; a run that fails keeps the previous run in _previous_run."""
+    from fast_hippos import pipeline
+    from fast_hippos.checks import SettingsError
+
+    image, _ = synthetic
+    out = tmp_path / "out"
+    out.mkdir()
+    src = save_tiff(image, out / "scan_STITCHED.tif")  # written by the previous run, now an input
+    (out / "run.json").write_text(json.dumps({"started": "2026-01-01 10:00", "files": ["scan_STITCHED.tif"], "complete": True}))
+    make_result(out / "old", "old")
+    settings = Settings()
+    settings.input.files = [src]
+    settings.input.output = out
+    settings.segmentation.method = "labelmap"
+    settings.segmentation.labelmap = out / "old" / "labels.tif"
+    (out / "old" / "labels.tif").write_bytes(b"x")
+    with pytest.raises(SettingsError, match="inside old"):
+        run(settings)
+    assert (out / "old" / "meta.json").exists() and src.exists()  # nothing moved
+    settings.segmentation.method = "threshold"
+    settings.segmentation.labelmap = None
+    settings.segmentation.diameter = 18
+    monkeypatch.setattr(pipeline, "process_image", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("crash")))
+    with pytest.raises(RuntimeError):
+        run(settings)
+    assert src.exists()  # the input was not moved
+    assert (out / "_previous_run" / "old" / "meta.json").exists()  # the previous run is kept
+    monkeypatch.undo()
+    run(settings)
+    assert not (out / "_previous_run").exists() and [i["name"] for i in pipeline.run_info(out)["images"]] == ["scan_STITCHED"]
 
 
 def test_settings_override(tmp_path):

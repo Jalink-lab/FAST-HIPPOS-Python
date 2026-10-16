@@ -43,6 +43,11 @@ class ImageData:
         return self.data[:, c - 1].astype(np.float32)
 
 
+def safe_name(name: str) -> str:
+    """The folder / file name for an image name (characters that Windows does not allow become '_')."""
+    return "".join(ch if ch not in '<>:"/\\|?*' else "_" for ch in name).strip()
+
+
 def iter_images(path: Path, series: list[int] | None = None, bidirectional: str | None = None,
                 channels: list[int] | None = None) -> Iterator[ImageData]:
     """Yield all images (series) in a file; a folder of tiles, or a tile scan in a .lif, is stitched into one image

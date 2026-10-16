@@ -102,6 +102,7 @@ main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-con
 .checks { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 4px; }
 .checks li { display: flex; gap: 7px; } .checks .i { width: 16px; text-align: center; }
 .checks .err { color: var(--err); } .checks .warn { color: var(--warn); } .checks .ok { color: var(--ok); }
+.checks .info { color: var(--muted); }
 .runbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .state { font-weight: 600; } .state.running { color: var(--accent); } .state.done { color: var(--ok); } .state.failed, .state.stopped { color: var(--err); }
 .progress { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin: 6px 0 10px; }
@@ -373,8 +374,25 @@ function render() {
 // ---------------------------------------------------------------- earlier results in the output folder
 function outputState() {
   const p = S.input.output || "";
-  if (!(p in OUT)) { OUT[p] = null; api("output", { path: p }).then(r => { OUT[p] = r; renderChecks(); renderResults(); }).catch(() => {}); }
+  if (!(p in OUT)) {
+    OUT[p] = null;
+    api("output", { path: p }).then(r => { OUT[p] = r; renderChecks(); renderResults(); })
+      .catch(e => { OUT[p] = { exists: false, images: [], run: null, error: e.message }; renderChecks(); });
+  }
   return OUT[p];
+}
+// the run in the output folder (one folder = one run): which images, from when, and whether it matches the list
+function runImages(o) { return o && o.run ? o.run.images : []; }
+function bulletList(names, max = 12) {
+  return names.slice(0, max).map(n => "  • " + n).join("\n") + (names.length > max ? `\n  … and ${names.length - max} more` : "");
+}
+function plural(n, word) { return `${n} ${word}${n === 1 ? "" : "s"}`; }
+function runDiffersFromList(o) {  // did that run analyze other files than those in the Images list?
+  const norm = (p) => String(p).replace(/ \(series \d+\)$/, "").replace(/[\\/]+$/, "").replace(/\\/g, "/").toLowerCase();
+  const list = new Set((S.input.files || []).map(norm));
+  if (o.run.inputs) { const inp = new Set(o.run.inputs.map(norm)); return inp.size !== list.size || [...inp].some(s => !list.has(s)); }
+  const srcs = new Set(runImages(o).map(i => norm(i.source)).filter(Boolean));  // runs of before run.json had 'inputs'
+  return [...srcs].some(s => !list.has(s));
 }
 // buttons for the results in the output folder (of this run or an earlier one)
 function renderResults() {
@@ -404,8 +422,12 @@ function checks() {
   serverCheck();
   SRV.problems.forEach(m => add("err", m, true));  // images, channels, frames, files
   if (!S.input.output) add("err", "Choose an output folder");
-  const o = outputState();
-  if (o && o.images.length) add("warn", `The output folder has results of ${o.images.length} image${o.images.length > 1 ? "s" : ""}: a new run overwrites them; Re-apply screening reuses them`);
+  const o = outputState(), imgs = runImages(o);
+  if (imgs.length) {
+    add("info", `The output folder holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
+      + "Run analysis replaces it; Re-apply screening redoes the screening of these images.");
+    if (runDiffersFromList(o)) add("warn", "The Images list differs from the images of that run: Re-apply screening processes the run's images, not the list");
+  }
   if (S.segmentation.method === "cellpose") {
     const r = CP[`${cpVersion()}|${cpPython()}`];
     if (r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== cpVersion())) add("err", `Cellpose ${cpVersion()} is not available (Advanced → Segmentation)`);
@@ -418,18 +440,23 @@ function checks() {
     if (S.screening.classify_additional_channel && !S.input.additional_channel) add("warn", "Classification needs an additional channel");
     if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
   }
-  if (!out.length) add("ok", "Ready to run");
+  if (!out.some(c => c[0] !== "info")) add("ok", "Ready to run");
   return out;
 }
 function renderChecks() {
-  const cs = checks(), icon = { err: "✕", warn: "!", ok: "✓" };
+  const cs = checks(), icon = { err: "✕", warn: "!", ok: "✓", info: "i" };
   $("checks").innerHTML = cs.map(([l, m]) => `<li class="${l}"><span class="i">${icon[l]}</span><span>${esc(m)}</span></li>`).join("");
   const blocked = cs.some(c => c[0] === "err") || JOB.state === "running", o = outputState();
   // re-applying uses the saved results, not the images: only problems with the other settings block it
   const blockedReapply = cs.some(c => c[0] === "err" && !c[2]) || JOB.state === "running";
-  $("bRun").disabled = blocked; $("bReapply").disabled = blockedReapply || !(o && o.images.length);
-  $("bReapply").title = o && o.images.length ? `Redo event detection, screening and dashboards for ${o.images.join(", ")} without segmentation (seconds instead of minutes)`
-    : "Needs the results of an earlier run in the output folder";
+  const imgs = runImages(o);
+  $("bRun").disabled = blocked; $("bReapply").disabled = blockedReapply || !imgs.length;
+  $("bReapply").textContent = imgs.length ? `↻ Re-apply screening (${plural(imgs.length, "image")})` : "↻ Re-apply screening";
+  $("bReapply").title = imgs.length ? `Redo stimulation detection, screening and dashboards for the ${plural(imgs.length, "image")} of the run in the `
+    + `output folder (${imgs.map(i => i.name).join(", ")}), with the stimulation, screening and display settings of this window. `
+    + "Segmentation and traces of that run are kept (seconds instead of minutes). Overlay smoothing, dashboard size and tiles "
+    + "and the stage positions file only change with a new run."
+    : "Needs the results of a run in the output folder";
 }
 
 // ---------------------------------------------------------------- events
@@ -524,6 +551,23 @@ $("bReset").onclick = () => { const files = S.input.files, out = S.input.output;
 
 // ---------------------------------------------------------------- running
 async function start(reapply) {
+  // say exactly what will happen to which images and files, from fresh information, before anything is moved or redone
+  const folder = S.input.output; let o;
+  try { o = await api("output", { path: folder, settings: S }); OUT[folder] = o; }
+  catch (e) { toast("Not started: the output folder cannot be read (" + e.message + ")", 6000); return; }
+  const imgs = runImages(o), names = imgs.map(i => i.name), plan = o.plan || { folders: [], files: [], blocked: [] };
+  const fileName = (p) => String(p).split(/[\\/]/).filter(Boolean).pop();
+  if (reapply && !confirm(`Re-apply screening to the ${plural(imgs.length, "image")} of the run of ${o.run.started} in\n${folder}:\n\n`
+      + bulletList(names) + "\n\nSegmentation and traces of that run are kept. The stimulation, screening and display settings of this "
+      + "window are used (except overlay smoothing, dashboard size and tiles and the stage positions file, which only change "
+      + "with a new run); all other settings (images, segmentation, …) stay those of the run.\n\nContinue?")) return;
+  if (!reapply && plan.blocked.length) { alert("Not started:\n\n" + plan.blocked.join("\n\n")); return; }
+  if (!reapply && (plan.folders.length || plan.files.length) && !confirm(`The output folder\n${folder}\nholds the results of `
+      + (o.run ? `the run of ${o.run.started}` : "an earlier run") + ". Running the analysis first moves them into the subfolder "
+      + "_previous_run, which is deleted when the new run is complete (and kept if it does not finish):\n\n"
+      + (names.length ? `Results of ${plural(names.length, "image")}:\n${bulletList(names)}\n\n` : "")
+      + (plan.files.length ? `Files of that run:\n${bulletList(plan.files, 20)}\n\n` : "")
+      + `Then it analyzes:\n${bulletList((S.input.files || []).map(fileName))}\n\nNothing else in the folder is touched.\n\nContinue?`)) return;
   let r; try { r = await api("run", { settings: S, reapply }); } catch (e) { toast(e.message, 6000); return; }
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 }
