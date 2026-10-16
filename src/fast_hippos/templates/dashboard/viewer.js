@@ -264,11 +264,11 @@ function fitView(redraw = true, smooth = false) {  // smooth: glide there (the F
   if (redraw) invalidate("viewer");
 }
 // Zooming glides to the new view instead of jumping. Every animation frame the view moves a fixed fraction of the
-// way to its target (exponential approach, time constant GLIDE_MS: 95 % after ~3x that), so a new wheel notch only
+// way to its target (exponential approach: 95 % after GLIDE_MS), so a new wheel notch only
 // moves the target and the motion stays continuous, also when scrolling fast (restarting an ease-out at every notch
 // made the motion stutter). Between the current and the target view there is one image point that stays at the same
 // screen spot (the cursor when zooming with the wheel); the scale changes logarithmically around that point.
-const GLIDE_MS = 20;
+const GLIDE_MS = 100, WHEEL_STEP = 1.33;  // glide time; zoom factor per wheel notch (3 notches = 2.35x)
 let glide = null;
 const viewTarget = () => glide || view;
 function glideTo(s, tx, ty) {
@@ -276,7 +276,7 @@ function glideTo(s, tx, ty) {
   if (running) return;
   const step = (now) => {
     const g = glide; if (!g) return;
-    const k = 1 - Math.exp(-Math.max(1, now - g.last) / GLIDE_MS); g.last = now;
+    const k = 1 - Math.exp(-3 * Math.max(1, now - g.last) / GLIDE_MS); g.last = now;  // e^-3 = 5 % left after GLIDE_MS
     if (Math.abs(Math.log(g.s / view.s)) < 1e-4 && Math.abs(g.tx - view.tx) < 0.2 && Math.abs(g.ty - view.ty) < 0.2) {
       view.s = g.s; view.tx = g.tx; view.ty = g.ty; glide = null; invalidate("viewer"); return;
     }
@@ -320,7 +320,7 @@ function labelAt(x, y) {
 }
 function initViewer() {
   let drag = null;
-  vwrap.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const r = vwrap.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0022)); }, { passive: false });
+  vwrap.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const r = vwrap.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.pow(WHEEL_STEP, -e.deltaY / 100)); }, { passive: false });
   vwrap.addEventListener("pointerdown", (e) => { if (e.shiftKey) return; glide = null; vwrap.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty, moved: false }; });
   vwrap.addEventListener("pointermove", (e) => {
     if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; if (drag.moved) { view.auto = false; view.tx = drag.tx + dx; view.ty = drag.ty + dy; invalidate("viewer"); } return; }
