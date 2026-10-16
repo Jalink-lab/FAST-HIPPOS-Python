@@ -50,7 +50,9 @@ main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-con
 .card.folded > h2.toggle .fold { transform: rotate(-90deg); }
 .card.folded > h2 { border-bottom: none; }
 .card.folded > :not(h2) { display: none; }
-.tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.tabs { display: flex; gap: 4px; height: 28px; align-items: center; margin-bottom: 10px; }
+/* side by side: the Run panel starts level with the first settings section (below the row above it) */
+@media (min-width: 1331px) { .side { margin-top: 38px; } }
 .tabs button { border-radius: 999px; padding: 5px 14px; }
 .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tabs .note { align-self: center; margin-left: 8px; color: var(--changed); }
