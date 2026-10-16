@@ -41,8 +41,15 @@ button { cursor: pointer; } button:hover:not(:disabled) { border-color: var(--ac
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 7px 14px; }
 button.small { padding: 1px 7px; font-size: 12px; }
 button.link { background: none; border: none; color: var(--accent); padding: 0; }
-main { display: grid; grid-template-columns: minmax(0, 1fr) 580px; gap: 14px; padding: 0 16px 24px; align-items: start; }
-@media (max-width: 1250px) { main { grid-template-columns: minmax(0, 1fr); } }
+main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-content: center; gap: 14px; padding: 0 16px 24px;
+  align-items: start; }
+@media (max-width: 1330px) { main { grid-template-columns: minmax(0, 940px); } }
+/* folding a section: click its title bar */
+.card > h2.toggle { cursor: pointer; user-select: none; }
+.card > h2.toggle .fold { display: inline-block; width: 12px; color: hsl(var(--h) var(--t-stripe)); transition: transform .15s; }
+.card.folded > h2.toggle .fold { transform: rotate(-90deg); }
+.card.folded > h2 { border-bottom: none; }
+.card.folded > :not(h2) { display: none; }
 .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
 .tabs button { border-radius: 999px; padding: 5px 14px; }
 .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -123,7 +130,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
     <div id="form"></div>
   </section>
   <aside class="side">
-    <div class="card" style="--h:150"><h2>Run</h2><div style="padding:10px 12px">
+    <div class="card" style="--h:150" data-card-title="Run"><h2 class="toggle" data-fold="Run" title="Click to fold or unfold this section"><span class="fold">▾</span>Run</h2><div style="padding:10px 12px">
       <ul class="checks" id="checks"></ul>
       <div class="runbtns">
         <button class="primary" id="bRun" title="Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.">▶ Run analysis</button>
@@ -138,6 +145,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
   </aside>
 </main>
 <div id="toast"></div>
+<script id="fh-prefs" type="application/json">__FH_PREFS__</script>
 <script>
 "use strict";
 const TOKEN = "__FH_TOKEN__";
@@ -323,6 +331,10 @@ function hintFor(f) {
 
 // ---------------------------------------------------------------- layout: per card the basic settings and an expanding advanced pane
 const openAdv = new Set();
+// folded sections (titles); kept in ~/.fast_hippos like the theme, sent along with the page
+let FOLDED;
+try { FOLDED = new Set(JSON.parse(document.getElementById("fh-prefs").textContent).folded || []); } catch { FOLDED = new Set(); }
+function applyFold() { document.querySelectorAll("[data-card-title]").forEach(c => c.classList.toggle("folded", FOLDED.has(c.dataset.cardTitle))); }
 const HUES = { "Images": 212, "Cell segmentation": 175, "Stimulation and calibration": 32, "Screening": 330, "Display and output": 262 };
 function render() {
   const active = document.activeElement?.id;
@@ -332,7 +344,7 @@ function render() {
     const subs = card.advanced.filter(a => shown(a.show)).map(a => ({ title: a.title, fs: a.keys.map(k => FIELD[k]).filter(f => shown(f.show)) })).filter(a => a.fs.length);
     const changed = subs.flatMap(a => a.fs).filter(isChanged).length, open = ADV_ALL || openAdv.has(card.title);
     if (!open) hidden += changed;
-    html += `<div class="card" style="--h:${HUES[card.title] ?? 212}"><h2>${esc(card.title)}</h2>` +
+    html += `<div class="card" style="--h:${HUES[card.title] ?? 212}" data-card-title="${esc(card.title)}"><h2 class="toggle" data-fold="${esc(card.title)}" title="Click to fold or unfold this section"><span class="fold">▾</span>${esc(card.title)}</h2>` +
       (basic.length ? `<div class="body">${basic.map(fieldHTML).join("")}</div>` : `<div class="note">${esc(card.note || "")}</div>`);
     if (subs.length) {
       html += `<div class="adv"><button class="advtoggle" data-card="${esc(card.title)}" title="Show or hide the less common settings of this section. A dot marks settings that differ from the default.">${open ? "▾" : "▸"} Advanced settings` +
@@ -344,6 +356,7 @@ function render() {
     html += `</div>`;
   }
   $("form").innerHTML = html;
+  applyFold();
   $("advNote").textContent = hidden ? `${hidden} hidden advanced setting${hidden > 1 ? "s" : ""} changed from the defaults` : "";
   if (active && $(active)) $(active).focus();
   renderChecks();
@@ -441,6 +454,10 @@ document.addEventListener("input", (e) => { if (e.target.type === "number" && e.
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("button, h2.toggle"); if (!b) return;
   if (b.dataset.card) { const c = b.dataset.card; openAdv.has(c) ? openAdv.delete(c) : openAdv.add(c); render(); return; }
+  if (b.dataset.fold) {
+    const t = b.dataset.fold; FOLDED.has(t) ? FOLDED.delete(t) : FOLDED.add(t); applyFold();
+    api("prefs", { folded: [...FOLDED] }).catch(() => {}); return;
+  }
   if (b.dataset.resetcard) { const card = SCHEMA.layout.find(c => c.title === b.dataset.resetcard); card.advanced.flatMap(a => a.keys).forEach(k => set(k, structuredClone(FIELD[k].default))); render(); return; }
   if (b.dataset.browse) {
     const f = FIELD[b.dataset.browse], kind = b.dataset.kind, cur = get(f.key);

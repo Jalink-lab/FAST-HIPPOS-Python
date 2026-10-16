@@ -805,7 +805,13 @@ def load_prefs() -> dict:
 
 
 def save_prefs(changes: dict) -> dict:
-    prefs = load_prefs() | {k: v for k, v in changes.items() if k == "theme" and v in ("", "light", "dark")}
+    """Store the known interface preferences: theme ("", "light", "dark") and folded sections (titles)."""
+    ok = {}
+    if changes.get("theme") in ("", "light", "dark"):
+        ok["theme"] = changes["theme"]
+    if isinstance(changes.get("folded"), list):
+        ok["folded"] = [str(t)[:100] for t in changes["folded"] if isinstance(t, str)][:50]
+    prefs = load_prefs() | ok
     STATE_DIR.mkdir(exist_ok=True)
     PREFS.write_text(json.dumps(prefs), encoding="utf-8")
     return prefs
@@ -814,7 +820,9 @@ def save_prefs(changes: dict) -> dict:
 def _page(token: str) -> bytes:
     html = resources.files("fast_hippos").joinpath("templates", "gui.html").read_text(encoding="utf-8")
     html = html.replace("__FH_LOGO__", _png_url("logo.png")).replace("__FH_ICON__", _png_url("favicon.png"))
-    html = html.replace("__FH_THEME__", load_prefs().get("theme", ""))  # in the page itself: no flash of the other theme
+    prefs = load_prefs()
+    html = html.replace("__FH_THEME__", prefs.get("theme", ""))  # in the page itself: no flash of the other theme
+    html = html.replace("__FH_PREFS__", json.dumps(prefs).replace("<", "\\u003c"))
     return html.replace("__FH_TOKEN__", token).encode("utf-8")
 
 

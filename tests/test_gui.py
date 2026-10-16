@@ -174,3 +174,15 @@ def test_every_setting_has_a_hover_explanation():
     keys = {f["key"] for s in gui.schema()["sections"] for f in s["fields"]}
     assert {k for k in keys if not gui.TIPS.get(k)} == set()
     assert set(gui.TIPS) <= keys  # no stale entries
+
+
+def test_folded_sections_are_kept(tmp_path, monkeypatch):
+    monkeypatch.setattr(gui, "STATE_DIR", tmp_path)
+    monkeypatch.setattr(gui, "PREFS", tmp_path / "gui_prefs.json")
+    gui.save_prefs({"theme": "dark"})
+    gui.save_prefs({"folded": ["Screening", "Run", 3]})
+    assert gui.load_prefs() == {"theme": "dark", "folded": ["Screening", "Run"]}
+    page = gui._page("t").decode("utf-8")
+    assert '"folded": ["Screening", "Run"]' in page
+    gui.save_prefs({"folded": ["</script><script>alert(1)"]})
+    assert "</script><script>alert" not in gui._page("t").decode("utf-8")  # cannot break out of the data block
