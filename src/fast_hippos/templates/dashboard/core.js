@@ -44,7 +44,8 @@ const fmt = (v, d = 3) => {
 const nHits = () => HIT.reduce((s, h) => s + (h ? 1 : 0), 0);
 
 // ---------------------------------------------------------------- redraw scheduling
-// Each panel registers named layers; invalidate() marks them, one animation frame redraws them in order.
+// Each panel registers named layers; invalidate() marks them, one animation frame redraws them in order. A layer
+// that marks a later layer (the image marks its outlines) gets it drawn in the same frame, so that they move together.
 const LAYERS = [];  // [name, fn]
 function layer(name, fn) { LAYERS.push([name, fn]); }
 const dirty = new Set();
@@ -52,8 +53,7 @@ let rafPending = false;
 function invalidate(...names) { names.forEach(n => dirty.add(n)); if (!rafPending) { rafPending = true; requestAnimationFrame(flush); } }
 function flush() {
   rafPending = false;
-  const d = new Set(dirty); dirty.clear();
-  for (const [name, fn] of LAYERS) if (d.has(name)) { try { fn(); } catch (e) { console.error(name, e); } }
+  for (const [name, fn] of LAYERS) if (dirty.delete(name)) { try { fn(); } catch (e) { console.error(name, e); } }
 }
 const ALL = () => LAYERS.map(l => l[0]);
 // groups of layers per kind of change

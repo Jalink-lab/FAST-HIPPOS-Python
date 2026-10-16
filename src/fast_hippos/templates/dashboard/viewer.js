@@ -263,23 +263,28 @@ function fitView(redraw = true, smooth = false) {  // smooth: glide there (the F
   glide = null; view.s = s; view.tx = tx; view.ty = ty;
   if (redraw) invalidate("viewer");
 }
-// Zooming glides to the new view instead of jumping: the view moves to a target in ~160 ms (ease-out). Between two
-// views that differ in scale there is one image point that stays at the same screen spot (the cursor when zooming
-// with the wheel); the scale is interpolated logarithmically around that point, so the movement looks like one zoom.
-// A new step during a glide starts from the current view towards the next target, so quick wheel notches add up.
+// Zooming glides to the new view instead of jumping. Every animation frame the view moves a fixed fraction of the
+// way to its target (exponential approach, time constant GLIDE_MS: 95 % after ~3x that), so a new wheel notch only
+// moves the target and the motion stays continuous, also when scrolling fast (restarting an ease-out at every notch
+// made the motion stutter). Between the current and the target view there is one image point that stays at the same
+// screen spot (the cursor when zooming with the wheel); the scale changes logarithmically around that point.
+const GLIDE_MS = 20;
 let glide = null;
-const viewTarget = () => glide ? { s: glide.s1, tx: glide.x1, ty: glide.y1 } : view;
-function glideTo(s1, x1, y1, ms = 160) {
-  glide = { s0: view.s, x0: view.tx, y0: view.ty, s1, x1, y1, t0: performance.now(), ms };
+const viewTarget = () => glide || view;
+function glideTo(s, tx, ty) {
+  const running = !!glide; glide = { s, tx, ty, last: glide ? glide.last : performance.now() };
+  if (running) return;
   const step = (now) => {
     const g = glide; if (!g) return;
-    const f = Math.min(1, (now - g.t0) / g.ms), e = 1 - Math.pow(1 - f, 3);
-    if (Math.abs(g.s1 - g.s0) > 1e-9 * g.s0) {
-      const s = g.s0 * Math.pow(g.s1 / g.s0, e), px = (g.x1 - g.x0) / (g.s0 - g.s1), py = (g.y1 - g.y0) / (g.s0 - g.s1);
-      view.tx = g.x0 + (g.s0 - s) * px; view.ty = g.y0 + (g.s0 - s) * py; view.s = s;
-    } else { view.tx = g.x0 + (g.x1 - g.x0) * e; view.ty = g.y0 + (g.y1 - g.y0) * e; }
-    invalidate("viewer");
-    if (f < 1) requestAnimationFrame(step); else { view.s = g.s1; view.tx = g.x1; view.ty = g.y1; glide = null; }
+    const k = 1 - Math.exp(-Math.max(1, now - g.last) / GLIDE_MS); g.last = now;
+    if (Math.abs(Math.log(g.s / view.s)) < 1e-4 && Math.abs(g.tx - view.tx) < 0.2 && Math.abs(g.ty - view.ty) < 0.2) {
+      view.s = g.s; view.tx = g.tx; view.ty = g.ty; glide = null; invalidate("viewer"); return;
+    }
+    const s0 = view.s, s1 = s0 * Math.pow(g.s / s0, k);
+    if (Math.abs(g.s - s0) > 1e-9 * s0) {  // around the point that the current and the target view share
+      view.tx += (s0 - s1) * (g.tx - view.tx) / (s0 - g.s); view.ty += (s0 - s1) * (g.ty - view.ty) / (s0 - g.s);
+    } else { view.tx += (g.tx - view.tx) * k; view.ty += (g.ty - view.ty) * k; }
+    view.s = s1; invalidate("viewer"); requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }
