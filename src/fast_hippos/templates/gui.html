@@ -56,6 +56,7 @@ main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-con
 .tabs button { border-radius: 999px; padding: 5px 14px; }
 .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tabs .note { align-self: center; margin-left: 8px; color: var(--changed); }
+.tabs .sp { flex: 1; }
 .switch { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
 .adv { border-top: 1px dashed var(--line); }
 .adv > .advtoggle { width: 100%; text-align: left; background: none; border: none; border-radius: 0; padding: 7px 12px; color: var(--muted); }
@@ -128,7 +129,8 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
   <h2 style="margin:0">FAST-HIPPOS has stopped</h2><div class="muted">You can close this tab. Start FAST-HIPPOS again to continue.</div></div>
 <main>
   <section>
-    <div class="tabs"><label class="switch" title="Open the advanced settings of all sections at once"><input type="checkbox" id="advAll"> Show all advanced settings</label><span class="note" id="advNote"></span></div>
+    <div class="tabs"><label class="switch" title="Open the advanced settings of all sections at once"><input type="checkbox" id="advAll"> Show all advanced settings</label><span class="note" id="advNote"></span>
+      <span class="sp"></span><button class="small" id="bFoldAll" title="Fold or unfold all settings sections at once (the Run panel stays as it is)">Fold all</button></div>
     <div id="form"></div>
   </section>
   <aside class="side">
@@ -336,7 +338,10 @@ const openAdv = new Set();
 // folded sections (titles); kept in ~/.fast_hippos like the theme, sent along with the page
 let FOLDED;
 try { FOLDED = new Set(JSON.parse(document.getElementById("fh-prefs").textContent).folded || []); } catch { FOLDED = new Set(); }
-function applyFold() { document.querySelectorAll("[data-card-title]").forEach(c => c.classList.toggle("folded", FOLDED.has(c.dataset.cardTitle))); }
+function applyFold() {
+  document.querySelectorAll("[data-card-title]").forEach(c => c.classList.toggle("folded", FOLDED.has(c.dataset.cardTitle)));
+  const b = $("bFoldAll"); if (b && SCHEMA) b.textContent = SCHEMA.layout.every(c => FOLDED.has(c.title)) ? "Unfold all" : "Fold all";
+}
 const HUES = { "Images": 212, "Cell segmentation": 175, "Stimulation and calibration": 32, "Screening": 330, "Display and output": 262 };
 function render() {
   const active = document.activeElement?.id;
@@ -456,6 +461,11 @@ document.addEventListener("input", (e) => { if (e.target.type === "number" && e.
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("button, h2.toggle"); if (!b) return;
   if (b.dataset.card) { const c = b.dataset.card; openAdv.has(c) ? openAdv.delete(c) : openAdv.add(c); render(); return; }
+  if (b.id === "bFoldAll") {  // all settings sections folded -> unfold them all, else fold them all
+    const titles = SCHEMA.layout.map(c => c.title), all = titles.every(t => FOLDED.has(t));
+    titles.forEach(t => all ? FOLDED.delete(t) : FOLDED.add(t)); applyFold();
+    api("prefs", { folded: [...FOLDED] }).catch(() => {}); return;
+  }
   if (b.dataset.fold) {
     const t = b.dataset.fold; FOLDED.has(t) ? FOLDED.delete(t) : FOLDED.add(t); applyFold();
     api("prefs", { folded: [...FOLDED] }).catch(() => {}); return;
