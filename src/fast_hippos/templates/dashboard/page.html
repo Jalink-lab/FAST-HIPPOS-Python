@@ -102,7 +102,8 @@
   </section>
   <section class="panel kymo">
     <div class="panel-h"><h2 title="All cells side by side (one column per cell), time downwards, lifetime as colour. Shows at a glance which cells respond and when.">Kymograph</h2><span class="muted">time ↓ · shift+drag selects a range</span><span class="sp"></span>
-      <label class="muted" title="Order the columns from the weakest to the strongest response; off = in cell number order"><input type="checkbox" id="ksort" checked> sorted on response</label></div>
+      <label class="muted" title="Order of the columns (cells) from left to right: by their mean response, by any other value of the cells, or by cell number">sort on <select id="ksort"></select></label>
+      <select id="kdir" title="Lowest value on the left, or highest value on the left"><option value="0">lowest first</option><option value="1">highest first</option></select></div>
     <div class="stack"><canvas id="kyb"></canvas><canvas id="kyo"></canvas><svg id="ksvg" class="selsvg"></svg></div>
     <div class="axisrow" title="Zoom in on the cells, to see single columns (or Ctrl+scroll in the kymograph); drag the kymograph to move along"><span class="muted">zoom</span>
       <input type="range" id="kzoom" min="0" max="100" value="0" style="flex:1"><span class="muted" id="kinfo"></span></div>

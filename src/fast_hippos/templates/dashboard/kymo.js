@@ -1,7 +1,24 @@
-// ---------------------------------------------------------------- kymograph (cells sorted on mean response, time down)
+// ---------------------------------------------------------------- kymograph (one column per cell, time down)
 const KP = new Plot([$("kyb"), $("kyo")], { l: 50, r: 12, t: 14, b: 26 });
 const kymoCanvas = document.createElement("canvas");
-function kymoColumns() { return (S.sorted ? ORDER : Array.from({ length: N }, (_, i) => i)).filter(visible); }
+// column order: S.ksort = "@response" (mean response, as in the screening), "" (cell number) or a per-cell value in C;
+// cells without a value go to the end, equal values keep the cell order
+function kymoColumns() {
+  let order;
+  if (S.ksort === "@response") order = S.kdesc ? ORDER.slice().reverse() : ORDER;
+  else if (S.ksort && C[S.ksort]) {
+    const v = C[S.ksort], dir = S.kdesc ? -1 : 1, num = (i) => (v[i] === null || v[i] === undefined ? NaN : +v[i]);
+    order = Array.from({ length: N }, (_, i) => i).sort((a, b) => {
+      const va = num(a), vb = num(b);
+      if (Number.isNaN(va) || Number.isNaN(vb)) return Number.isNaN(va) - Number.isNaN(vb) || a - b;
+      return (va - vb) * dir || a - b;
+    });
+  } else {
+    order = Array.from({ length: N }, (_, i) => i); if (S.kdesc) order.reverse();
+  }
+  return order.filter(visible);
+}
+function kymoSortLabel() { return S.ksort === "@response" ? "mean response" : S.ksort || "cell number"; }
 // zoom: S.kzoom >= 1 shows n / kzoom columns from S.kstart (at least 20)
 function kymoView(nAll) {
   const shown = Math.min(nAll, Math.max(Math.min(20, nAll), Math.round(nAll / S.kzoom)));
@@ -24,7 +41,7 @@ function drawKymo() {
   const ctx = KP.clear(0);
   ctx.imageSmoothingEnabled = n > KP.pw * 2; ctx.drawImage(kymoCanvas, KP.m.l, KP.m.t, KP.pw, KP.ph);
   KP.range(view.start, view.start + n, (T - 1) * FI, 0);
-  KP.axes(ctx, S.sorted ? "cells (sorted on response)" : "cells", "time (s)", { nogrid: true });
+  KP.axes(ctx, `cells (sorted on ${kymoSortLabel()}, ${S.kdesc ? "highest" : "lowest"} first)`, "time (s)", { nogrid: true });
   ctx.fillStyle = css("--hit"); const w = KP.pw / Math.max(1, n);
   cols.forEach((ci, c) => { if (HIT[ci]) ctx.fillRect(KP.m.l + c * w, KP.m.t - 6, Math.max(1, w), 4); });
   KP.cols = cols; KP.pos = new Map(cols.map((ci, c) => [ci, c]));
@@ -63,7 +80,12 @@ function initKymo() {
     const xs = poly.map(p => p[0]); const a = colAt(Math.max(KP.m.l, Math.min(...xs))), b = colAt(Math.min(KP.m.l + KP.pw - 1, Math.max(...xs)));
     if (a < 0 || b < 0) return; selectMany(KP.cols.slice(a, b + 1), add);
   }, { rangeOnly: true });
-  $("ksort").onchange = () => { S.sorted = $("ksort").checked; invalidate("kymo", "kymoOvl"); };
+  // sort menu: mean response (default), cell number, the screening metrics and the other per-cell values
+  const ks = $("ksort");
+  [["@response", "mean response"], ["", "cell number"], ...METRIC_KEYS.map(k => [k, k]),
+    ...["area_px", "mean_intensity", "circularity"].filter(k => k in C).map(k => [k, k])].forEach(([v, l]) => ks.add(new Option(l, v)));
+  const resort = () => { S.ksort = ks.value; S.kdesc = $("kdir").value === "1"; S.kstart = 0; invalidate("kymo", "kymoOvl"); };
+  ks.onchange = resort; $("kdir").onchange = resort;
   // zoom slider (logarithmic): zooms around the selected cells if they are in view, else around the middle
   $("kzoom").oninput = () => {
     const maxZoom = Math.max(1, (KP.nAll || N) / 20), z = Math.pow(maxZoom, +$("kzoom").value / 100);
