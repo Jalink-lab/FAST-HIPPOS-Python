@@ -114,7 +114,9 @@ image, and the output folder.
 
 FAST-HIPPOS remembers the last settings, and starts with them next time. Every run also saves its settings in the
 output folder (`fast_hippos_settings.toml`). **Open settings…** loads such a file, **Save settings…** saves the current
-settings, and **Defaults** goes back to the default settings (the images and the output folder stay). Settings files
+settings, and **Defaults** goes back to the default settings (the images and the output folder stay). Both keep
+the Cellpose environments you set, since they belong to the computer rather than to an experiment (unless the loaded
+file names its own). Settings files
 can also be used on the [command line](../reference/command-line.md).
 
 ## Quitting

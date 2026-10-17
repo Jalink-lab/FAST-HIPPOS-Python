@@ -574,15 +574,31 @@ $("bQuit").onclick = async () => {
   stopped("FAST-HIPPOS has stopped", "You can close this tab. Start FAST-HIPPOS again to continue.", false);
 };
 $("advAll").onchange = () => { ADV_ALL = $("advAll").checked; render(); };
+// the Cellpose environments belong to this computer, not to an experiment: kept when settings are loaded or reset
+// (unless the loaded file names its own)
+const CP_ENVS = ["cellpose3_python", "cellpose4_python"];
+function keepCellposeEnvs(next) {
+  const kept = [];
+  for (const k of CP_ENVS) if (S.segmentation[k] && !next.segmentation[k]) { next.segmentation[k] = S.segmentation[k]; kept.push(k); }
+  return kept;
+}
 $("bOpen").onclick = async () => {
   const r = (await api("browse", { kind: "file", title: "Open settings", types: "toml", initial: S.input.output || "" })).result; if (!r) return;
-  try { setSettings((await api("load", { path: r })).settings); $("from").textContent = "settings from " + r; toast("Settings loaded"); } catch (e) { toast(e.message, 5000); }
+  try {
+    const next = (await api("load", { path: r })).settings, kept = keepCellposeEnvs(next);
+    setSettings(next); $("from").textContent = "settings from " + r;
+    toast("Settings loaded" + (kept.length ? " (your Cellpose environment is kept)" : ""));
+  } catch (e) { toast(e.message, 5000); }
 };
 $("bSave").onclick = async () => {
   const r = (await api("browse", { kind: "save", title: "Save settings", types: "toml", initial: S.input.output || "" })).result; if (!r) return;
   try { await api("save", { path: r, settings: S }); toast("Saved " + r); } catch (e) { toast(e.message, 5000); }
 };
-$("bReset").onclick = () => { const files = S.input.files, out = S.input.output; setSettings(structuredClone(DEFAULTS)); S.input.files = files; S.input.output = out; render(); toast("Defaults restored (images and output folder kept)"); };
+$("bReset").onclick = () => {
+  const files = S.input.files, out = S.input.output, next = structuredClone(DEFAULTS), kept = keepCellposeEnvs(next);
+  setSettings(next); S.input.files = files; S.input.output = out; render();
+  toast(`Defaults restored (images, output folder${kept.length ? " and Cellpose environment" : ""} kept)`);
+};
 
 // ---------------------------------------------------------------- running
 async function start(reapply) {

@@ -14,7 +14,7 @@ text file:
 |---|---|
 | `example_screen_1.tif` … `example_screen_3.tif` | three fields of a pooled screen, 1000 × 700 pixels, 30 frames of 62 s |
 | `stage_positions.txt` | the stage position of each image (normally this is stored in the images themselves) |
-| `example_settings.toml` | all settings of this walk-through: *Open settings…* in the window loads them at once (set your Cellpose environment again afterwards, if you use one) |
+| `example_settings.toml` | all settings of this walk-through: *Open settings…* in the window loads them at once |
 
 Each image has three channels: the two amplitude images of a two-component lifetime fit (lifetimes 0.6 and 3.4 ns,
 as exported from LAS X), and a third channel with a marker that is expressed by a small fraction of the cells. The
