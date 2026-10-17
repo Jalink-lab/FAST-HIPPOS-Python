@@ -248,7 +248,7 @@ def summary_table(data: dict) -> pd.DataFrame:
             "stimulation_frame": ev["stimulation"], "calibration_frame": ev["calibration"],
             "events_detected": ev["detected"], "baseline_only": ev["baseline_only"],
             "qc_flags": ",".join(f["key"] for f in i["flags"]),
-            "own_settings": "; ".join(f"{k}={v}" for sec in (i["own"] or {}).values() for k, v in sec.items()),
+            "own_settings": "; ".join(f"{k}={'automatic' if v is None else v}" for sec in (i["own"] or {}).values() for k, v in sec.items()),
             "source": i["source"],
         })
     return pd.DataFrame(rows)

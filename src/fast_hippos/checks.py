@@ -55,7 +55,7 @@ def check_inputs(settings: Settings) -> list[str]:
                 problems.append(f"{label} and {folders[key]} would share the result folder '{safe_name(name)}': rename one "
                                 "of them (Images).")
             folders.setdefault(key, label)
-            problems += _check_image(label, info, settings)
+            problems += _check_image(label, info, settings.for_image(name), own="events" in settings.image.get(name, {}))
     if seg.method == "labelmap" and (seg.labelmap is None or not Path(seg.labelmap).exists()):
         problems.append(f"Label image not found: {seg.labelmap} (Cell segmentation)." if seg.labelmap
                         else "No label image chosen (Cell segmentation).")
@@ -68,14 +68,17 @@ def check_inputs(settings: Settings) -> list[str]:
         problems.append(f"Hand-picked hits file not found: {sc.manual_hits} (Screening, advanced).")
     if s_in.modality == Modality.FD_FLIM and (settings.fdflim.reference is None or not Path(settings.fdflim.reference).exists()):
         problems.append("Frequency-domain FLIM needs a reference phase stack (Images, advanced).")
-    if (not ev.baseline_only and ev.stimulation_frame is not None and ev.calibration_frame is not None
-            and ev.calibration_frame <= ev.stimulation_frame):
-        problems.append(f"The calibration frame ({ev.calibration_frame}) must come after the stimulation frame "
-                        f"({ev.stimulation_frame}) (Stimulation and calibration).")
+    for image, where in [(None, "Stimulation and calibration")] + [(n, f"own settings of {n}") for n in settings.image]:
+        e = settings.for_image(image).events if image else ev
+        if (not e.baseline_only and e.stimulation_frame is not None and e.calibration_frame is not None
+                and e.calibration_frame <= e.stimulation_frame):
+            problems.append(f"The calibration frame ({e.calibration_frame}) must come after the stimulation frame "
+                            f"({e.stimulation_frame}) ({where}).")
     return problems
 
 
-def _check_image(name: str, info: dict, settings: Settings) -> list[str]:
+def _check_image(name: str, info: dict, settings: Settings, own: bool = False) -> list[str]:
+    """Problems of one image; settings: those of this image (Settings.for_image), own: it has its own stimulation settings."""
     s_in, seg, ev = settings.input, settings.segmentation, settings.events
     n_ch, n_fr, out = info["channels"], info["frames"], []
     have = f"{name} has {n_ch} channel{'s' if n_ch != 1 else ''}"
@@ -94,7 +97,7 @@ def _check_image(name: str, info: dict, settings: Settings) -> list[str]:
         for label, f in (("stimulation", ev.stimulation_frame), ("calibration", ev.calibration_frame)):
             if f is not None and not 0 <= f < frames:
                 out.append(f"{name} has {frames} frames (0–{frames - 1}), but the {label} frame is set to {f} "
-                           "(Stimulation and calibration).")
+                           + ("(its own settings, under Stimulation and calibration)." if own else "(Stimulation and calibration)."))
     for label, f in (("first", seg.start_frame), ("last", seg.end_frame)):
         if f is not None and not 0 <= f < frames:
             out.append(f"{name} has {frames} frames, but the {label} projection frame is set to {f} (Cell segmentation, advanced).")

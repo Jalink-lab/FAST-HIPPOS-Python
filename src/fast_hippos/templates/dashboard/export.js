@@ -85,7 +85,9 @@ function ownToml(own) {
 async function applyTo(scope) {
   const dashboard = decodeURIComponent(location.pathname.replace(/^\/files\//, ""));
   let info = null; try { info = (await guiApi("runinfo", { dashboard })).run; } catch { /* the questions below then name no images */ }
-  const imgs = info ? info.images.map(i => i.name) : [], n = imgs.length, others = Object.keys((info && info.image_settings) || {}).filter(x => x !== D.name);
+  const imgs = info ? info.images.map(i => i.name) : [], n = imgs.length;
+  // the other images (of this run) with own settings: their own timing / response window stays theirs
+  const owners = (sec) => Object.entries((info && info.image_settings) || {}).filter(([x, v]) => x !== D.name && v[sec] && (!n || imgs.includes(x))).map(([x]) => x);
   const list = imgs.slice(0, 12).map(x => "  • " + x).join("\n") + (n > 12 ? `\n  … and ${n - 12} more` : "");
   const all = n ? `all ${n} image${n === 1 ? "" : "s"}` : "all images";
   let toml, manual = null;
@@ -97,10 +99,17 @@ async function applyTo(scope) {
         + `Because the hit list and the .rgn files cover all images, ${all} are re-applied (segmentation and traces are kept); this dashboard reloads when it is done.\n\nContinue?`)) return;
     toml = ownToml(own);
   } else {
-    const e = SCR.events, timing = !eventsTouched ? "The stimulation and calibration frames of each image stay as they are (detected, or set)."
-      : `The timing set here (${e.baseline_only ? "baseline only" : `stimulation frame ${ownValue(e.stimulation)}, calibration frame ${ownValue(e.calibration)}`}) is used for all images, this one included.`;
+    const e = SCR.events, p = SCR.params, p0 = D.screen.params, mine = (D.own_settings && D.own_settings.screening) || {};
+    const ownTiming = owners("events"), ownWindow = owners("screening");
+    const timing = !eventsTouched ? "The stimulation and calibration frames of each image stay as they are (detected, set, or its own)."
+      : `The timing set here (${e.baseline_only ? "baseline only" : `stimulation frame ${ownValue(e.stimulation)}, calibration frame ${ownValue(e.calibration)}`}) is used for all images, this one included`
+        + (ownTiming.length ? `, except those with their own timing: ${ownTiming.join(", ")}.` : ".");
+    const kept = OWN_KEYS.screening.filter(k => k in mine && p[k] === p0[k]), replaced = OWN_KEYS.screening.filter(k => k in mine && p[k] !== p0[k]);
+    const windowNote = (kept.length ? `\n${D.name} keeps its own ${kept.map(k => `${OWN_NAMES[k]} ${mine[k]}`).join(", ")}.` : "")
+      + (replaced.length ? `\nThe ${replaced.map(k => `${OWN_NAMES[k]} ${p[k]}`).join(", ")} set here is used for all images, ${D.name} included (instead of its own).` : "")
+      + (ownWindow.length ? `\nImages that keep their own response window: ${ownWindow.join(", ")}.` : "");
     if (!confirm(`Use these screening settings for ${all} of this output folder${info ? ` (run of ${info.started})` : ""}?` + (n ? `\n\n${list}` : "")
-        + `\n\n${timing}` + (others.length ? `\nImages with their own settings keep those: ${others.join(", ")}.` : "")
+        + `\n\n${timing}` + windowNote
         + "\n\nFor every image, stimulation detection, screening, hit lists, .rgn files and the dashboard are redone; segmentation and traces are kept. "
         + "This dashboard reloads when it is done.\n\nContinue?")) return;
     ({ toml, manual } = screeningToml());

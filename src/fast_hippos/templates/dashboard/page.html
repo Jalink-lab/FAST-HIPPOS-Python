@@ -28,7 +28,7 @@
 </div>
 <main>
   <section class="panel screen">
-    <div class="panel-h"><button id="scrtoggle" class="icon" title="Show or hide the screening settings">▾</button><h2 title="Choose which cells are hits: timing, quality gates and criteria. Changes apply at once; export the hits or apply the settings to the whole run under Output.">Screening</h2>
+    <div class="panel-h"><button id="scrtoggle" class="icon" title="Show or hide the screening settings">▾</button><h2 title="Choose which cells are hits: timing, quality gates and criteria. Changes apply at once; export the hits or apply the settings to all images (or to this image only) under Output.">Screening</h2>
       <div class="funnel" id="funnel"></div><span id="scrmod" class="modified"></span><span class="sp"></span>
       <button id="scrreset" title="Undo all changes in this panel: back to the screening settings of the analysis run">Reset</button></div>
     <div class="scrbody" id="scrbody">
@@ -68,7 +68,7 @@
         <div class="row"><label title="The hits are split over .rgn files of at most this many positions">.rgn chunks of <input id="chunk" type="number" min="1" step="1" class="w5"></label><label title="Order the positions in each .rgn file for the shortest stage route"><input id="optpath" type="checkbox"> optimize path</label></div>
         <div class="row"><button id="route" title="Calculate the stage route through the hits with the current settings; shown in the image when 'show in image' is on">Compute route</button><span id="routeinfo" class="muted"></span><label title="Draw the route of the .rgn files over the image"><input id="vroute2" type="checkbox"> show in image</label></div>
         <div class="row exports"><button id="hitsrgn" title="Download the stage positions of the hits as .rgn files for LAS X (one file per chunk)">Hits → .rgn</button><button id="hitstsv" title="Download the hit list as a table (TSV, opens in Excel)">Hits → TSV</button>
-          <button id="scrtoml" title="Download these screening settings as a TOML file, to use them for the whole run (fast-hippos-cli reapply config.toml --override screening.toml) or in a later analysis">Settings → TOML</button>
+          <button id="scrtoml" title="Download these screening settings as a TOML file, to use them for all images of an output folder (fast-hippos-cli reapply config.toml --override screening.toml) or in a later analysis">Settings → TOML</button>
           <button id="scrapply" hidden title="Use these screening settings for all images of this output folder and redo their screening (segmentation and traces are kept). A timing changed here is used for all images too; images with their own settings keep those.">↻ Apply to all images</button>
           <button id="scrapplyimg" hidden title="Make the timing (stimulation and calibration frames) and the response window set here this image's own; the other images keep their settings. All images are re-applied, because the hit list and .rgn files cover all of them.">↻ Apply to this image only</button></div>
         <div class="muted applymsg" id="applymsg"></div>

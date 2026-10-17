@@ -56,10 +56,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "run" and not settings.input.files:
             p.error("no input files in [input] files")
         if args.command == "reapply":  # the run in the output folder, with this config's event / screening / display settings
+            import tomllib
+
             from .pipeline import reapply_settings
 
+            changes = settings.to_dict()
+            # own settings of single images: those of the run are kept unless the config (or an override) has an image part
+            if not any("image" in tomllib.loads(Path(f).read_text(encoding="utf-8")) for f in [args.config, *args.override]):
+                changes.pop("image")
             try:
-                settings = Settings.from_dict(reapply_settings(settings.input.output, settings.to_dict()))
+                settings = Settings.from_dict(reapply_settings(settings.input.output, changes))
             except ValueError as e:
                 p.error(str(e))
         from .checks import SettingsError

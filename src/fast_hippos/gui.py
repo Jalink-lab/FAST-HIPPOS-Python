@@ -554,11 +554,13 @@ def _toml_value(v) -> str:
 
 def to_toml(settings: dict, header: str = "") -> str:
     lines = [header] if header else []
+    if "image" in settings and not settings["image"]:  # said explicitly, so that a re-apply removes those of the run
+        lines.append("image = {}  # no own settings of single images")
     for section, values in settings.items():
         if section == "image":  # per-image settings: [image."<name>".events] etc.
             for name, sections in (values or {}).items():
                 for sec, vals in sections.items():
-                    lines.append(f"\n[image.{json.dumps(name)}.{sec}]")
+                    lines.append(f"\n[image.{json.dumps(name, ensure_ascii=False)}.{sec}]")
                     lines += [f"{k} = {_toml_value(v)}" for k, v in vals.items()]
             continue
         lines.append(f"\n[{section}]")
@@ -741,6 +743,8 @@ class Job:
         self.output: str | None = None
         self.settings: dict | None = None
         self.source = "gui"  # who started the run: "gui" or "dashboard"
+        self.applied = ""  # what a dashboard applied, for the page
+        self.removed: dict[str, set[str]] = {}  # output folder -> images whose own settings were removed in the page
         self.run_id = 0
         self.roots: set[Path] = set()  # output folders whose files may be served (dashboards)
         self.lock = threading.Lock()
@@ -760,6 +764,9 @@ class Job:
             STATE_DIR.mkdir(exist_ok=True)
             LAST_SETTINGS.write_text(to_toml(remember, header), encoding="utf-8")
         cmd = [_python(), "-u", "-m", "fast_hippos.cli", "reapply" if reapply else "run", str(toml)]
+        if source == "gui":  # the page sends its complete own settings of single images
+            self.removed.pop(_key(out), None)
+            self.applied = ""
         with self.lock:
             self.lines, self.state, self.output = [f"$ fast-hippos {cmd[4]} {toml}"], "running", str(out)
             self.settings, self.source, self.run_id = settings, source, self.run_id + 1
@@ -797,7 +804,7 @@ class Job:
         with self.lock:
             out = {"state": self.state, "lines": self.lines[since:], "n": len(self.lines), "output": self.output,
                    "output_key": _key(self.output) if self.output else None,
-                   "run_id": self.run_id, "source": self.source,
+                   "run_id": self.run_id, "source": self.source, "applied": self.applied,
                    "settings": self.settings if self.source == "dashboard" else None}
         if self.output and self.state == "done":
             o = Path(self.output)
@@ -816,19 +823,23 @@ def apply_from_dashboard(job: Job, dashboard: str, toml_text: str, manual_tsv: s
     settings, response window) become this image's own; everything else stays as it is."""
     import tomllib
 
-    from .config import IMAGE_SETTINGS
+    from .config import IMAGE_SETTINGS, _image_settings
     from .pipeline import reapply_settings, run_image_settings
 
     out = Path(dashboard).parent.parent
     (out / "screening_from_dashboard.toml").write_text(toml_text, encoding="utf-8")  # a record of what was applied
     changes = tomllib.loads(toml_text)
-    own_all = {name: {sec: dict(v) for sec, v in secs.items()} for name, secs in run_image_settings(out).items()}
+    removed = job.removed.get(_key(out), set())  # removed in the page since: they stay removed
+    own_all = {name: {sec: dict(v) for sec, v in secs.items()} for name, secs in run_image_settings(out).items()
+               if name not in removed}
     if scope == "image":
         if not image:
             raise ValueError("Apply to this image only: the dashboard did not say which image")
         own = {sec: {k: v for k, v in changes.get(sec, {}).items() if k in keys} for sec, keys in IMAGE_SETTINGS.items()}
         own_all[image] = {sec: v for sec, v in own.items() if v}
-        changes = {"image": {name: secs for name, secs in own_all.items() if secs}}
+        removed.discard(image)
+        changes = {}
+        job.applied = f"Own settings of {image} applied from its dashboard"
     else:
         manual = changes.get("screening", {}).get("manual_hits")
         if manual_tsv:
@@ -836,9 +847,19 @@ def apply_from_dashboard(job: Job, dashboard: str, toml_text: str, manual_tsv: s
             (out / manual).write_text(manual_tsv, encoding="utf-8")
         if manual and not Path(manual).is_absolute():  # a hit list named in the dashboard's settings lives in the folder
             changes.setdefault("screening", {})["manual_hits"] = str(out / manual)
-        if image and "events" in changes and image in own_all:  # the timing set here now holds for this image too
-            own_all[image].pop("events", None)
-            changes["image"] = {name: secs for name, secs in own_all.items() if secs}
+        mine = own_all.get(image or "", {})
+        timing = ("stimulation_frame", "calibration_frame", "baseline_only")
+        if any(k in changes.get("events", {}) for k in timing):  # a timing for all images replaces its own timing as a whole
+            for k in timing:
+                mine.get("events", {}).pop(k, None)
+        for sec in ("events", "screening"):  # this image's own values of what the dashboard sends
+            for k in [k for k in mine.get(sec, {}) if k in changes.get(sec, {})]:
+                if sec == "screening" and changes[sec][k] == mine[sec][k]:
+                    del changes[sec][k]  # its own response window, unchanged: not for all images
+                else:
+                    del mine[sec][k]  # set here for all images: replaces its own value
+        job.applied = f"Settings for all images applied from the dashboard of {image}" if image else "Settings for all images applied from a dashboard"
+    changes["image"] = _image_settings({name: {sec: v for sec, v in secs.items() if v} for name, secs in own_all.items()})
     settings = reapply_settings(out, changes)
     _remember_image_settings(out, settings.get("image", {}))
     return job.start(settings, reapply=True, source="dashboard")
@@ -983,6 +1004,8 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "runinfo": lambda q: output_info(str(Path(q["dashboard"]).parent.parent)),
         "apply": lambda q: {"run_id": apply_from_dashboard(job, q["dashboard"], q["toml"], q.get("manual_tsv"), q.get("image"),
                                                            q.get("scope", "all"))},
+        # the own settings of an image were removed in the page: a dashboard apply must not bring them back
+        "unown": lambda q: (job.removed.setdefault(_key(q["output"]), set()).add(q["image"]), {"ok": True})[1],
         "stop": lambda q: (job.stop(), {"ok": True})[1],
         "status": lambda q: job.status(int(q.get("since", 0))),
         "open": lambda q: (open_path(q["path"]), {"ok": True})[1],

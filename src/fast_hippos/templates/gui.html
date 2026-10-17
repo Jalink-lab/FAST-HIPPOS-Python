@@ -444,6 +444,8 @@ function checks() {
       + "than this window: Re-apply screening uses the ones listed under Stimulation and calibration");
     if (runDiffersFromList(o)) add("warn", "The Images list differs from the images of that run: Re-apply screening processes the run's images, not the list");
   }
+  else if (Object.keys(S.image || {}).length && S.input.output && o)
+    add("warn", `Own settings of single images (${Object.keys(S.image).join(", ")}) will be used by Run analysis: remove them under Stimulation and calibration if they belong to another experiment`);
   if (S.segmentation.method === "cellpose") {
     const r = CP[`${cpVersion()}|${cpPython()}`];
     if (r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== cpVersion())) add("err", `Cellpose ${cpVersion()} is not available (Advanced → Segmentation)`);
@@ -534,7 +536,11 @@ document.addEventListener("click", async (e) => {
   }
   if (b.dataset.remove) { S.input.files.splice(+b.dataset.remove, 1); render(); return; }
   if (b.hasAttribute("data-clearfiles")) { S.input.files = []; render(); return; }
-  if (b.dataset.rmimg) { delete S.image[b.dataset.rmimg]; render(); toast("Own settings removed: re-apply or run to use the settings above for this image", 4500); return; }
+  if (b.dataset.rmimg) {
+    const name = b.dataset.rmimg; delete S.image[name]; render();
+    if (S.input.output) api("unown", { output: S.input.output, image: name }).catch(() => {});
+    toast(`Own settings of ${name} removed: Re-apply screening or Run analysis to use the settings above for it`, 4500); return;
+  }
   if (b.hasAttribute("data-addcrit")) { S.screening.criteria.push({ metric: "response_max_diff", op: ">", value: 0.3, value2: null, logic: "AND" }); render(); return; }
   const crit = b.closest("[data-crit]");
   if (crit) {
@@ -586,17 +592,21 @@ async function start(reapply) {
   catch (e) { toast("Not started: the output folder cannot be read (" + e.message + ")", 6000); return; }
   const imgs = runImages(o), names = imgs.map(i => i.name), plan = o.plan || { folders: [], files: [], blocked: [] };
   const fileName = (p) => String(p).split(/[\\/]/).filter(Boolean).pop();
+  const own = Object.entries(S.image || {}), dropped = Object.keys((o.run && o.run.image_settings) || {}).filter(x => !(x in (S.image || {})));
+  const ownNote = (own.length ? `\n\nOwn settings of single images (Stimulation and calibration) are used for:\n${bulletList(own.map(([x, v]) => `${x}: ${ownText(v)}`))}` : "")
+    + (reapply && dropped.length ? `\n\nThe own settings of the run are removed for: ${dropped.join(", ")} (they then use the settings of this window).` : "");
   if (reapply && !confirm(`Re-apply screening to the ${plural(imgs.length, "image")} of the run of ${o.run.started} in\n${folder}:\n\n`
       + bulletList(names) + "\n\nSegmentation and traces of that run are kept. The stimulation, screening and display settings of this "
       + "window are used (except overlay smoothing, dashboard size and tiles and the stage positions file, which only change "
-      + "with a new run); all other settings (images, segmentation, …) stay those of the run.\n\nContinue?")) return;
+      + "with a new run); all other settings (images, segmentation, …) stay those of the run." + ownNote + "\n\nContinue?")) return;
   if (!reapply && plan.blocked.length) { alert("Not started:\n\n" + plan.blocked.join("\n\n")); return; }
   if (!reapply && (plan.folders.length || plan.files.length) && !confirm(`The output folder\n${folder}\nholds the results of `
       + (o.run ? `the run of ${o.run.started}` : "an earlier run") + ". Running the analysis first moves them into the subfolder "
       + "_previous_run, which is deleted when the new run is complete (and kept if it does not finish):\n\n"
       + (names.length ? `Results of ${plural(names.length, "image")}:\n${bulletList(names)}\n\n` : "")
       + (plan.files.length ? `Files of that run:\n${bulletList(plan.files, 20)}\n\n` : "")
-      + `Then it analyzes:\n${bulletList((S.input.files || []).map(fileName))}\n\nNothing else in the folder is touched.\n\nContinue?`)) return;
+      + `Then it analyzes:\n${bulletList((S.input.files || []).map(fileName))}\n\nNothing else in the folder is touched.` + ownNote + "\n\nContinue?")) return;
+  else if (!reapply && !(plan.folders.length || plan.files.length) && own.length && !confirm(`Run the analysis?${ownNote}\n\nContinue?`)) return;
   let r; try { r = await api("run", { settings: S, reapply }); } catch (e) { toast(e.message, 6000); return; }
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 }
@@ -612,7 +622,7 @@ async function poll() {
   $("stopped").classList.remove("on");
   if (st.run_id !== JOB.run_id) {  // a run this page did not start
     JOB = { n: 0, state: st.state, run_id: st.run_id }; $("log").innerHTML = "";
-    if (st.source === "dashboard" && st.settings) { setSettings(st.settings); toast("Screening settings applied from a dashboard", 4000); }
+    if (st.source === "dashboard" && st.settings) { setSettings(st.settings); toast(st.applied || "Settings applied from a dashboard", 5000); }
     setTimeout(poll, 0); return;
   }
   const changedState = st.state !== JOB.state;

@@ -102,3 +102,65 @@ def test_apply_to_this_image_only_and_to_all_images(two_images, monkeypatch, tmp
     assert "img1" not in settings["image"]  # its own timing is replaced by the one for all images
     with pytest.raises(ValueError, match="which image"):
         gui.apply_from_dashboard(job, dash, toml, image=None, scope="image")
+
+
+def test_apply_to_all_images_keeps_or_replaces_own_response_window(two_images, monkeypatch, tmp_path):
+    _, _, out = two_images
+    monkeypatch.setattr(gui, "LAST_SETTINGS", tmp_path / "last.toml")
+    job = FakeJob()
+    dash = str(out / "img1" / "dashboard.html")
+    job.removed = {}
+    # img1 has its own response window 20 (and an own detection threshold, which the dashboard cannot set)
+    reapply_settings(out, {})
+    base = json.loads((out / "settings_used.json").read_text())
+    own = {"img1": {"events": {"stimulation_frame": 12, "sensitivity": 4.0}, "screening": {"response_window": 20}}}
+    (out / "settings_used.json").write_text(json.dumps(base | {"image": own}))
+    try:
+        # the dashboard of img1 sends its own window unchanged: not the window of all images, and img1 keeps it
+        gui.apply_from_dashboard(job, dash, "[screening]\nresponse_window = 20\nlogic = \"AND\"\n", image="img1", scope="all")
+        settings = job.started[0]
+        assert settings["screening"]["response_window"] == base["screening"]["response_window"]
+        assert settings["image"]["img1"]["screening"] == {"response_window": 20}
+        # changed there: the window of all images, img1 included; a timing set there replaces only the timing keys
+        gui.apply_from_dashboard(job, dash, "[events]\nstimulation_frame = 9\n\n[screening]\nresponse_window = 7\n", image="img1", scope="all")
+        settings = job.started[0]
+        assert settings["screening"]["response_window"] == 7
+        assert settings["image"]["img1"] == {"events": {"sensitivity": 4.0}}
+        assert job.applied == "Settings for all images applied from the dashboard of img1"
+        # removed in the GUI window: a dashboard apply does not bring them back
+        job.removed[gui._key(out)] = {"img1"}
+        gui.apply_from_dashboard(job, str(out / "img0" / "dashboard.html"), '[events]\nstimulation_frame = ""\n', image="img0", scope="image")
+        settings = job.started[0]
+        assert settings["image"] == {"img0": {"events": {"stimulation_frame": None}}}  # '' read as automatic, like the run does
+    finally:
+        (out / "settings_used.json").write_text(json.dumps(base))
+
+
+def test_cli_reapply_keeps_own_settings_unless_the_config_has_them(two_images, tmp_path, monkeypatch):
+    from fast_hippos import cli, pipeline
+
+    _, _, out = two_images
+    calls, real = [], pipeline.reapply_settings
+    monkeypatch.setattr(pipeline, "reapply_settings", lambda o, changes: calls.append("image" in changes) or real(o, changes))
+    monkeypatch.setattr(pipeline, "run", lambda settings, reapply=False: [])
+    for text, expected in (("", False), ("image = {}\n", True)):
+        cfg = tmp_path / "c.toml"
+        cfg.write_text(text + f"[input]\noutput = {json.dumps(str(out))}\n", encoding="utf-8")
+        cli.main(["reapply", str(cfg)])
+        assert calls[-1] is expected
+    # what the GUI writes says so explicitly when there are none
+    assert gui.to_toml({"image": {}, "events": {"margin": 1}}).startswith("image = {}")
+    name = "Pos 1 – 🧪 \"x\""
+    assert tomllib.loads(gui.to_toml({"image": {name: {"events": {"margin": 2}}}}))["image"][name] == {"events": {"margin": 2}}
+
+
+def test_input_checks_use_the_frames_of_each_image(two_images):
+    from fast_hippos.checks import check_inputs
+
+    s, _, _ = two_images
+    t = Settings.from_dict(s.to_dict())
+    t.events.stimulation_frame, t.events.calibration_frame = 60, 70  # beyond the 40 frames of both images...
+    t.image = {"img0": {"events": {"stimulation_frame": 5, "calibration_frame": 3}}, "img1": {"events": {"stimulation_frame": 10, "calibration_frame": 20}}}
+    problems = check_inputs(t)
+    assert not any("img1" in p for p in problems)  # ...but img1 uses its own valid frames
+    assert any("own settings of img0" in p and "must come after" in p for p in problems)
