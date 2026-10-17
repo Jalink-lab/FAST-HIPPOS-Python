@@ -83,11 +83,21 @@ function initTable() {
     if (e.target.id === "selHead") { S.sel = e.target.checked ? new Set(IM.map(im => im.k)) : new Set(); selectionChanged(); return; }
     const tr = e.target.closest("tr.r"); if (!tr || e.target.closest("a")) return;
     const k = +tr.dataset.k;
-    if (e.target.type === "checkbox" || e.ctrlKey || e.metaKey) { S.sel.has(k) ? S.sel.delete(k) : S.sel.add(k); }
-    else if (e.shiftKey && S.last >= 0) { const o = tableOrder(), a = o.indexOf(S.last), b = o.indexOf(k); for (let i = Math.min(a, b); i <= Math.max(a, b); i++) S.sel.add(o[i]); }
-    else S.sel = new Set([k]);
-    S.last = k; selectionChanged();
+    // as in a file manager: Shift+click selects the range from the row clicked last (Ctrl+Shift adds the range);
+    // that row stays the starting point. Before any click, the first selected row is the starting point.
+    if (e.shiftKey && e.target.type !== "checkbox") {
+      const o = tableOrder(), from = S.last >= 0 ? S.last : (o.find(j => S.sel.has(j)) ?? k), a = o.indexOf(from), b = o.indexOf(k);
+      if (!(e.ctrlKey || e.metaKey)) S.sel = new Set();
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) S.sel.add(o[i]);
+      S.last = from;
+    } else {
+      if (e.target.type === "checkbox" || e.ctrlKey || e.metaKey) { S.sel.has(k) ? S.sel.delete(k) : S.sel.add(k); }
+      else S.sel = new Set([k]);
+      S.last = k;
+    }
+    selectionChanged();
   });
+  tbl.addEventListener("mousedown", (e) => { if (e.shiftKey && e.target.closest("tr.r")) e.preventDefault(); });  // no text selection
   tbl.addEventListener("mouseover", (e) => { const tr = e.target.closest("tr.r"); setHover(tr ? +tr.dataset.k : -1); });
   tbl.addEventListener("mouseleave", () => setHover(-1));
   $("qc").addEventListener("click", (e) => { const b = e.target.closest("[data-flag]"); if (!b) return; S.sel = new Set(IM.filter(im => flagOn(im, b.dataset.flag)).map(im => im.k)); selectionChanged(); });
