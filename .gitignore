@@ -10,3 +10,7 @@ dist/
 # Test data and outputs (large; keep outside git)
 data/
 output/
+
+# The user manual: the built site, and the live demo (from the example-data release)
+site/
+manual/demo/

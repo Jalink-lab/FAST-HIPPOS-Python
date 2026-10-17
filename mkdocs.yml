@@ -1,0 +1,95 @@
+# The user manual: https://jalink-lab.github.io/FAST-HIPPOS-Python/
+# Preview:  mkdocs serve        Build:  mkdocs build  (into site/)
+# Screenshots and the reference pages are made by the scripts in tools/manual.
+site_name: FAST-HIPPOS manual
+site_description: User manual of FAST-HIPPOS for Python, single-cell FLIM traces and hit identification for pooled optical screening
+site_url: https://jalink-lab.github.io/FAST-HIPPOS-Python/
+repo_url: https://github.com/Jalink-lab/FAST-HIPPOS-Python
+repo_name: FAST-HIPPOS-Python
+edit_uri: edit/main/manual/
+docs_dir: manual
+copyright: FAST-HIPPOS · Jalink lab, Netherlands Cancer Institute · GPL-3.0-or-later
+
+theme:
+  name: material
+  logo: images/logo.png
+  favicon: images/logo.png
+  font: false  # system fonts: no requests to Google
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-sunny, name: Light mode }
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.tooltips
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: start/install.md
+      - Your first analysis: start/first-analysis.md
+      - Try it in your browser: start/demo.md
+  - User guide:
+      - The FAST-HIPPOS window: guide/window.md
+      - The dashboard: guide/dashboard.md
+      - Choosing the hits: guide/choosing-hits.md
+      - Settings for single images: guide/own-settings.md
+      - The run overview: guide/overview.md
+      - Back to the microscope: guide/microscope.md
+      - The output folder: guide/output-folder.md
+  - Reference:
+      - All settings: reference/settings.md
+      - Cell values (metrics): reference/metrics.md
+      - Settings files and the command line: reference/command-line.md
+      - How the analysis works: reference/analysis.md
+  - Help:
+      - Questions and problems: help/faq.md
+      - Glossary: help/glossary.md
+
+plugins:
+  - search
+  - glightbox:
+      zoomable: true
+      skip_classes: [no-lightbox]
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.keys
+  - pymdownx.snippets: { auto_append: [manual/includes/abbreviations.md] }
+  - pymdownx.superfences:
+      custom_fences:
+        - { name: mermaid, class: mermaid, format: !!python/name:pymdownx.superfences.fence_code_format }
+  - pymdownx.tabbed: { alternate_style: true }
+  - pymdownx.tasklist: { custom_checkbox: true }
+
+extra_css: [assets/manual.css]
+extra_javascript: [assets/manual.js]
+
+not_in_nav: |
+  /includes/*

@@ -1,0 +1,48 @@
+/* FAST-HIPPOS colours, as in the program */
+:root, [data-md-color-scheme="default"] {
+  --md-primary-fg-color: #1f6fd1;
+  --md-primary-fg-color--light: #4d8fe0;
+  --md-primary-fg-color--dark: #1856a3;
+  --md-accent-fg-color: #d0157f;
+  --fh-hit: #d0157f;
+}
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #2a6fc4;
+  --md-accent-fg-color: #ff4fb0;
+  --fh-hit: #ff4fb0;
+}
+
+/* screenshots: a thin frame, so that they stand out from the page */
+.md-typeset img.shot { border: 1px solid var(--md-default-fg-color--lightest); border-radius: 6px; }
+.md-typeset figure { margin: 1.2em auto; }
+.md-typeset figcaption { max-width: 46rem; margin-top: .4em; color: var(--md-default-fg-color--light); }
+.hit { color: var(--fh-hit); font-weight: 600; }
+
+/* numbered call-outs on screenshots */
+.md-typeset .callouts { counter-reset: c; list-style: none; padding-left: 0; }
+.md-typeset .callouts > li { counter-increment: c; position: relative; padding-left: 2.2em; }
+.md-typeset .callouts > li::before {
+  content: counter(c); position: absolute; left: 0; top: .05em; width: 1.6em; height: 1.6em; border-radius: 50%;
+  background: var(--md-primary-fg-color); color: #fff; font-weight: 700; font-size: .8em; display: grid; place-items: center;
+}
+
+/* the home page: steps of the workflow as cards */
+.md-typeset .grid.cards > ul > li { border-radius: 8px; }
+
+/* live demos */
+.fh-demo { width: 100%; height: 80vh; min-height: 560px; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 8px; }
+.fh-demo-bar { display: flex; flex-wrap: wrap; gap: .5em; margin: .6em 0; }
+
+/* the settings reference */
+.fh-filter { width: 100%; padding: .55em .8em; font-size: .8rem; border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 6px; background: var(--md-default-bg-color); color: var(--md-default-fg-color); margin: .5em 0 1em; }
+.md-typeset table.fh-settings { display: table; width: 100%; font-size: .68rem; }
+.md-typeset table.fh-settings td:first-child { width: 26%; }
+.md-typeset table.fh-settings td:last-child { width: 9%; white-space: nowrap; }
+.md-typeset .fh-key { font-size: .85em; }
+.md-typeset .fh-choices { color: var(--md-default-fg-color--light); font-size: .95em; }
+.md-typeset h3.fh-group { font-size: .78rem; margin: 1.4em 0 .4em; color: var(--md-default-fg-color--light); }
+.fh-hidden { display: none !important; }
+
+/* wider pages: the screenshots and the live demo are made for wide screens */
+.md-grid { max-width: 76rem; }

@@ -1,0 +1,65 @@
+# Questions and problems
+
+## Starting
+
+??? question "Nothing happens when I double-click the shortcut"
+    FAST-HIPPOS may still be starting (the first start after an installation or update takes longer). If it is
+    already running, the shortcut opens its window in the browser again. Otherwise open PowerShell in the
+    FAST-HIPPOS folder and run `uv run fast-hippos-cli gui`: the console then shows what goes wrong.
+
+??? question "The window says Cellpose is not available"
+    FAST-HIPPOS looks for Cellpose in its own environment and in the environments set under *Cell segmentation →
+    Advanced settings*. Set the `python.exe` of an environment with the Cellpose version that the model needs:
+    Cellpose 3 for `cyto3` and `nuclei`, Cellpose 4 for `cpsam`. See [Installation](../start/install.md#4-cellpose).
+
+??? question "Cellpose runs on the CPU, not on the GPU"
+    The Cellpose environment needs PyTorch with CUDA support. *Use GPU* must also be on (*Cell segmentation →
+    Advanced settings*). The label under the Cellpose model shows what was found.
+
+## The analysis
+
+??? question "The stimulation or the calibration was not found, or found at the wrong frame"
+    Open the dashboard of the image, drag *S* and *C* to the right frames, and click *Apply to all images* (if all
+    images follow the same protocol) or *Apply to this image only*. See
+    [Settings for single images](../guide/own-settings.md). If detection fails often, lower the *Detection threshold*
+    (*Stimulation and calibration → Advanced settings*), or set the frames in the window.
+
+??? question "Too many or too few cells"
+    Check the outlines in the dashboard. With Cellpose, set the *Cell diameter* (in pixels) instead of 0, or try
+    another model. *Minimum cell size* removes debris; the advanced settings also filter on circularity and
+    intensity.
+
+??? question "Many cells are not valid"
+    The quality gates remove them. Look at the histograms of the gates in the dashboard: is the calibration response
+    in the range of *calibration − baseline*? The default range (0.5–1 ns) suits the usual sensors; for another
+    sensor, set it to the response you expect.
+
+??? question "No .rgn files were written"
+    The images have no stage positions (the window warns about this). See
+    [where the stage positions come from](../guide/microscope.md#where-the-stage-positions-come-from).
+
+??? question "I changed the criteria in the dashboard, but the .rgn files did not change"
+    Changes in a dashboard only affect that page until you click *Apply to all images*, or save the hits with
+    *Hits → .rgn*. The Apply buttons only appear in dashboards opened from the FAST-HIPPOS window.
+
+??? question "Can I analyze images with different protocols in one run?"
+    Yes. Leave the stimulation frames on automatic, or give single images [their own settings](../guide/own-settings.md).
+    The hit criteria are the same for all images.
+
+## Results
+
+??? question "Where are my results?"
+    In the output folder you chose; see [the output folder](../guide/output-folder.md). *Open output folder* in
+    the Run card opens it.
+
+??? question "I ran the analysis again, and my previous results are gone"
+    A new run into the same output folder replaces the previous run, after asking. Choose another output folder to
+    keep both. If a run did not finish, the previous results are still in `_previous_run`.
+
+??? question "Can someone without FAST-HIPPOS look at the results?"
+    Yes: send the output folder. The overview (`index.html`) and the dashboards open in any browser.
+
+## Still stuck?
+
+Report it on [GitHub](https://github.com/Jalink-lab/FAST-HIPPOS-Python/issues), with the log (`run_log.txt` in the
+output folder) and the settings file.

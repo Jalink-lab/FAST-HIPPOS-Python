@@ -18,6 +18,9 @@
 > production screening. Results, settings and file formats may change. For experiments, use the
 > [FAST-HIPPOS Fiji plugin](https://imagej.net/plugins/fast-hippos), or check the results carefully against it.
 
+**User manual: <https://jalink-lab.github.io/FAST-HIPPOS-Python/>**, with a walk-through on example data and a live
+demo of the dashboard.
+
 FAST-HIPPOS analyzes multi-cell time-lapse experiments. It segments the cells, measures a fluorescence lifetime
 (or ratio, or intensity) trace for every cell, and finds the cells that show the kinetic behaviour you are looking
 for. Their stage coordinates are written as Leica LAS X `.rgn` files, so that the microscope can revisit exactly
