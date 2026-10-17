@@ -71,6 +71,12 @@ FIELDS: dict[str, dict] = {
         "help": "Time-lapse images: .tif (ImageJ hyperstack) or .lif, or a folder of tiles exported from LAS X "
         "(stitched by the stage positions of the tiles). Several are analyzed in one run."},
     "input.output": {"label": "Output folder", "widget": "folder"},
+    "input.experiment": {"label": "Experiment folder (optional)", "widget": "folder",
+        "placeholder": "none — a single run", "help": "For a screen of several samples: one output folder per sample "
+        "inside it, and an overview of all samples"},
+    "input.sample_label": {"label": "Sample label", "wide": True, "show": {"input.experiment": {"set": True}},
+        "placeholder": "e.g. the condition or library of this sample",
+        "help": "Shown in the experiment overview, to tell or group the samples"},
     "input.modality": {"label": "Image type", "choices": {
         "tcspc": "Fitted TCSPC data / TauSeparation (2 lifetime components)", "fast_flim": "Fast FLIM",
         "tau_contrast": "TauContrast", "fd_flim": "Frequency-domain FLIM", "ratio": "Ratio imaging (2 channels)",
@@ -210,7 +216,15 @@ TIPS: dict[str, str] = {
         "(series), and a folder of tiles exported from LAS X is stitched into one image. All are analyzed with the "
         "same settings, and the screening is done over all of them together.",
     "input.output": "Folder for all results: tables, plots, dashboards and .rgn files. Each image gets a subfolder. "
-        "An existing output folder is overwritten by a new run, or re-used by 'Re-apply screening'.",
+        "An existing output folder is overwritten by a new run, or re-used by 'Re-apply screening'. In a screen of "
+        "several samples: one output folder per sample, inside the experiment folder.",
+    "input.experiment": "For a screen of several samples, each analyzed in its own run with the same settings: the "
+        "folder that holds the output folders of all samples. It gets an overview of all samples (index.html), "
+        "updated after every run and re-apply of a sample in it, with a warning when samples were analyzed with "
+        "different settings. 'New sample' then proposes the output folder <experiment folder>\\<image name>. "
+        "Empty = no experiment.",
+    "input.sample_label": "A short description of this sample (e.g. its condition, cell line or library), shown in "
+        "the experiment overview. Empty = none.",
     "input.modality": "What the pixel values mean, and so how the lifetime (or ratio) per cell is calculated. TCSPC: "
         "two amplitude images from a 2-component fit (LAS X / TauSeparation). Fast FLIM and TauContrast: an "
         "intensity and a lifetime channel. Ratio: two intensity channels, the first divided by the second.",
@@ -413,7 +427,7 @@ FD = {"input.modality": ["fd_flim"]}
 # Every setting appears exactly once (checked by the tests).
 # "|" in a group starts a new row, so that only related settings are next to each other
 LAYOUT = [
-    {"title": "Images", "basic": ["input.files", "input.output", "input.modality", "input.tau1", "input.tau2",
+    {"title": "Images", "basic": ["input.files", "input.experiment", "input.output", "input.sample_label", "input.modality", "input.tau1", "input.tau2",
                                   "input.additional_channel"],
      "advanced": [
          ("Channels and metadata", ["input.intensity_channel", "input.series", "|", "input.pixel_size",
@@ -727,6 +741,44 @@ def remember_settings(settings: dict) -> None:
     LAST_SETTINGS.write_text(to_toml(settings, f"# FAST-HIPPOS {__version__} settings, written by the GUI"), encoding="utf-8")
 
 
+def experiment_info(path: str, settings: dict | None = None, job: Job | None = None) -> dict:
+    """The samples (runs) in an experiment folder, and (with the page's settings) which of them were analyzed with
+    other settings than those of the page ('differs': {sample: [settings]}; the own settings of single images and
+    the settings that do not change the analysis, such as paths and display, are not compared)."""
+    from .experiment import comparable_settings, read_overview_data, run_folders
+
+    folder = Path(path) if path else None
+    if not folder or not folder.is_dir():
+        return {"exists": False, "samples": [], "index": False, "differs": {}}
+    if job is not None:
+        job.roots.add(folder.resolve())
+    page = comparable_settings(settings_from_plain(settings).to_dict()) if settings else None
+    samples, differs = [], {}
+    for run in run_folders(folder):
+        try:
+            used = json.loads((run / "settings_used.json").read_text())
+            started = read_overview_data(run / "index.html").get("started")
+        except (OSError, ValueError):
+            continue
+        samples.append({"name": run.name, "label": (used.get("input") or {}).get("sample_label") or "", "started": started})
+        if page is not None:
+            theirs = comparable_settings(used)
+            keys = [k for k in dict.fromkeys([*page, *theirs])
+                    if json.dumps(page.get(k), sort_keys=True, default=str) != json.dumps(theirs.get(k), sort_keys=True, default=str)]
+            if keys:
+                differs[run.name] = keys
+    return {"exists": True, "samples": samples, "index": (folder / "index.html").exists(), "differs": differs}
+
+
+def start_reapply_experiment(job: Job, gui_settings: dict) -> int:
+    """'Re-apply to all samples' in the GUI: the event, screening and display settings of the page for every sample
+    (run) in the experiment folder, which keep the own settings of their single images; then the experiment overview."""
+    experiment = gui_settings["input"].get("experiment")
+    if not experiment or not experiment_info(experiment)["samples"]:
+        raise ValueError("No samples (runs) in the experiment folder")
+    return job.start(gui_settings, reapply=True, remember=gui_settings, experiment=experiment)
+
+
 def start_reapply(job: Job, gui_settings: dict) -> int:
     """'Re-apply screening' in the GUI: the run in the output folder with the event, screening and display settings
     of the page; the page's own settings are remembered for the next start."""
@@ -826,13 +878,15 @@ class Job:
         self.roots: set[Path] = set()  # output folders whose files may be served (dashboards)
         self.lock = threading.Lock()
 
-    def start(self, settings: dict, reapply: bool, source: str = "gui", remember: dict | None = None) -> int:
+    def start(self, settings: dict, reapply: bool, source: str = "gui", remember: dict | None = None,
+              experiment: str | None = None) -> int:
         """Run (or re-apply) with these settings, in a subprocess. remember: settings of the page, kept for the next
-        start of the GUI (None: leave them, e.g. for 'Apply to run' from a dashboard)."""
+        start of the GUI (None: leave them, e.g. for 'Apply to run' from a dashboard). experiment: re-apply to all
+        samples of this experiment folder instead (cli experiment --reapply)."""
         if self.state == "running":
             raise ValueError("A run is already in progress")
         settings_from_plain(settings)  # validate before starting
-        out = Path(settings["input"]["output"])
+        out = Path(experiment or settings["input"]["output"])
         out.mkdir(parents=True, exist_ok=True)
         # the run itself writes fast_hippos_settings.toml into the output folder, after moving the previous run away
         STATE_DIR.mkdir(exist_ok=True)
@@ -842,11 +896,13 @@ class Job:
         if remember is not None:
             LAST_SETTINGS.write_text(to_toml(remember, header), encoding="utf-8")
         cmd = [_python(), "-u", "-m", "fast_hippos.cli", "reapply" if reapply else "run", str(toml)]
+        if experiment:
+            cmd = [*cmd[:4], "experiment", str(out), "--reapply", str(toml)]
         if source == "gui":  # the page sends its complete own settings of single images
             self.removed.pop(_key(out), None)
             self.applied = ""
         with self.lock:
-            self.lines, self.state, self.output = [f"$ fast-hippos {cmd[4]} {toml}"], "running", str(out)
+            self.lines, self.state, self.output = [f"$ fast-hippos {' '.join(cmd[4:])}"], "running", str(out)
             self.settings, self.source, self.run_id = settings, source, self.run_id + 1
             self.roots.add(out.resolve())
         env = os.environ | {"PYTHONIOENCODING": "utf-8"}
@@ -1075,11 +1131,13 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "inspect": lambda q: {"files": [inspect_file(Path(p)) | {"path": p} for p in q["paths"]]},
         "cellpose": lambda q: check_cellpose(q.get("python"), bool(q.get("fresh"))),
         "output": lambda q: output_info(q.get("path", ""), job, q.get("settings")),
+        "experiment": lambda q: experiment_info(q.get("path", ""), q.get("settings"), job),
         "load": lambda q: {"settings": load_toml(Path(q["path"]))},
         "save": lambda q: (Path(q["path"]).write_text(to_toml(q["settings"]), encoding="utf-8"), {"ok": True})[1],
         "validate": lambda q: (settings_from_plain(q["settings"]), {"ok": True})[1],
         "check": lambda q: {"problems": _check(q["settings"])},
-        "run": lambda q: {"run_id": start_reapply(job, q["settings"]) if q.get("reapply")
+        "run": lambda q: {"run_id": start_reapply_experiment(job, q["settings"]) if q.get("experiment")
+                          else start_reapply(job, q["settings"]) if q.get("reapply")
                           else job.start(q["settings"], False, remember=q["settings"])},
         # the run that 'Apply to run' in a dashboard would process (<output>/<image>/dashboard.html)
         "runinfo": lambda q: output_info(str(Path(q["dashboard"]).parent.parent)),

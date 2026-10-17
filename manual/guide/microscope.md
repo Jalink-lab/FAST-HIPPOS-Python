@@ -27,6 +27,9 @@ To visit the hits:
 3. Set up the experiment that should run at every position (photoactivation, high-resolution imaging, …) and start
    it.
 
+In a [screen of several samples](screen.md), with one run per sample, every sample has its own `.rgn` files, in its
+own output folder: run the sample, visit its hits, then go on with the next sample.
+
 With more than one `.rgn` file, load and run them one after another; each next route starts near where the
 previous one ended. The `.rgn` files are the same as those of the Fiji version of FAST-HIPPOS.
 

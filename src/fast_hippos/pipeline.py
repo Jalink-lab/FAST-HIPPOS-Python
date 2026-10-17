@@ -64,10 +64,12 @@ class ImageResult:
 # ---------------------------------------------------------------- run
 
 
-def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
+def run(settings: Settings, reapply: bool = False, experiment_overview: bool = True) -> list[ImageResult]:
     """Analyze the images (one output folder holds one run: a new run first removes the results of the previous one),
     or, with reapply, redo the analysis after segmentation for the images of the run in the output folder. For a
-    reapply, `settings` are those of that run with other event / screening / display settings (reapply_settings)."""
+    reapply, `settings` are those of that run with other event / screening / display settings (reapply_settings).
+    When the output folder is a sample of an experiment (a folder inside the experiment folder), the overview of the
+    experiment is updated too, unless experiment_overview is off (re-applying all samples updates it once, at the end)."""
     out = Path(settings.input.output)
     out.mkdir(parents=True, exist_ok=True)
     _close_logging()  # the log of an earlier run in this process is moved along with that run
@@ -157,8 +159,58 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
     write_overview(results, settings, out, hits, thumbs, {"started": started,
                                                           "reapplied": time.strftime("%Y-%m-%d %H:%M") if reapply else None})
     _write_run_file(out, results, reapply, info["started"] if reapply else None)
+    if experiment_overview:
+        update_experiment(out, settings.input.experiment)
     log.info("Done. Output in %s", out)
     return results
+
+
+def update_experiment(out: Path, experiment: Path | None) -> None:
+    """The overview of the experiment that the output folder is a sample of (if any); a failure there does not fail
+    the run, whose own results are complete."""
+    from .experiment import in_experiment, write_experiment_overview
+
+    if not experiment:
+        return
+    if not in_experiment(out, experiment):
+        log.warning("The output folder is not inside the experiment folder %s, so this run is not a sample of the "
+                    "experiment (the experiment overview is not updated)", experiment)
+        return
+    try:
+        write_experiment_overview(experiment)
+    except Exception as e:  # noqa: BLE001
+        log.warning("The experiment overview could not be updated: %s", e)
+
+
+def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
+    """Re-apply the event, screening and display settings of `changes` to every sample of the experiment folder
+    (each keeps the own settings of its single images), then update the experiment overview once. Returns the
+    samples that failed."""
+    from .experiment import LOG_FILE, run_folders, write_experiment_overview
+
+    experiment = Path(experiment)
+    folders = run_folders(experiment)
+    if not folders:
+        raise ValueError(f"No samples (runs) in the experiment folder {experiment}")
+    changes = {k: v for k, v in changes.items() if k != "image"}
+    changes["input"] = {k: v for k, v in (changes.get("input") or {}).items() if k == "experiment"}
+    changes["input"]["experiment"] = str(experiment)
+    failed = []
+    for k, folder in enumerate(folders, 1):
+        print(f"=== Sample {k} of {len(folders)}: {folder.name}", flush=True)  # the run logs go to their own folders
+        try:
+            if not run(Settings.from_dict(reapply_settings(folder, changes)), reapply=True, experiment_overview=False):
+                failed.append(folder.name)
+        except Exception as e:  # noqa: BLE001 - the other samples go on
+            print(f"Sample {folder.name} failed: {e}", flush=True)
+            failed.append(folder.name)
+    _setup_logging(experiment / LOG_FILE)  # after the logs of the samples, which are in their folders
+    write_experiment_overview(experiment)
+    if failed:
+        log.error("Not re-applied: %s", ", ".join(failed))
+    log.info("Done. %d of %d samples re-applied; experiment overview in %s", len(folders) - len(failed), len(folders),
+             experiment / "index.html")
+    return failed
 
 
 # ---------------------------------------------------------------- the run in an output folder
@@ -334,6 +386,9 @@ def reapply_settings(out: Path, changes: dict) -> dict:
             base[section] = base.get(section, {}) | changes[section] | kept
     if isinstance(changes.get("image"), dict):
         base["image"] = changes["image"]
+    for key in ("experiment", "sample_label"):  # labels, not analysis settings: a re-apply may set them
+        if key in (changes.get("input") or {}):
+            base["input"][key] = changes["input"][key]
     base["input"]["output"] = str(out)
     return base
 

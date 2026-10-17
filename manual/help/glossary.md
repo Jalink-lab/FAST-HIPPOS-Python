@@ -18,6 +18,10 @@ Criterion
 Dashboard
 :   The interactive page of one image (`dashboard.html`).
 
+Experiment folder
+:   For a screen of several samples: the folder that holds one output folder (run) per sample, and the overview of
+    all samples.
+
 Hit
 :   A valid cell that meets the hit criteria (or that you picked by hand).
 
@@ -33,6 +37,10 @@ Output folder
 
 Overview
 :   The page that compares the images of a run (`index.html`).
+
+Sample
+:   In a screen of several samples: one specimen, imaged and analyzed in a run of its own, in an output folder inside
+    the experiment folder.
 
 Quality gate
 :   A condition that every hit must meet, to keep out cells whose traces cannot be trusted.

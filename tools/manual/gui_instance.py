@@ -14,11 +14,11 @@ from fast_hippos import gui
 from fast_hippos.config import Settings
 
 
-def start(example: Path, port: int = 8766) -> tuple[subprocess.Popen, str]:
+def start(example: Path, port: int = 8766, config: str = "example.toml") -> tuple[subprocess.Popen, str]:
     home = Path(tempfile.mkdtemp(prefix="fh_manual_home_"))
     state = home / ".fast_hippos"
     state.mkdir()
-    settings = Settings.from_toml(example / "example.toml")  # paths made absolute
+    settings = Settings.from_toml(example / config)  # paths made absolute
     (state / "last_settings.toml").write_text(gui.to_toml(settings.to_dict()), encoding="utf-8")
     (state / "gui_prefs.json").write_text('{"theme": "light"}', encoding="utf-8")
     env = os.environ | {"USERPROFILE": str(home), "HOME": str(home), "PYTHONIOENCODING": "utf-8"}

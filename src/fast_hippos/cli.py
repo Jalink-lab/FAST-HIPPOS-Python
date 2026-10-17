@@ -31,6 +31,11 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--output", type=Path, help="stitched TIFF (default: <name>_STITCHED.tif next to the folder)")
     s.add_argument("--pixel-size", type=float, help="µm, overrides the metadata")
     s.add_argument("--bidirectional", choices=["y", "x"], help="bidirectional phase correction per tile along this axis")
+    e = sub.add_parser("experiment", help="(re)build the overview of all samples in an experiment folder (one run per "
+                       "sample, in a folder inside it)")
+    e.add_argument("folder", type=Path, help="the experiment folder")
+    e.add_argument("--reapply", type=Path, metavar="CONFIG", help="first re-apply the [events], [screening] and [display] "
+                   "settings of this config to every sample (each keeps the own settings of its single images)")
     i = sub.add_parser("init-config", help="write an annotated example config")
     i.add_argument("path", type=Path, nargs="?", default=Path("fast_hippos.toml"))
     t = sub.add_parser("train-classifier", help="train the nuclei pixel classifier from scribbles")
@@ -93,6 +98,32 @@ def main(argv: list[str] | None = None) -> int:
                                                        "in %s; move them back to use them again.", previous)
             raise
         return 0 if results else 1
+    if args.command == "experiment":
+        import logging
+
+        from .experiment import write_experiment_overview
+
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s", datefmt="%H:%M:%S")
+        if not args.folder.is_dir():
+            p.error(f"no experiment folder {args.folder}")
+        if args.reapply:
+            import tomllib
+
+            from .config import Settings
+            from .pipeline import reapply_experiment
+
+            try:
+                changes = Settings.from_toml(args.reapply).to_dict()
+                failed = reapply_experiment(args.folder, changes)
+            except (ValueError, tomllib.TOMLDecodeError, OSError) as e:
+                print(f"Error: {e}", file=sys.stderr)
+                return 2
+            return 1 if failed else 0
+        path = write_experiment_overview(args.folder)
+        if path is None:
+            print(f"No samples (runs) in {args.folder}", file=sys.stderr)
+            return 1
+        return 0
     if args.command == "stitch":
         import logging
 

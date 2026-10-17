@@ -11,6 +11,9 @@ works in any browser.
 ![The run overview](../images/overview.png){ .shot }
 </figure>
 
+In a [screen of several samples](screen.md), the experiment folder has the same page for the images of all
+samples together.
+
 The top bar shows the totals of the run: images, cells, valid cells, hits, and when the run was made and last
 re-applied. *Run files* opens the files of the run (hit lists, `.rgn` files, log); *Export* downloads tables and `.rgn`
 files for the selected images.

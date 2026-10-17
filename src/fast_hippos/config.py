@@ -34,6 +34,10 @@ GATES = ("baseline_calibration_diff", "max_baseline_deviation")
 class InputSettings:
     files: list[Path] = field(default_factory=list)
     output: Path = Path("output")
+    # a screen of several samples: one run (output folder) per sample, inside this folder, which then gets an
+    # overview of all its samples (experiment.py); None = no experiment
+    experiment: Path | None = None
+    sample_label: str | None = None  # e.g. the condition of this sample, shown in the experiment overview
     modality: Modality = Modality.TCSPC
     intensity_channel: int = 1  # first (amplitude) channel; lifetime/second channel is the next one
     tau1: float = 0.6  # ns, TCSPC component 1
@@ -225,6 +229,7 @@ class Settings:
         settings.input.files = [_resolve(base, f) for f in settings.input.files]
         settings.input.output = _resolve(base, settings.input.output)
         for section, name in [
+            (settings.input, "experiment"),
             (settings.fdflim, "reference"),
             (settings.fdflim, "background"),
             (settings.segmentation, "labelmap"),

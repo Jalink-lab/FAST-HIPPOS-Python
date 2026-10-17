@@ -1,5 +1,8 @@
 /* run Overview; colour tokens and generic elements are in templates/common/base.css */
 header { flex-wrap: wrap; }
+#notes:empty { display: none; } #notes { padding: 10px 16px 0; display: grid; gap: 6px; }
+.note-warn { border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border-radius: 8px; padding: 7px 11px; font-size: 13px; line-height: 1.45; }
 main { display: grid; gap: 12px; padding: 12px 16px 24px; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   grid-template-areas: "images images" "resp metric" "maps maps" "hits hits"; }
 @media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "images" "resp" "metric" "maps" "hits"; } }

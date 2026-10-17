@@ -51,6 +51,7 @@ nav:
       - Settings for single images: guide/own-settings.md
       - The run overview: guide/overview.md
       - Back to the microscope: guide/microscope.md
+      - A screen of several samples: guide/screen.md
       - The output folder: guide/output-folder.md
   - Reference:
       - All settings: reference/settings.md

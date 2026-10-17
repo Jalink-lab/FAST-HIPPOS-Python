@@ -131,6 +131,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
   <img class="logo" src="__FH_LOGO__" alt="FAST-HIPPOS">
   <div><h1>FAST-HIPPOS</h1><div class="sub">Single-cell FLIM traces and hit identification · <span id="ver"></span> · <span id="from"></span></div></div>
   <span class="sp"></span>
+  <button id="bNewSample" hidden title="Start the next sample of the experiment: keeps all settings, empties the Images list, the output folder, the sample label and the own settings of single images. Adding images then proposes the output folder <experiment folder>\\<image name>.">＋ New sample</button>
   <button id="bOpen" title="Load settings from a .toml file (e.g. fast_hippos_settings.toml from an output folder)">Open settings…</button>
   <button id="bSave" title="Save the settings as a .toml file">Save settings…</button>
   <button id="bReset" title="All settings back to the defaults">Defaults</button>
@@ -151,6 +152,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
       <div class="runbtns">
         <button class="primary" id="bRun" title="Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.">▶ Run analysis</button>
         <button id="bReapply" title="Redo event detection, screening and dashboards on the saved output in the output folder, without segmentation (seconds instead of minutes)">↻ Re-apply screening</button>
+        <button id="bReapplyAll" hidden title="">↻ Re-apply to all samples</button>
         <button id="bStop" disabled title="Stop the running analysis. Results of images that were already finished are kept.">■ Stop</button>
       </div>
       <div><span class="state" id="state">Ready</span> <span class="muted" id="stateInfo"></span></div>
@@ -328,7 +330,7 @@ function fieldHTML(f) {
   return fieldHTMLRaw(f);
 }
 function fieldHTMLRaw(f) {
-  const wide = ["files", "criteria", "model"].includes(f.kind) || ["file", "python", "folder"].includes(f.kind);
+  const wide = f.wide || ["files", "criteria", "model"].includes(f.kind) || ["file", "python", "folder"].includes(f.kind);
   const cls = ["field", f.kind === "bool" ? "check" : "", wide ? "wide" : "", isChanged(f) && f.level !== "basic" ? "changed" : ""].join(" ");
   const label = `<label for="f_${f.key.replace(".", "_")}">${esc(f.label)}</label>`;
   // hover text: the fuller explanation, and the name of the setting in settings files
@@ -419,7 +421,29 @@ function renderResults() {
   if (o.index) links.push(`<button class="primary" data-open="${esc(base + "index.html")}" title="Overview of the run in the browser: all images, the hits and links to the dashboards">Open overview</button>`);
   for (const d of o.images) links.push(`<button data-open="${esc(base + d + sep + "dashboard.html")}" title="Interactive dashboard of this image: cells, traces, kymograph and hits">Dashboard: ${esc(d)}</button>`);
   links.push(`<button data-open="${esc(S.input.output)}" title="Open the output folder in the file explorer">Open output folder</button>`);
+  const x = experimentState();
+  if (x && x.index) links.push(`<button class="primary" data-open="${esc(S.input.experiment.replace(/[\\/]$/, "") + sep + "index.html")}" title="Overview of all samples of the experiment: the images of all runs in the experiment folder together">Open experiment overview</button>`);
   el.innerHTML = `<div class="muted">Results in the output folder${JOB.state === "done" ? "" : " (earlier run)"}:</div>` + links.join("");
+}
+// the samples (runs) in the experiment folder, and which were analyzed with other settings than this window
+const EXPS = {};
+function experimentState() {
+  const p = S.input.experiment || ""; if (!p) return null;
+  const key = JSON.stringify([p, S.events, S.screening, S.display, S.segmentation, S.traces, S.preprocess, S.fdflim, S.input.modality]);
+  if (!(key in EXPS)) {
+    EXPS[key] = null;
+    api("experiment", { path: p, settings: S }).then(r => { EXPS[key] = r; renderChecks(); renderResults(); })
+      .catch(e => { EXPS[key] = { exists: false, samples: [], differs: {}, error: e.message }; renderChecks(); });
+  }
+  return EXPS[key];
+}
+const samePath = (a, b) => String(a || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase() === String(b || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+const parentPath = (p) => String(p || "").replace(/[\\/]+$/, "").replace(/[\\/][^\\/]*$/, "");
+// the output folder that 'New sample' proposes: <experiment folder>\<name of the first image>
+function sampleOutput(path) {
+  const exp = S.input.experiment.replace(/[\\/]+$/, ""), sep = exp.includes("\\") ? "\\" : "/";
+  const name = String(path).replace(/[\\/]+$/, "").split(/[\\/]/).pop().replace(/\.(ome\.)?(tiff?|lif)$/i, "");
+  return exp + sep + name;
 }
 
 // ---------------------------------------------------------------- checks before running
@@ -456,6 +480,25 @@ function checks() {
   }
   else if (Object.keys(S.image || {}).length && S.input.output && o)
     add("warn", `Own settings of single images (${Object.keys(S.image).join(", ")}) will be used by Run analysis: remove them under Stimulation and calibration if they belong to another experiment`);
+  if (S.input.experiment) {
+    const x = experimentState();
+    if (S.input.output && samePath(S.input.output, S.input.experiment)) add("err", "The output folder is the experiment folder: give each sample its own output folder inside it (New sample proposes one)", true);
+    else if (S.input.output && !samePath(parentPath(S.input.output), S.input.experiment))
+      add("warn", "The output folder is not directly inside the experiment folder, so this run is not a sample of the experiment (its overview is not updated)");
+    if (x && x.samples.length) {
+      const others = x.samples.filter(s => !samePath(parentPath(S.input.output) + "/" + s.name, S.input.output)).length;
+      add("info", `The experiment folder holds ${plural(x.samples.length, "sample")}: ${x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")).join(", ")}`
+        + (others < x.samples.length ? "; this output folder is one of them" : ""));
+      const diff = Object.entries(x.differs || {});
+      const groups = {};  // samples that differ in the same settings, together
+      for (const [n, ks] of diff) { const g = `${ks.slice(0, 4).join(", ")}${ks.length > 4 ? ", …" : ""}`; (groups[g] = groups[g] || []).push(n); }
+      const all = diff.length === x.samples.length && Object.keys(groups).length === 1;
+      if (diff.length) add("warn", (all ? `All ${plural(diff.length, "sample")} of the experiment were analyzed with other settings than this window: ${Object.keys(groups)[0]}`
+        : `${plural(diff.length, "sample")} of the experiment ${diff.length === 1 ? "was" : "were"} analyzed with other settings than this window: `
+          + Object.entries(groups).map(([g, ns]) => `${ns.join(", ")} (${g})`).join("; "))
+        + ". Re-apply to all samples makes their stimulation, screening and display settings the same; other settings only change with a new run of that sample");
+    }
+  }
   if (S.segmentation.method === "cellpose") {
     const r = CP[`${cpVersion()}|${cpPython()}`];
     if (r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== cpVersion())) add("err", `Cellpose ${cpVersion()} is not available (Cell segmentation → Advanced settings → Cellpose environments)`);
@@ -489,6 +532,13 @@ function renderChecks() {
     + "and the stage positions file only change with a new run."
     : "Needs the results of a run in the output folder";
   if (wait) $("bReapply").title = "Wait: the output folder is being read";
+  const x = S.input.experiment ? experimentState() : null, n = x ? x.samples.length : 0;
+  $("bNewSample").hidden = !S.input.experiment;
+  $("bReapplyAll").hidden = !n; $("bReapplyAll").disabled = blockedReapply || !n;
+  $("bReapplyAll").textContent = `↻ Re-apply to all samples (${n})`;
+  $("bReapplyAll").title = n ? `Redo stimulation detection, screening and dashboards for every sample of the experiment (${x.samples.map(s => s.name).join(", ")}), `
+    + "with the stimulation, screening and display settings of this window; each sample keeps its own segmentation and traces, "
+    + "and the own settings of its single images. Then the experiment overview is updated once." : "";
 }
 
 // ---------------------------------------------------------------- events
@@ -561,7 +611,8 @@ document.addEventListener("click", async (e) => {
     if (!r || (Array.isArray(r) && !r.length)) return;
     if (kind === "files" || kind === "tiles") {
       const added = kind === "tiles" ? [r] : r, files = [...new Set([...(cur || []), ...added])]; set(f.key, files);
-      if (!S.input.output || S.input.output === "output") set("input.output", added[0].replace(/[\\/][^\\/]*$/, "") + "/FAST-HIPPOS_output");
+      if (S.input.experiment && (!S.input.output || S.input.output === "output")) set("input.output", sampleOutput(added[0]));
+      else if (!S.input.output || S.input.output === "output") set("input.output", added[0].replace(/[\\/][^\\/]*$/, "") + "/FAST-HIPPOS_output");
       inspect(files);
     } else set(f.key, r);
     render(); return;
@@ -661,6 +712,21 @@ async function start(reapply) {
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 }
 $("bRun").onclick = () => start(false);
+$("bNewSample").onclick = () => {
+  S.input.files = []; S.input.series = null; S.input.output = ""; S.input.sample_label = null; S.image = {}; render();
+  toast("New sample: add its images; the output folder becomes the experiment folder\\<image name>. All other settings are kept.", 5000);
+};
+$("bReapplyAll").onclick = async () => {
+  let x; try { x = await api("experiment", { path: S.input.experiment, settings: S }); } catch (e) { toast(e.message, 6000); return; }
+  if (!x.samples.length) { toast("No samples (runs) in the experiment folder", 5000); return; }
+  if (!confirm(`Re-apply to all ${plural(x.samples.length, "sample")} of the experiment in\n${S.input.experiment}:\n\n`
+      + bulletList(x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")), 20) + "\n\nThe stimulation, screening and display settings "
+      + "of this window are used for every sample (except overlay smoothing, dashboard size and tiles and the stage positions file, "
+      + "which only change with a new run). Each sample keeps its own images, segmentation and traces, its sample label and the "
+      + "own settings of its single images. Then the experiment overview is updated.\n\nContinue?")) return;
+  let r; try { r = await api("run", { settings: S, experiment: true }); } catch (e) { toast(e.message, 6000); return; }
+  JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
+};
 $("bReapply").onclick = () => start(true);
 $("bStop").onclick = () => api("stop");
 // polls all the time: re-applies can also be started from a dashboard ('Apply to all images' / 'Apply to this image only')
@@ -686,10 +752,11 @@ async function poll() {
   const all = log.textContent, nImg = (all.match(/INFO {4}--- /g) || []).length, total = Math.max(1, S.input.files.length);
   const label = { idle: "Ready", running: "Running…", done: "Done", failed: "Failed", stopped: "Stopped" }[st.state];
   $("state").textContent = label; $("state").className = "state " + st.state;
-  $("stateInfo").textContent = st.state === "running" ? `image ${Math.min(nImg, total)} of ${total}` : "";
+  const smp = [...all.matchAll(/=== Sample (\d+) of (\d+)/g)].pop();  // re-apply to all samples
+  $("stateInfo").textContent = st.state !== "running" ? "" : smp ? `sample ${smp[1]} of ${smp[2]}` : `image ${Math.min(nImg, total)} of ${total}`;
   $("bar").style.width = (st.state === "done" ? 100 : st.state === "running" ? Math.min(95, (Math.max(nImg, 1) - 0.5) / total * 100) : 0) + "%";
   $("bStop").disabled = st.state !== "running";
-  if (changedState) { delete OUT[S.input.output || ""]; renderChecks(); renderResults(); }  // re-check for results
+  if (changedState) { delete OUT[S.input.output || ""]; for (const k in EXPS) delete EXPS[k]; renderChecks(); renderResults(); }  // re-check for results
   setTimeout(poll, st.state === "running" ? 700 : 2000);
 }
 $("results").addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) api("open", { path: b.dataset.open }).catch(err => toast(err.message)); });

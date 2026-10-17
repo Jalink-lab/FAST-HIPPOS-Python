@@ -45,7 +45,11 @@ together.
   see [Back to the microscope](microscope.md#tile-scans).
 - Every image shows what was read from it: size, frames, channels, pixel size, frame interval, and whether it holds
   stage positions.
-- **Output folder**: one folder per run. See [the output folder](output-folder.md).
+- **Experiment folder** (optional): for a screen with one run per sample, the folder that holds the output folders
+  of all samples, and their joint overview. Empty for a single run. See [A screen of several samples](screen.md).
+- **Output folder**: one folder per run. See [the output folder](output-folder.md). With an experiment folder, a
+  folder inside it, named after the first image.
+- **Sample label** (with an experiment folder): a short description of the sample, shown in the experiment overview.
 - **Image type**: what the pixel values mean, and so how the value per cell is computed: two-component TCSPC fits
   (with τ₁ and τ₂), Fast FLIM, TauContrast, frequency-domain FLIM, ratio imaging, or intensity only.
 - **Additional channel**: optionally a channel whose intensity is measured per cell, e.g. a transfection marker.
@@ -115,8 +119,13 @@ settings. It takes seconds instead of minutes. Use it after changing screening s
 
 **■ Stop** stops a running analysis; the results of the previous run are then kept.
 
+With an [experiment folder](screen.md), the card also lists the samples of the experiment and warns when some were
+analyzed with other settings than those in the window. **↻ Re-apply to all samples** then re-applies the settings of
+the window to every sample, and **＋ New sample** (top right of the window) starts the next sample with the same
+settings.
+
 The **log** shows the progress. When the run is done, the buttons below it open the overview, the dashboard of each
-image, and the output folder.
+image, and the output folder, and with an experiment folder also the experiment overview.
 
 ## Settings files
 

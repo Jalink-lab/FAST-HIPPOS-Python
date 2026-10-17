@@ -131,6 +131,32 @@ def overview_shots(page: Page, base: str, out: Path, want) -> None:
             save(p, name)
 
 
+def experiment_shots(page: Page, url: str, example: Path, want) -> None:
+    """The example experiment (make_example_experiment.py): the window with the settings of its third sample, and the
+    overview of all samples."""
+    page.goto(url)
+    page.wait_for_selector("#bRun")
+    page.wait_for_function("!document.getElementById('bReapplyAll').hidden", timeout=30_000)
+    page.wait_for_timeout(2500)
+    page.evaluate("window.scrollTo(0, 0)")
+    if want("gui_experiment"):
+        save(card(page, "Images"), "gui_experiment")
+    if want("gui_run_experiment"):
+        save(card(page, "Run"), "gui_run_experiment")
+    if want("gui_experiment_differs"):  # another criterion in the window than the samples were analyzed with
+        page.evaluate("S.screening.criteria[0].value = 3.0; render()")
+        page.wait_for_function("document.getElementById('checks').textContent.includes('other settings')", timeout=30_000)
+        page.wait_for_timeout(500)
+        save(page.locator("#checks"), "gui_experiment_differs")
+    page.goto(f"{url}files/{quote((example / 'experiment' / 'index.html').as_posix())}")
+    page.wait_for_selector(".panel.images")
+    page.wait_for_timeout(2000)
+    if want("experiment"):
+        save(page, "experiment")
+    if want("exp_images"):
+        save(page.locator(".panel.images").first, "exp_images")
+
+
 def main(example: Path, only: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     want = (lambda n: any(n.startswith(o) for o in only)) if only else (lambda n: True)
@@ -143,6 +169,15 @@ def main(example: Path, only: list[str]) -> None:
             out = gui_shots(page, url, want)
             dashboard_shots(page, url, out, want)
             overview_shots(page, url, out, want)
+            if any(want(n) for n in ("gui_experiment", "gui_run_experiment", "experiment", "exp_images")):
+                if not (example / "experiment" / "index.html").exists():
+                    sys.exit("No example experiment: run tools/manual/make_example_experiment.py first")
+                proc2, url2 = start(example, 8768, "sample_3.toml")
+                try:
+                    time.sleep(2)
+                    experiment_shots(page, url2, example, want)
+                finally:
+                    proc2.terminate()
             browser.close()
     finally:
         proc.terminate()

@@ -1,6 +1,8 @@
 // ---------------------------------------------------------------- data of the run and the state of the page
 const D = JSON.parse($("fh-data").textContent);
 const SCREEN = D.screening;
+// the overview of an experiment folder: the images of all its samples (one run each), each with its sample and label
+const EXP = D.kind === "experiment", RUNS = D.runs || [], HAS_LABEL = RUNS.some(r => r.label);
 // images: per-cell columns (a sample of up to max_cells per image, all hits kept) and the response bands (5 x frames)
 const IM = D.images.map((im, k) => {
   const cols = {}; for (const [n, v] of Object.entries(im.cells)) cols[n] = b64f32(v);
