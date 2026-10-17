@@ -64,6 +64,20 @@ centre, or the centre of its nucleus with a nuclei classifier). The hits are spl
 positions, and the order within each file is optimized to make the route of the stage short: a nearest-neighbour
 route, improved by 2-opt and Or-opt moves, typically 13–18 % shorter than nearest neighbour alone.
 
+## Speed and large images
+
+On a stitched 1.9 GB data set (4089 × 2556 px, 30 frames, 3 channels, 10 239 cells), on a computer with a Quadro
+RTX 3000 GPU (6 GB):
+
+| Step | Time |
+|---|---|
+| Cellpose on the GPU | 1 min (`cyto3`, automatic diameter) to 2 min (`cpsam`) |
+| everything else (measurement, screening, routes, dashboard with tiles) | about 2 min |
+| re-applying the screening | 15–30 s |
+
+Images larger than 1024 px are shown in the dashboard as an overview, while full-resolution tiles are loaded for the
+visible area when zooming in, so that the dashboard stays responsive.
+
 ## Compared with the Fiji version
 
 The Python version follows the workflow of the [Fiji macro](https://imagej.net/plugins/fast-hippos) v0.9.5, with
