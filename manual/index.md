@@ -63,6 +63,14 @@ flowchart LR
 
 </div>
 
+## The paper
+
+FAST-HIPPOS (in its Fiji version) and the screening method it serves are described in:
+
+> Mukherjee S, van Tooren M, Sfakianakis D, Kemps D, Klarenbeek J, Zanetti G, Kuiken HJ, Lieftink C, van den Broek B,
+> Beijersbergen RL, Jalink K. *Beyond Static Screens: optical pooled screening of signaling dynamics using time-lapse
+> FLIM.* bioRxiv 2025. [doi:10.1101/2025.07.11.664338](https://doi.org/10.1101/2025.07.11.664338)
+
 ## Where to start
 
 - New to FAST-HIPPOS? [Install it](start/install.md) and follow [your first analysis](start/first-analysis.md), with

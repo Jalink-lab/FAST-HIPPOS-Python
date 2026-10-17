@@ -78,9 +78,12 @@ cells, with the passing cells in pink, and *28 pass* counts them. Drag the black
 - **×** removes a criterion.
 
 !!! example "In the example"
-    We look for cells that hardly respond, so the criterion is `response_mean_diff` **<** 0.6: an average rise of
-    the lifetime of less than 0.6 ns. Most cells rise by about 0.85 ns. In the scatter plot of
-    `response_mean_diff` against `additional_intensity`, many of the hits turn out to be the cells with the marker.
+    The [example screen](../start/first-analysis.md#what-the-experiment-is-about) looks for ADRB2 knock-out cells
+    among wild-type cells: cells that hardly respond to isoproterenol. So the criterion is `response_mean_diff`
+    **<** 0.6: an average rise of the lifetime of less than 0.6 ns, where most cells rise by about 0.85 ns. The
+    knock-out cells carry a marker (the additional channel), so here you can check the criterion: in the scatter
+    plot of `response_mean_diff` against `additional_intensity`, most hits are marker-positive, and the
+    marker-positive cells that are not hits are knock-out cells that still respond.
 
 **Hits from *selection*.** Instead of criteria, you can also pick the hits by hand: select cells (click, lasso,
 table), switch *Hits from* to *selection* and click *Use selection*. *Add selection* adds more cells.
