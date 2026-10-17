@@ -84,12 +84,12 @@
   </section>
   <section class="panel viewer">
     <div class="panel-h"><h2 title="The time-lapse with the lifetime as colour and the intensity as brightness. Drag to pan, Ctrl+scroll to zoom, click a cell to select it, double-click to zoom to it.">Image</h2><span id="vinfo" class="muted"></span><span class="sp"></span>
-      <button id="vzoom" class="small" title="Zoom: screen pixels per image pixel. Click for 100 % (one image pixel per screen pixel)">100 %</button><button id="vzsel" title="Zoom in on the selected cells, or on the hits when nothing is selected (Z)">Zoom to selection</button><button id="vzout" class="icon" title="Zoom out (or Ctrl+scroll wheel)">−</button><button id="vzin" class="icon" title="Zoom in (or Ctrl+scroll wheel)">+</button><button id="vfit" title="Show the whole image (F)">Fit</button><button id="vfull" class="icon" title="Full screen (Shift+F; Esc to leave)">⤢</button></div>
+      <span id="vzoom" class="zoomlvl" title="The current zoom: screen pixels per image pixel">100 %</span><button id="v100" class="small" title="Show the image at 100 %: one image pixel per screen pixel (1)">1:1</button><button id="vzsel" title="Zoom in on the selected cells, or on the hits when nothing is selected (Z)">Zoom to selection</button><button id="vzout" class="icon" title="Zoom out (or Ctrl+scroll wheel)">−</button><button id="vzin" class="icon" title="Zoom in (or Ctrl+scroll wheel)">+</button><button id="vfit" title="Show the whole image (F)">Fit</button><button id="vfull" class="icon" title="Full screen (Shift+F; Esc to leave)">⤢</button></div>
     <div id="vwrap"><canvas id="vimg"></canvas><canvas id="vsel"></canvas><canvas id="vhov"></canvas><svg id="vsvg" class="selsvg"></svg>
       <div id="vbar"><div id="vbarname"></div><canvas id="vbarc" width="256" height="1"></canvas><div class="ends"><span id="vbar0"></span><span id="vbar1"></span></div></div>
       <div id="loading"></div></div>
     <div class="panel-f">
-      <label title="Which cell outlines are drawn: only the selected cells, the hits, or all cells">Outlines <select id="outl"><option value="none">selection only</option><option value="hits">hits</option><option value="all">all cells</option></select></label>
+      <label title="Show or hide the cell outlines (O)"><input type="checkbox" id="voutl" checked> Outlines</label><select id="outl" title="Which cell outlines are drawn: only the selected cells, the hits, or all cells"><option value="none">selection only</option><option value="hits">hits</option><option value="all">all cells</option></select>
       <label title="Fill every cell with a colour for one of its values (e.g. its response), to see spatial patterns. Off = the lifetime image itself">Cells <select id="vfill"></select></label>
       <label title="Brightness from the current frame (movie) or from the average over all frames (projection, less noisy)">Intensity <select id="isrc"><option value="movie">movie</option><option value="projection">projection</option></select></label>
       <label class="slider" title="Brightness of the image">Brightness <input id="bright" type="range" min="-1" max="1.2" step="0.01" value="0.2"></label>
@@ -141,7 +141,7 @@
 <p class="help">Click a cell, trace, kymograph column, point or row to select it; <kbd>Ctrl</kbd>+click adds/removes;
 <kbd>Shift</kbd>+drag selects a box or lasso (image, scatter) or a range (kymograph). Drag to pan, <kbd>Ctrl</kbd>+scroll to zoom,
 double-click a cell to zoom to it. <kbd>Space</kbd> play, <kbd>←</kbd>/<kbd>→</kbd> frames, <kbd>Z</kbd> zoom to selection, <kbd>F</kbd> fit, <kbd>Shift</kbd>+<kbd>F</kbd> full screen,
-<kbd>L</kbd> box/lasso, <kbd>Esc</kbd> clear. <span id="ver"></span></p>
+<kbd>1</kbd> 100 %, <kbd>O</kbd> outlines on/off, <kbd>L</kbd> box/lasso, <kbd>Esc</kbd> clear. <span id="ver"></span></p>
 <div id="tip"></div>
 <script id="fh-data" type="application/json">__FH_DATA__</script>
 <script>

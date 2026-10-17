@@ -41,11 +41,14 @@ views. This has its own page: [Choosing the hits](choosing-hits.md). Fold the pa
 ![The image panel](../images/dash_image.png){ .shot width="600" }
 </figure>
 
-The lifetime image of the current frame: colour shows the lifetime, brightness the intensity. Outlines show all
-cells, the hits, the selection, or none.
+The lifetime image of the current frame: colour shows the lifetime, brightness the intensity. *Outlines* (below
+the image) shows the outlines of all cells, of the hits, or of the selection only; untick it (or press ++o++) to see
+the image without any outlines.
 
-- ++ctrl++ + scroll zooms, dragging pans, double-click zooms in on a cell, ++f++ (or *Fit*) shows the whole image; zooming out stops there.
-  *Zoom to selection* (++z++) zooms to the selected cells, or to the hits.
+- ++ctrl++ + scroll zooms, dragging pans, double-click zooms in on a cell, ++f++ (or *Fit*) shows the whole image;
+  zooming out stops there. *Zoom to selection* (++z++) zooms to the selected cells, or to the hits.
+- The percentage above the image is the current zoom; *1:1* (++1++) shows the image at 100 %, one image pixel per
+  screen pixel.
 - *Cells* colours the cells by a value instead, for instance their response, so that you see where the responders
   are. *Intensity* plays the intensity as a movie, or shows its projection.
 - *route* shows the visiting order of the hits in the `.rgn` files.
@@ -131,5 +134,7 @@ instance when new results arrive after *Apply*, it also keeps the frame, zoom an
 | ++arrow-left++ ++arrow-right++ | previous / next frame |
 | ++f++ | fit the image |
 | ++z++ | zoom to the selection (or the hits) |
+| ++1++ | show the image at 100 % |
+| ++o++ | show or hide the cell outlines |
 | ++l++ | switch between box and lasso selection |
 | ++esc++ | clear the selection |

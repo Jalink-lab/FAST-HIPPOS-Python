@@ -223,7 +223,11 @@ function prefetch() {
   if (L === OVERVIEW) request(frameKey({ L: null }, next), []);
   else for (const t of tilesInView(L, r.width, r.height, view)) request(frameKey(t, next), []);
 }
-function drawViewerSel() { const [x, w, h] = canvasSize(vsel); if (S.fillMetric && C[S.fillMetric]) renderOutlines(x, w, h, view, fillImage); renderOutlines(x, w, h, view); }
+function drawViewerSel() {
+  const [x, w, h] = canvasSize(vsel);
+  if (S.fillMetric && C[S.fillMetric]) renderOutlines(x, w, h, view, fillImage);
+  if (S.showOutl) renderOutlines(x, w, h, view);
+}
 function drawViewerHov() {
   const [x, w, h] = canvasSize(vhov);
   if (S.hover >= 0) { x.fillStyle = css("--hover"); for (const [px, py, sz] of cellBoundary(S.hover, w, h, view)) x.fillRect(px, py, Math.max(1, sz), Math.max(1, sz)); }
@@ -307,6 +311,7 @@ function zoomTo(ids) {
   const pad = Math.max(20, 0.15 * Math.max(x1 - x0, y1 - y0)); x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   const r = vwrap.getBoundingClientRect(); view.auto = false;
   const s = Math.min(32, Math.min(r.width / (x1 - x0), r.height / (y1 - y0)));
+  if (s <= fitScale() * 1.0001) { fitView(true, true); return; }  // cells all over the image: the whole image
   glideTo(s, r.width / 2 - (x0 + x1) / 2 * s, r.height / 2 - (y0 + y1) / 2 * s);
 }
 function imgCoords(ev) { const r = vwrap.getBoundingClientRect(); return [(ev.clientX - r.left - view.tx) / view.s, (ev.clientY - r.top - view.ty) / view.s]; }
@@ -343,12 +348,14 @@ function initViewer() {
   $("vzin").onclick = () => zc(1.4); $("vzout").onclick = () => zc(1 / 1.4); $("vfit").onclick = () => fitView(true, true);
   $("vzsel").onclick = () => zoomTo(S.sel.size ? [...S.sel] : HIT.map((h, i) => h ? i : -1).filter(i => i >= 0));
   $("outl").value = S.outl; $("outl").onchange = () => { S.outl = $("outl").value; outlinesChanged(); };
+  $("voutl").checked = S.showOutl; $("outl").disabled = !S.showOutl;
+  $("voutl").onchange = () => { S.showOutl = $("voutl").checked; $("outl").disabled = !S.showOutl; invalidate("viewerSel"); };
   $("isrc").onchange = () => { S.isrc = $("isrc").value; imageChanged(); };
   $("bright").oninput = () => { S.bright = Math.pow(10, +$("bright").value); imageChanged(); };
   $("vroute").checked = S.showRoute; $("vroute").onchange = () => { S.showRoute = $("vroute").checked; invalidate("viewerHov"); };
   const fm = $("vfill"); fm.add(new Option("lifetime image", "")); METRIC_KEYS.forEach(k => fm.add(new Option(k, k)));
   fm.onchange = () => { S.fillMetric = fm.value; fillsChanged(); };
-  $("vzoom").onclick = () => { const r = vwrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1 / viewTarget().s); };
+  $("v100").onclick = () => { const r = vwrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1 / viewTarget().s); };
   hitRGB = hexToRgb(css("--hit"));
   // when the size changes (window, full screen): refit, or keep the same spot in the middle when zoomed in
   let lastSize = null;

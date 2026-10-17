@@ -56,6 +56,8 @@ function initControls() {
     else if (e.key === "f") fitView(true, true);
     else if (e.key === "F") $("vfull").click();
     else if (e.key === "l") { S.tool = S.tool === "lasso" ? "rect" : "lasso"; setTool(S.tool); }
+    else if (e.key === "o") $("voutl").click();
+    else if (e.key === "1") $("v100").click();
   });
   updateTimeLabel();
 }
