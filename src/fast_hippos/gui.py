@@ -173,7 +173,8 @@ FIELDS: dict[str, dict] = {
     "screening.baseline_calibration_diff": {"label": "Gate: calibration − baseline", "widget": "pair", "enable": SCREEN,
         "help": "Valid cells only; empty = off"},
     "screening.max_baseline_deviation": {"label": "Gate: |baseline − population| ≤", "enable": SCREEN, "help": "Empty = off"},
-    "screening.response_window": {"label": "Response window (frames)", "enable": SCREEN, "help": "-1 = full response"},
+    "screening.response_window": {"label": "Response window (frames)", "enable": SCREEN, "help": "Empty = the whole response",
+        "placeholder": "whole response"},
     "screening.response_window_anchor": {"label": "Response window anchor", "enable": SCREEN, "choices": {
         "before_calibration": "before calibration", "after_stimulation": "after stimulation"}},
     "screening.response_window_margin": {"label": "Response window margin", "enable": SCREEN},
@@ -192,6 +193,9 @@ FIELDS: dict[str, dict] = {
     "screening.max_hits_per_rgn": {"label": "Hits per .rgn file", "enable": SCREEN},
     "screening.optimize_path": {"label": "Optimize the route", "enable": SCREEN},
     "screening.max_optimization_time": {"label": "Route optimization time (s per file)", "enable": SCREEN},
+    "screening.rgn_swap_xy": {"label": ".rgn: swap stage X and Y", "enable": SCREEN},
+    "screening.rgn_invert_x": {"label": ".rgn: invert X", "enable": SCREEN},
+    "screening.rgn_invert_y": {"label": ".rgn: invert Y", "enable": SCREEN},
 }
 
 # Shown when hovering over a setting in the interface: what it does and when to change it, in plain words. The short
@@ -358,7 +362,7 @@ TIPS: dict[str, str] = {
         "the population baseline can be hits. Removes outliers. In the unit of the measured value; the default "
         "0.2 ns is for lifetimes, for ratio and intensity data the gate starts off. Empty = off.",
     "screening.response_window": "Length (frames) of the part of the response used for the 'mean' response metrics. "
-        "-1 = the whole response, from stimulation to calibration.",
+        "Empty = the whole response, from stimulation to calibration.",
     "screening.response_window_anchor": "Where that window lies: at the start of the response (after the "
         "stimulation) or at its end (just before the calibration).",
     "screening.response_window_margin": "Frames skipped between the anchor and the window, e.g. to leave out the "
@@ -386,6 +390,15 @@ TIPS: dict[str, str] = {
         "shorter than always going to the nearest next hit).",
     "screening.max_optimization_time": "Time limit for optimizing the route of each .rgn file. Longer can give a "
         "slightly shorter route.",
+    "screening.rgn_swap_xy": "How the stage position of an image (X, Y, as LAS X stores it in the image metadata) is "
+        "turned into the coordinates of the .rgn file (the frame of the LAS X Navigator). On, the default: the .rgn X "
+        "comes from the stage Y and the .rgn Y from the stage X, as on the Leica Stellaris where this was validated. "
+        "Check it on your microscope: load a .rgn file in the Navigator and see whether the positions land on the "
+        "cells. A re-apply uses a changed setting.",
+    "screening.rgn_invert_x": "Negate the .rgn X (default on, Leica Stellaris): see '.rgn: swap stage X and Y'. "
+        "Change it when the positions in the Navigator are mirrored left-right.",
+    "screening.rgn_invert_y": "Negate the .rgn Y (default on, Leica Stellaris): see '.rgn: swap stage X and Y'. "
+        "Change it when the positions in the Navigator are mirrored top-bottom.",
 }
 
 FD = {"input.modality": ["fd_flim"]}
@@ -430,7 +443,8 @@ LAYOUT = [
          ("Additional channel", ["screening.additional_channel_metric", "screening.classification_threshold"]),
          ("Hit list", ["screening.sort_by", "screening.sort_descending", "screening.manual_hits"]),
          ("Stage positions and .rgn files", ["screening.stage_positions_file", "screening.n_tiles", "screening.tile_overlap", "screening.max_hits_per_rgn",
-                                             "screening.optimize_path", "screening.max_optimization_time"]),
+                                             "screening.optimize_path", "screening.max_optimization_time",
+                                             "screening.rgn_swap_xy", "screening.rgn_invert_x", "screening.rgn_invert_y"]),
          ("Testing", ["screening.random_hits", "screening.random_seed"]),
      ]},
     {"title": "Display and output", "basic": [],
@@ -463,8 +477,8 @@ ENABLE = {
     "screening.additional_channel_metric": {"input.additional_channel": {"set": True}},
     "screening.classification_threshold": {"input.additional_channel": {"set": True},
                                            "screening.classify_additional_channel": [True]},
-    "screening.response_window_anchor": {"screening.response_window": {"not": [-1]}},
-    "screening.response_window_margin": {"screening.response_window": {"not": [-1]}},
+    "screening.response_window_anchor": {"screening.response_window": {"set": True}},
+    "screening.response_window_margin": {"screening.response_window": {"set": True}},
     "screening.sort_descending": {"screening.sort_by": {"set": True}},
     "screening.random_seed": {"screening.random_hits": {"set": True}},
     "screening.max_optimization_time": {"screening.optimize_path": [True]},
@@ -487,7 +501,7 @@ REASONS = {  # why a condition on this field disables others
     "screening.random_hits": "replaced by random hits",
     "input.additional_channel": "needs an additional channel",
     "screening.classify_additional_channel": "classification is off",
-    "screening.response_window": "only for a timed response window (not -1)",
+    "screening.response_window": "only for a response window of a number of frames (not the whole response)",
     "screening.sort_by": "the hits are in cell order",
     "screening.optimize_path": "route optimization is off",
     "segmentation.classifier": "needs a nuclei classifier",

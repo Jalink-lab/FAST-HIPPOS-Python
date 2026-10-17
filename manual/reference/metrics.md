@@ -33,7 +33,7 @@ These are in `cells.tsv` and in the Cells table of the dashboard (and can be sho
 | `circularity` | 4π · area / perimeter²: 1 for a circle, lower for irregular shapes. |
 | `centroid_x, centroid_y` | Centre of the cell in the image (pixels). |
 | `pos_x_px, pos_y_px` | The position used for the hit: the centre of the cell, or of its nucleus with a nuclei classifier (pixels). |
-| `abs_x_m, abs_y_m` | That position as a stage position (metres), as written to the .rgn files: in the frame of the LAS X Navigator (see [Back to the microscope](../guide/microscope.md#where-the-stage-positions-come-from)). |
+| `abs_x_m, abs_y_m` | That position as a stage position (metres), as written to the .rgn files: in the frame of the LAS X Navigator (see [Back to the microscope](../guide/microscope.md#stage-coordinates-and-the-rgn-frame)). |
 | `class_additional` | 1 when the cell is positive for the additional channel (classification on), else 0. |
 | `valid` | The cell passes the quality gates. |
 | `hit` | The cell is a hit. |

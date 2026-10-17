@@ -149,7 +149,9 @@ let setWinMode = null, setAnchor = null, setSrc = null;
 function fillParams() {
   const p = SCR.params;
   fillEventInputs();
-  setWinMode(p.response_window < 0 ? "full" : "n"); $("rw").value = p.response_window < 0 ? 3 : p.response_window; $("rw").disabled = p.response_window < 0;
+  const full = !(p.response_window > 0);  // empty (or -1 in older runs): the whole response
+  if (full) p.response_window = null;
+  setWinMode(full ? "full" : "n"); $("rw").value = full ? 3 : p.response_window; $("rw").disabled = full;
   setAnchor(p.response_window_anchor); $("rm").value = p.response_window_margin;
   $("sm").value = p.smooth_traces; $("smv").textContent = p.smooth_traces ? `r = ${p.smooth_traces}` : "off";
   $("rf").value = p.rise_time_fraction; $("rfv").textContent = `${Math.round(p.rise_time_fraction * 100)} %`;
@@ -167,13 +169,13 @@ function initScreening() {
   const p = SCR.params, e = SCR.events, body = $("scrbody");
   if (!(D.screening.enabled || p.criteria.length)) { body.classList.add("closed"); $("scrtoggle").textContent = "▸"; }
   $("scrtoggle").onclick = () => { body.classList.toggle("closed"); $("scrtoggle").textContent = body.classList.contains("closed") ? "▸" : "▾"; updateScreenUI(); };
-  setWinMode = seg($("winmode"), "full", (v) => { $("rw").disabled = v === "full"; p.response_window = v === "full" ? -1 : Math.max(1, numOrNull($("rw")) ?? 3); scheduleRecompute(); });
+  setWinMode = seg($("winmode"), "full", (v) => { $("rw").disabled = v === "full"; p.response_window = v === "full" ? null : Math.max(1, numOrNull($("rw")) ?? 3); scheduleRecompute(); });
   setAnchor = seg($("anchor"), p.response_window_anchor, (v) => { p.response_window_anchor = v; scheduleRecompute(); });
   setSrc = seg($("hitsrc"), "criteria", (v) => { SCR.mode = v; if (v === "selection" && !SCR.manual.size) SCR.manual = new Set(S.sel); renderCriteria(); recompute(); });
   const readEvents = () => { e.stimulation = numOrNull($("evs")); e.calibration = numOrNull($("evc")); e.margin = numOrNull($("evm")) ?? 1; e.baseline_only = $("evb").checked; e.detected = false; eventsTouched = true; scheduleRecompute(); };
   ["evs", "evc", "evm"].forEach(id => $(id).oninput = readEvents); $("evb").onchange = readEvents;
   $("evauto").onclick = () => { Object.assign(e, structuredClone(D.screen.events)); eventsTouched = false; fillEventInputs(); recompute(); };
-  $("rw").oninput = () => { if (p.response_window >= 0) { p.response_window = Math.max(1, numOrNull($("rw")) ?? 3); scheduleRecompute(); } };
+  $("rw").oninput = () => { if (p.response_window > 0) { p.response_window = Math.max(1, numOrNull($("rw")) ?? 3); scheduleRecompute(); } };
   $("rm").oninput = () => { p.response_window_margin = Math.max(0, numOrNull($("rm")) ?? 0); scheduleRecompute(); };
   $("sm").oninput = () => { p.smooth_traces = +$("sm").value; $("smv").textContent = p.smooth_traces ? `r = ${p.smooth_traces}` : "off"; if (p.smooth_traces > 0) { S.tsrc = "smoothed"; $("tsrc").value = "smoothed"; } scheduleRecompute(); };
   $("rf").oninput = () => { p.rise_time_fraction = +$("rf").value; $("rfv").textContent = `${Math.round(p.rise_time_fraction * 100)} %`; scheduleRecompute(); };

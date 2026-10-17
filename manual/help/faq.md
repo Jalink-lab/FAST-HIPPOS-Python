@@ -43,6 +43,11 @@
     The images have no stage positions (the window warns about this). See
     [where the stage positions come from](../guide/microscope.md#where-the-stage-positions-come-from).
 
+??? question "The positions of the .rgn file don't land on the cells in the LAS X Navigator"
+    Microscopes differ in how their stage axes relate to the Navigator. Change *.rgn: swap stage X and Y*,
+    *.rgn: invert X* or *.rgn: invert Y* (*Screening → Advanced settings*) and click *Re-apply screening*; see
+    [stage coordinates and the .rgn frame](../guide/microscope.md#stage-coordinates-and-the-rgn-frame).
+
 ??? question "I changed the criteria in the dashboard, but the .rgn files did not change"
     Changes in a dashboard only affect that page until you click *Apply to all images*, or save the hits with
     *Hits → .rgn*. The Apply buttons only appear in dashboards opened from the FAST-HIPPOS window.

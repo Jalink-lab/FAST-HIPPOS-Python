@@ -82,3 +82,42 @@ def test_a_run_writes_its_settings_file_and_no_empty_previous_run(tmp_path):
     s.segmentation.diameter = 18
     run(s)
     assert Settings.from_toml(out / "fast_hippos_settings.toml").segmentation.method == "threshold"
+
+
+def test_rgn_axes_are_settings():
+    xy, st, tile = np.array([[10.0, 20.0]]), np.array([0.001, 0.002]), (0.0002, 0.0001)
+    off = np.array([10.0, 20.0]) * 1e-6  # 1 µm pixels
+    default = stage.absolute_positions(xy, st, tile, 1.0)
+    assert default[0] == pytest.approx([-0.002 - 0.0001 + off[0], -0.001 - 0.00005 + off[1]])  # Stellaris
+    plain = stage.absolute_positions(xy, st, tile, 1.0, swap_xy=False, invert_x=False, invert_y=False)
+    assert plain[0] == pytest.approx([0.001 - 0.0001 + off[0], 0.002 - 0.00005 + off[1]])
+
+
+def test_reapply_uses_changed_rgn_axes(tmp_path):
+    from fast_hippos.pipeline import run
+    from fast_hippos.synthetic import make_timelapse, save_tiff
+
+    image, _ = make_timelapse(size=96, n_frames=30, seed=3)
+    s = Settings()
+    s.input.files = [save_tiff(image, tmp_path / "im.tif")]
+    s.input.output = tmp_path / "out"
+    s.segmentation.method = "threshold"
+    s.segmentation.diameter = 18
+    s.screening.enabled = True
+    s.screening.stage_positions_file = tmp_path / "pos.txt"
+    s.screening.stage_positions_file.write_text("0.001 0.002\n")
+    a = run(s)[0].cells[["abs_x_m", "abs_y_m"]].to_numpy()
+    s.screening.rgn_swap_xy = False
+    b = run(s, reapply=True)[0].cells[["abs_x_m", "abs_y_m"]].to_numpy()
+    assert np.nanmean(a[:, 0]) < -0.0015 and np.nanmean(b[:, 0]) < -0.0005 and np.nanmean(b[:, 0]) > -0.0015
+
+
+def test_empty_response_window_is_the_whole_response():
+    from fast_hippos.events import Events
+    from fast_hippos.screening import timed_window
+
+    assert Settings().screening.response_window is None
+    old = Settings.from_dict({"screening": {"response_window": -1}, "image": {"a": {"screening": {"response_window": -1}}}})
+    assert old.screening.response_window is None and old.image["a"]["screening"]["response_window"] is None
+    ev = Events(30, 5, 25)
+    assert timed_window(ev, Settings().screening) == ev.response

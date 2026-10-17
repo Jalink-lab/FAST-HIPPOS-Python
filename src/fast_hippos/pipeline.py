@@ -303,6 +303,8 @@ def _describe_own(own: dict) -> str:
     no_cal = bool(own.get("events", {}).get("no_calibration"))
     def value(k, v):
         if v is None:
+            if k == "response_window":
+                return "full"
             return "none" if k == "calibration_frame" and no_cal else "automatic"
         return OWN_VALUES.get(v, v) if isinstance(v, (bool, str)) else v
     return ", ".join(f"{OWN_NAMES.get(k, k)} {value(k, v)}" for section in own.values() for k, v in section.items())
@@ -456,11 +458,7 @@ def process_image(
         "pos_x_px": positions[:, 0], "pos_y_px": positions[:, 1],
         **{c: stats[c].to_numpy() for c in ("bbox_x0", "bbox_y0", "bbox_x1", "bbox_y1")},
     })
-    if result.stage_xy is not None:
-        absolute = stage.absolute_positions(positions, np.asarray(result.stage_xy), result.tile_size, pixel_size)
-        base["abs_x_m"], base["abs_y_m"] = absolute[:, 0], absolute[:, 1]
-    else:
-        base["abs_x_m"] = base["abs_y_m"] = np.nan
+    base["abs_x_m"] = base["abs_y_m"] = np.nan  # filled in by analyze (stage_to_rgn)
     result.base = base
 
     analyze(result, settings)
@@ -522,6 +520,19 @@ def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.nda
     result.tiles = [(-p[1] - w / 2, -p[0] - h / 2, w, h) for p in positions]
 
 
+def stage_to_rgn(result: ImageResult, sc) -> None:
+    """The stage positions of the cells (abs_x_m, abs_y_m, the coordinates of the .rgn files), from their pixel
+    positions and the stage position of the image, with the axis convention of the settings."""
+    base = result.base
+    if result.stage_xy is None or result.tile_size is None or "pos_x_px" not in base:
+        base["abs_x_m"] = base["abs_y_m"] = np.nan
+        return
+    xy = base[["pos_x_px", "pos_y_px"]].to_numpy(dtype=float)
+    absolute = stage.absolute_positions(xy, np.asarray(result.stage_xy), result.tile_size, result.pixel_size,
+                                        sc.rgn_swap_xy, sc.rgn_invert_x, sc.rgn_invert_y)
+    base["abs_x_m"], base["abs_y_m"] = absolute[:, 0], absolute[:, 1]
+
+
 def analyze(result: ImageResult, settings: Settings) -> None:
     """Events, sorting, metrics, classification and hits (cheap; re-run by `reapply`), with the image's own settings
     where it has them (Settings.image)."""
@@ -529,6 +540,7 @@ def analyze(result: ImageResult, settings: Settings) -> None:
         log.info("Own settings of this image: %s", _describe_own(settings.image[result.name]))
     settings = settings.for_image(result.name)
     sc = settings.screening
+    stage_to_rgn(result, sc)
     result.kymo_smoothed = kymograph.smooth_time(result.kymo, settings.display.smooth_traces)
     ev = events.determine(kymograph.population_mean(result.kymo), settings.events, result.kymo)
     result.events = ev

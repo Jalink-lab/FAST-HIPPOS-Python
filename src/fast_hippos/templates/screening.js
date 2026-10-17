@@ -22,7 +22,7 @@ const FHScreen = (() => {
 
   function timedWindow(resp, p) {
     const [r0, r1] = resp, w = p.response_window, m = p.response_window_margin;
-    if (r1 <= r0 || w < 0) return [r0, r1];
+    if (r1 <= r0 || w === null || w === undefined || w <= 0) return [r0, r1];  // empty: the whole response
     if (p.response_window_anchor === "after_stimulation") { const a = Math.min(r0 + m, r1); return [a, Math.min(a + w, r1)]; }
     const b = Math.max(r1 - m, r0); return [Math.max(b - w, r0), b];
   }

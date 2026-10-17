@@ -263,7 +263,7 @@ function cpStatus() {
 // ---------------------------------------------------------------- widgets
 function widget(f) {
   const v = get(f.key), id = "f_" + f.key.replace(".", "_");
-  const num = (step) => `<input id="${id}" type="number" step="${step}" value="${v ?? ""}" placeholder="${f.optional ? "—" : ""}" data-num="${step === "1" ? "int" : "float"}">`;
+  const num = (step) => `<input id="${id}" type="number" step="${step}" value="${v ?? ""}" placeholder="${esc(f.placeholder || (f.optional ? "—" : ""))}" data-num="${step === "1" ? "int" : "float"}">`;
   switch (f.kind) {
     case "bool": return `<input id="${id}" type="checkbox" ${v ? "checked" : ""}>`;
     case "int": return num("1");
@@ -692,7 +692,7 @@ const OWN_LABELS = { stimulation_frame: "stimulation", calibration_frame: "calib
 const OWN_VALUES = { after_stimulation: "after S", before_calibration: "before C" };
 function ownText(own) {
   const noCal = !!(own.events && own.events.no_calibration);
-  const val = (k, v) => v === null || v === "" ? (k === "calibration_frame" && noCal ? "none" : "automatic") : v === true ? "yes" : v === false ? "no" : OWN_VALUES[v] || v;
+  const val = (k, v) => k === "response_window" && !(v > 0) ? "full" : v === null || v === "" ? (k === "calibration_frame" && noCal ? "none" : "automatic") : v === true ? "yes" : v === false ? "no" : OWN_VALUES[v] || v;
   return Object.values(own).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_LABELS[k] || k} ${val(k, v)}`)).join(", ");
 }
 // the own settings of single images of the run in a newly chosen output folder: taken over when this window has

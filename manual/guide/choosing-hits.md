@@ -34,8 +34,9 @@ The plot shows the average trace of all cells, with the baseline (blue), the res
 - **margin**: frames left out before each transition, so that a stimulus halfway through a frame doesn't count as
   baseline.
 - **response window**: the frames whose average is the *mean response* (`response_mean_diff` and
-  `response_mean_abs`). *full* uses the whole response; *frames* uses a number of frames, counted *after S* (the
-  early response) or *before C* (the late response), with an optional margin.
+  `response_mean_abs`). *full* uses the whole response (in the window and in settings files: an empty *Response
+  window*); *frames* uses a number of frames, counted *after S* (the early response) or *before C* (the late
+  response), with an optional margin.
 - **smoothing** smooths the traces over time, for noisy data. **rise** is the fraction of the maximal response that
   defines the rise time (`rise_time_frames`).
 

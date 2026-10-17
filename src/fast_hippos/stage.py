@@ -1,11 +1,13 @@
 """Stage geometry: tile layout, absolute cell positions, hit path optimization and Leica .rgn files.
 
 Stage positions are (n, 2) arrays of (X, Y) in metres, as read from the .lif metadata.
-Conversion to the coordinate frame of the .rgn file swaps and negates the axes (as in the Fiji macro,
-validated on the Leica Stellaris stage):
+Conversion to the coordinate frame of the .rgn file (the LAS X Navigator) swaps and negates the axes by default (as in
+the Fiji macro, validated on a Leica Stellaris stage):
 
     abs_x = -stage_Y - tile_width/2  + x_px * pixel_size
     abs_y = -stage_X - tile_height/2 + y_px * pixel_size
+
+Other microscopes may need another swap or sign (settings screening.rgn_swap_xy, rgn_invert_x, rgn_invert_y).
 """
 
 from __future__ import annotations
@@ -124,11 +126,14 @@ def tile_size_from_image(width: int, height: int, pixel_size_um: float, n_tiles:
     return w, h
 
 
-def absolute_positions(xy_px: np.ndarray, stage_xy: np.ndarray, tile_size, pixel_size_um: float) -> np.ndarray:
-    """(n, 2) pixel positions (x, y) within a tile/image -> (n, 2) absolute .rgn coordinates in m."""
+def absolute_positions(xy_px: np.ndarray, stage_xy: np.ndarray, tile_size, pixel_size_um: float, swap_xy: bool = True,
+                       invert_x: bool = True, invert_y: bool = True) -> np.ndarray:
+    """(n, 2) pixel positions (x, y) within a tile/image -> (n, 2) absolute .rgn coordinates in m. The stage position
+    (X, Y) of the image is first put in the .rgn frame: swapped (Y, X) and/or negated, as the microscope needs."""
     w, h = tile_size
-    abs_x = -stage_xy[1] - w / 2 + xy_px[:, 0] * pixel_size_um * 1e-6
-    abs_y = -stage_xy[0] - h / 2 + xy_px[:, 1] * pixel_size_um * 1e-6
+    sx, sy = (stage_xy[1], stage_xy[0]) if swap_xy else (stage_xy[0], stage_xy[1])
+    abs_x = (-sx if invert_x else sx) - w / 2 + xy_px[:, 0] * pixel_size_um * 1e-6
+    abs_y = (-sy if invert_y else sy) - h / 2 + xy_px[:, 1] * pixel_size_um * 1e-6
     return np.column_stack([abs_x, abs_y])
 
 

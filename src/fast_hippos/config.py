@@ -147,7 +147,7 @@ class ScreeningSettings:
     logic: str = "OR"  # "OR" or "AND"
     criteria: list[Criterion] = field(default_factory=list)
     # timed response window (for response_mean_abs / response_mean_diff / response_fraction)
-    response_window: int = -1  # frames; -1 = full response
+    response_window: int | None = None  # frames; None (empty) = the whole response (-1 in older settings files)
     response_window_anchor: str = "before_calibration"  # or "after_stimulation"
     response_window_margin: int = 0
     # validity gates (None = off)
@@ -168,6 +168,10 @@ class ScreeningSettings:
     sort_descending: bool = True
     # stage positions
     stage_positions_file: Path | None = None  # text file: x0, y0, x1, y1, ... (m), or a .lif file
+    # stage position (X, Y) -> .rgn frame (LAS X Navigator): by default X_rgn = -Y_stage, Y_rgn = -X_stage (Stellaris)
+    rgn_swap_xy: bool = True
+    rgn_invert_x: bool = True
+    rgn_invert_y: bool = True
     n_tiles: tuple[int, int] | None = None  # (nx, ny); overruled by stitched metadata
     tile_overlap: float = 0.0  # percent; overruled by stitched metadata
     # output
@@ -263,6 +267,13 @@ def _gates_for_image_type(settings: Settings, data: dict) -> Settings:
         for k in GATES:
             if k not in given:
                 setattr(settings.screening, k, None)
+    # the whole response window was -1 in older settings files; it is empty now
+    if settings.screening.response_window is not None and settings.screening.response_window <= 0:
+        settings.screening.response_window = None
+    for own in settings.image.values():
+        w = own.get("screening", {}).get("response_window")
+        if w is not None and w <= 0:
+            own["screening"]["response_window"] = None
     return settings
 
 

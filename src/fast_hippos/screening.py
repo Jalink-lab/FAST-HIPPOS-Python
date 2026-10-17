@@ -26,7 +26,7 @@ def timed_window(events: Events, settings: ScreeningSettings) -> slice:
     """Sub-window of the response used for the 'mean' response metrics."""
     r0, r1 = events.response.start, events.response.stop
     w, m = settings.response_window, settings.response_window_margin
-    if r1 <= r0 or w < 0:
+    if r1 <= r0 or w is None or w <= 0:  # empty: the whole response
         return slice(r0, r1)
     if settings.response_window_anchor == "after_stimulation":
         a = min(r0 + m, r1)

@@ -63,7 +63,7 @@ sensitivity = 5.0                     # detection threshold in noise sigmas of t
 enabled = false
 logic = "OR"                          # default for criteria without their own 'logic'
 # manual_hits = "hits.tsv"            # hand-picked hits (columns: image, cell) instead of the criteria
-response_window = -1                  # frames for the 'mean' response metrics; -1 = full response
+response_window = ""                  # frames for the 'mean' response metrics; empty = the whole response
 response_window_anchor = "before_calibration"   # or after_stimulation
 response_window_margin = 0
 baseline_calibration_diff = [0.5, 1.0]          # gate: calibration - baseline (ns); [] = off

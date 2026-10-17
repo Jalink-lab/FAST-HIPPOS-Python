@@ -49,7 +49,7 @@ function screeningToml() {
   if (eventsTouched) { const t = timingSettings(); L.push("[events]", ...Object.entries(t).map(([k, v]) => `${k} = ${tomlValue(v)}`), ""); }
   else L.push("# [events] unchanged: the automatic or manual frames of each image are kept", "");
   L.push("[display]", `smooth_traces = ${p.smooth_traces}`, "", "[screening]", "enabled = true", `logic = ${tomlValue(p.logic)}`,
-    `response_window = ${p.response_window}`, `response_window_anchor = ${tomlValue(p.response_window_anchor)}`, `response_window_margin = ${p.response_window_margin}`,
+    `response_window = ${tomlValue(p.response_window)}`, `response_window_anchor = ${tomlValue(p.response_window_anchor)}`, `response_window_margin = ${p.response_window_margin}`,
     `baseline_calibration_diff = ${p.baseline_calibration_diff ? tomlValue(p.baseline_calibration_diff) : "[]"}`,
     `max_baseline_deviation = ${tomlValue(p.max_baseline_deviation)}`, `rise_time_fraction = ${p.rise_time_fraction}`,
     `additional_channel_metric = ${tomlValue(p.additional_channel_metric)}`, `classify_additional_channel = ${p.classify_additional_channel}`,
@@ -86,7 +86,7 @@ const OWN_NAMES = { stimulation_frame: "stimulation frame", calibration_frame: "
 const OWN_VALUES = { after_stimulation: "after S", before_calibration: "before C" };
 const ownValue = (v) => (v === null || v === undefined || v === "" ? "automatic" : v === true ? "yes" : v === false ? "no" : OWN_VALUES[v] || v);
 const describeOwn = (own) => Object.values(own || {}).flatMap(sec => Object.entries(sec).map(([k, v]) =>
-  `${OWN_NAMES[k] || k} ${k === "calibration_frame" && v === null && own.events && own.events.no_calibration ? "none" : ownValue(v)}`));
+  `${OWN_NAMES[k] || k} ${k === "response_window" && !(v > 0) ? "full" : k === "calibration_frame" && v === null && own.events && own.events.no_calibration ? "none" : ownValue(v)}`));
 // this image's own settings after applying: the ones it had, with the timing set here (if changed) and a response window
 // that differs from the one this dashboard started with
 function ownSettings() {

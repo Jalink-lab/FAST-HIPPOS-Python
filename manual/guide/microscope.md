@@ -51,11 +51,25 @@ images); or the `.lif` file with the positions (used only for images without pos
 Images without stage positions are still analyzed and screened, but their hits get no `.rgn` file; the window warns
 about this before the run. A stage positions file is only read by *Run analysis*, not by *Re-apply screening*.
 
-!!! info "Stage coordinates"
-    The positions file holds the stage X and Y as LAS X stores them in the image metadata (the same as Bio-Formats
-    shows). The positions in the `.rgn` files and in the tables (`abs_x_m`, `abs_y_m`, in metres) are in the frame of
-    the LAS X Navigator, measured to the cell: X = −stage Y, Y = −stage X. So don't be surprised that they look
-    swapped and negative.
+### Stage coordinates and the .rgn frame
+
+The positions file holds the stage X and Y as LAS X stores them in the image metadata (the same as Bio-Formats
+shows). The positions in the `.rgn` files and in the tables (`abs_x_m`, `abs_y_m`, in metres) are in the frame of the
+LAS X Navigator, measured to the cell. By default, the .rgn X is the negative stage Y, and the .rgn Y the negative
+stage X, as on the Leica Stellaris where this was validated. So don't be surprised that they look swapped and
+negative.
+
+Microscopes, even of the same type, can differ in this. **Check it once on your microscope**: load a `.rgn` file in
+the Navigator and see whether the positions land on the cells. If they don't, change the settings under *Screening →
+Advanced settings → Stage positions and .rgn files*:
+
+| Setting | Change it when the positions in the Navigator are |
+|---|---|
+| *.rgn: swap stage X and Y* | rotated by 90°, or mirrored along the diagonal |
+| *.rgn: invert X* | mirrored left–right |
+| *.rgn: invert Y* | mirrored top–bottom |
+
+*Re-apply screening* uses changed settings: the `.rgn` files are written again, without a new segmentation.
 
 !!! tip "Hit positions on the nucleus"
     By default a hit position is the centre of the cell. With a *Nuclei classifier* (*Cell segmentation → Advanced*),
