@@ -105,7 +105,9 @@ main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-con
 .checks { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 4px; }
 .checks li { display: flex; gap: 7px; } .checks .i { width: 16px; text-align: center; }
 .checks .err { color: var(--err); } .checks .warn { color: var(--warn); } .checks .ok { color: var(--ok); }
-.checks .info { color: var(--muted); }
+.checks .info { color: var(--muted); } .checks .busy { color: var(--accent); }
+.checks .busy .i::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line);
+  border-top-color: var(--accent); animation: spin .9s linear infinite; vertical-align: -1px; }
 .runbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .state { font-weight: 600; } .state.running { color: var(--accent); } .state.done { color: var(--ok); } .state.failed, .state.stopped { color: var(--err); }
 .progress { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin: 6px 0 10px; }
@@ -411,15 +413,20 @@ function renderResults() {
 
 // ---------------------------------------------------------------- checks before running
 // the same checks of the settings against the images as at the start of a run (server side, metadata only)
-const SRV = { key: "", problems: [] };
+// inputs: the images and the output folder; while their check is not back yet, the page waits (see busy())
+const SRV = { key: "", problems: [], inputs: null, checkedInputs: null };
+const inputsKey = () => JSON.stringify([S.input.files, S.input.series, S.input.output, S.screening.stage_positions_file]);
 function serverCheck() {
   const key = JSON.stringify(S); if (key === SRV.key) return;
-  SRV.key = key; clearTimeout(serverCheck.t);
+  SRV.key = key; SRV.inputs = inputsKey(); clearTimeout(serverCheck.t);
+  const inputs = SRV.inputs;
   serverCheck.t = setTimeout(async () => {
     let problems; try { problems = (await api("check", { settings: S })).problems; } catch (e) { problems = [e.message]; }
-    if (SRV.key === key) { SRV.problems = problems; renderChecks(); }
+    if (SRV.key === key) { SRV.problems = problems; SRV.checkedInputs = inputs; renderChecks(); }
   }, 350);
 }
+// still reading the output folder, or checking images / output folder that were just chosen
+function busy() { return (!!S.input.output && outputState() === null) || SRV.checkedInputs !== inputsKey(); }
 function checks() {
   const out = [], ff = fileFacts(), add = (level, msg, input = false) => out.push([level, msg, input]);
   serverCheck();
@@ -443,23 +450,27 @@ function checks() {
     if (S.screening.classify_additional_channel && !S.input.additional_channel) add("warn", "Classification needs an additional channel");
     if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
   }
-  if (!out.some(c => c[0] !== "info")) add("ok", "Ready to run");
+  if (busy()) add("busy", "Reading the output folder and checking the images… (Run analysis waits until this is done)");
+  else if (!out.some(c => c[0] !== "info")) add("ok", "Ready to run");
   return out;
 }
 function renderChecks() {
-  const cs = checks(), icon = { err: "✕", warn: "!", ok: "✓", info: "i" };
+  const cs = checks(), icon = { err: "✕", warn: "!", ok: "✓", info: "i", busy: "" };
   $("checks").innerHTML = cs.map(([l, m]) => `<li class="${l}"><span class="i">${icon[l]}</span><span>${esc(m)}</span></li>`).join("");
   const blocked = cs.some(c => c[0] === "err") || JOB.state === "running", o = outputState();
   // re-applying uses the saved results, not the images: only problems with the other settings block it
   const blockedReapply = cs.some(c => c[0] === "err" && !c[2]) || JOB.state === "running";
-  const imgs = runImages(o);
-  $("bRun").disabled = blocked; $("bReapply").disabled = blockedReapply || !imgs.length;
+  const imgs = runImages(o), wait = busy();
+  $("bRun").disabled = blocked || wait; $("bReapply").disabled = blockedReapply || !imgs.length || wait;
+  $("bRun").title = wait ? "Wait: the output folder is being read and the images are being checked"
+    : "Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.";
   $("bReapply").textContent = imgs.length ? `↻ Re-apply screening (${plural(imgs.length, "image")})` : "↻ Re-apply screening";
   $("bReapply").title = imgs.length ? `Redo stimulation detection, screening and dashboards for the ${plural(imgs.length, "image")} of the run in the `
     + `output folder (${imgs.map(i => i.name).join(", ")}), with the stimulation, screening and display settings of this window. `
     + "Segmentation and traces of that run are kept (seconds instead of minutes). Overlay smoothing, dashboard size and tiles "
     + "and the stage positions file only change with a new run."
     : "Needs the results of a run in the output folder";
+  if (wait) $("bReapply").title = "Wait: the output folder is being read";
 }
 
 // ---------------------------------------------------------------- events
