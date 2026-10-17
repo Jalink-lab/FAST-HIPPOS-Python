@@ -75,7 +75,7 @@ function sharedRange(ks, m, log) {
 function drawMetric() {
   const ks = shown(), m = S.metric, dist = S.cmode === "dist";
   $("myl").style.display = dist ? "none" : ""; $("logyl").style.display = dist ? "none" : "";
-  $("mxl").textContent = dist ? "value" : "x";
+  $("mxl").textContent = dist ? "value" : "x"; $("logxl").textContent = dist ? "log" : "log x";
   $("mstack").style.height = (dist ? Math.max(220, ks.length * ROW_H + 50) : 340) + "px";
   MP.m.l = dist ? 150 : 56; MP.logx = S.logx; MP.logy = dist ? false : S.logy;
   MP.resize(); const ctx = MP.clear(0); MP.clear(1);
