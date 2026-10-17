@@ -98,14 +98,27 @@ of all cells. You can always correct them later, in the dashboard.
 </figure>
 
 1. Tick **Screen for hits**.
-2. Click **+ criterion**, choose `response_mean_diff`, **<** and **0.6**. `response_mean_diff` is the average rise of
-   the lifetime after the stimulation, compared with the cell's own baseline (hover over the name for its meaning).
-   Cells that rise less than 0.6 ns become hits. Don't worry about the exact value: you will
-   [fine-tune it in the dashboard](../guide/choosing-hits.md), while you watch the hits change.
-3. Tick **Classify cells on the additional channel**: the cells are split into marker-positive and negative cells.
+2. Click **+ criterion** twice, and set the two criteria (both **AND**: a hit must meet both):
+    - `response_max_abs` **<** **3.1**: the highest lifetime of the cell after the isoproterenol stays below 3.1 ns.
+      Wild-type cells saturate the sensor at about 3.25 ns; cells that stay lower respond weakly.
+    - `baseline_mean` **between** **2.0** and **2.7**: a normal baseline, which leaves out odd cells.
 
-For this example, the images have no stage positions of their own, so open *Advanced settings* of the Screening card
-and choose `stage_positions.txt` as *Stage positions file*. With your own LAS X data this is not needed.
+    Hover over a name for its meaning. Don't worry about the exact values: you will
+    [fine-tune them in the dashboard](../guide/choosing-hits.md), while you watch the hits change.
+3. Tick **Classify cells on the additional channel**: the cells are split into marker-positive and negative cells.
+4. Open *Advanced settings* of the Screening card. Under *Quality gates*, set *Gate: calibration − baseline* to
+   **0.5** and **1.2**: every hit must still respond to the forskolin calibration, so that it has a working sensor.
+   Empty *Gate: \|baseline − population\| ≤*: this gate is then off (the baseline criterion does its job).
+
+A cell is a hit when it meets the criteria **and** passes the quality gates; see
+[Choosing the hits](../guide/choosing-hits.md).
+
+For this example, the images have no stage positions of their own, so also choose `stage_positions.txt` as *Stage
+positions file* (under *Stage positions and .rgn files*). With your own LAS X data this is not needed.
+
+!!! tip "The dashboard views of this example"
+    `example_settings.toml` also sets how the dashboards start (*Display and output → Advanced settings → Dashboard
+    views*): every trace as a line, and a scatter plot of the marker intensity (log scale) against the lifetime.
 
 ## 6. Run
 
@@ -118,7 +131,8 @@ in red and disable the button; warnings in orange point out surprises. When it s
 **▶ Run analysis**.
 
 The log shows what happens per image: the number of cells, the frames where the stimulation and calibration were
-found, the number of hits. With a GPU this takes about a minute for the three images.
+found, the number of hits. With a GPU this takes about a minute for the three images. The very first time, Cellpose
+first downloads its model (internet needed), which adds a minute.
 
 When it is done, the buttons under *Results in the output folder* open the results:
 
@@ -131,8 +145,8 @@ Open the dashboard of `example_screen_1`.
 
 <figure markdown>
 ![The dashboard](../images/dashboard_views.png){ .shot }
-<figcaption>The 13 hits of example_screen_1 are outlined in pink. Their median trace (pink) rises much less than that
-of the other cells (grey).</figcaption>
+<figcaption>The 24 hits of example_screen_1 are outlined in pink. Their traces (pink) rise much less after the
+isoproterenol than those of the other cells (grey), but do respond to the forskolin calibration.</figcaption>
 </figure>
 
 Things to try:
@@ -141,14 +155,25 @@ Things to try:
   down shows its trace and why it is, or is not, a hit.
 - Click **Select hits** and then **Zoom to selection**.
 - Press ++space++ to play the time-lapse.
-- In the *Screening* pane at the top, drag the threshold of the criterion (the black marker on the histogram): the
-  hits change at once, everywhere.
+- In the *Screening* pane at the top, drag the threshold of a criterion (the black marker on its
+  histogram): the hits change at once, everywhere.
+- Go to frame 15 and look at the *Scatter* plot: the hits (pink) are the cells with a bright marker and a low
+  lifetime.
 
-Then open the overview, to compare the three images and see where the hits are.
+<figure markdown>
+![The scatter plot at frame 15](../images/dash_scatter.png){ .shot width="520" }
+<figcaption>Frame 15: marker intensity (log scale) against lifetime. Most hits (pink) carry the marker of the
+knock-out cells.</figcaption>
+</figure>
+
+Then open the overview, to compare the three images and see where the hits are. Of the 75 hits of the run, 64
+carry the marker: they are indeed knock-out cells. The other marker-positive cells are knock-out cells that still
+respond (the knock-out is polyclonal, so not every cell lost the receptor completely).
 
 ## 8. To the microscope
 
-The output folder now holds `HITS_example_run_1-29.rgn`: the stage positions of the 29 hits, in an efficient
+The output folder now holds `HITS_example_run_1-75.rgn`: the stage positions of the 75 hits (24, 28 and 23 in the
+three images), in an efficient
 visiting order. Load it in the LAS X Navigator (right-click → *Load regions*) to revisit the cells; see
 [back to the microscope](../guide/microscope.md).
 

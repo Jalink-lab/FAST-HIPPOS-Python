@@ -24,8 +24,8 @@ look at them.
 
 <figure markdown>
 ![The dashboard of an image](images/dashboard_views.png){ .shot }
-<figcaption>The dashboard of one image: 675 cells, coloured by their lifetime. The 13 hits (outlined in pink) are the
-cells that barely respond to the stimulation; their median trace is the pink curve.</figcaption>
+<figcaption>The dashboard of one image: 675 cells, coloured by their lifetime. The 24 hits (outlined in pink) are the
+cells that barely respond to the stimulation; their traces are pink.</figcaption>
 </figure>
 
 ## How it works

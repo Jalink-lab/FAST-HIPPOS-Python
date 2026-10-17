@@ -122,6 +122,14 @@ def _dashboard_template() -> str:
     return _bundle("dashboard", ["style.css"], DASHBOARD_JS)
 
 
+SCATTER_AT_FRAME = {"value_at_frame": "@value", "additional_at_frame": "@additional"}
+
+
+def _axis(name: str) -> str:
+    """A scatter axis of the settings as the dashboard names it (value_at_frame -> @value)."""
+    return SCATTER_AT_FRAME.get(name, name)
+
+
 def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> dict:
     ev = result.events
     sc = settings.screening
@@ -145,7 +153,11 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
         "pixel_size": result.pixel_size,
         "image_size": [w, h],
         "display": {"min": dmin, "max": dmax, "lut": settings.display.lut if settings.display.lut in LUTS else "turbo",
-                    "bins": settings.display.histogram_bins},
+                    "bins": settings.display.histogram_bins,
+                    # how the views start: the trace view, the axes of the scatter plot
+                    "traces": settings.display.traces_view,
+                    "sx": _axis(settings.display.scatter_x), "sy": _axis(settings.display.scatter_y),
+                    "slogx": settings.display.scatter_log_x, "slogy": settings.display.scatter_log_y},
         "smooth_traces": settings.display.smooth_traces,
         "viewer": {
             "factor": viewer.factor,

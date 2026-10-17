@@ -79,10 +79,13 @@ def dashboard_shots(page: Page, base: str, out: Path, want) -> None:
     for name, title in (("dash_image", "Image"), ("dash_traces", "Traces"), ("dash_kymograph", "Kymograph"),
                         ("dash_distribution", "Distribution"), ("dash_scatter", "Scatter"), ("dash_cells", "Cells")):
         if want(name):
+            # the distribution and the scatter plot during the response, where the low responders stand apart
+            page.evaluate(f"setFrame({15 if name in ('dash_distribution', 'dash_scatter') else 0})")
             p = panel(page, title)
             p.scroll_into_view_if_needed()
             page.wait_for_timeout(500)
             save(p, name)
+    page.evaluate("setFrame(0)")
     if want("dash_cell"):  # the cell card of a hit, as when the mouse is over it
         page.mouse.move(0, 0)
         page.evaluate("$('selhits').click(); const i = [...S.sel][0]; $('clearsel').click(); setHover(i)")

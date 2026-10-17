@@ -1,7 +1,6 @@
-"""The live demo of the manual: the overview and the dashboards of the example run, copied into manual/demo (not in
-git, ~25 MB) and zipped as manual-demo.zip for the release with the example data, from which the site build takes it.
-Run the example with small dashboards and without tiles (demo/example.toml: dashboard_max_size = 700,
-dashboard_tiles = false).
+"""The live demo of the manual: the overview and the dashboards of the example run (example.toml), copied into
+manual/demo (not in git, ~75 MB) and zipped as manual-demo.zip for the release with the example data, from which the
+site build takes it. The example images (1000 x 700 px) fit in the dashboards at full resolution, without tiles.
 
     python tools/manual/make_demo.py <output folder of the demo run> [zip file]
 """

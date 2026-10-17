@@ -6,10 +6,11 @@ hide: [navigation, toc]
 
 These are the real results of the [example analysis](first-analysis.md): the overview of the run and the dashboards
 of its three images, exactly as FAST-HIPPOS writes them. They run completely in your browser; nothing is installed or
-uploaded. (For a quick download, the images in the dashboards have a lower resolution than in a normal run.)
+uploaded. Each dashboard holds the full images (about 25 MB), so it may take a few seconds to load.
 
 The experiment: Cos7 cells with the cAMP sensor EpacH250, with about 5 % ADRB2 knock-out cells among them, are
 stimulated with isoproterenol; the hits are the cells that hardly respond, i.e. most likely the knock-out cells.
+Go to frame 15 in a dashboard and look at the scatter plot: most hits carry the marker of the knock-out cells.
 See [what the experiment is about](first-analysis.md#what-the-experiment-is-about).
 
 === "Overview of the run"

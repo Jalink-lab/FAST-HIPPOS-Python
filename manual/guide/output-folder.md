@@ -9,9 +9,9 @@ run**: the images analyzed together, with one combined hit list.
 example_run/
 ├── index.html                 the run overview
 ├── HITS_example_run.rgn       stage positions of all hits
-├── HITS_example_run_1-29.rgn  … in files of at most 1000 positions, each with its route
+├── HITS_example_run_1-75.rgn  … in files of at most 1000 positions, each with its route
 ├── hits.tsv                   the hit list
-├── hits_1-29.tsv              … per .rgn file, in visiting order
+├── hits_1-75.tsv              … per .rgn file, in visiting order
 ├── cell_coordinates.tsv       positions of all cells
 ├── run_summary.tsv            the images table of the overview
 ├── run_log.txt                the log

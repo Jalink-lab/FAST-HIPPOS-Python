@@ -108,6 +108,12 @@ class DisplaySettings:
     dashboard_tiles: bool = True  # larger images: full-resolution tiles loaded on zoom (folder 'tiles')
     save_png_plots: bool = True
     save_tables: bool = True  # per-frame trace tables (TSV)
+    # how the dashboards start (each dashboard remembers what is changed in it)
+    traces_view: str = "auto"  # auto (lines up to 300 cells, else bands), lines, bands, density
+    scatter_x: str = "mean_intensity"  # a cell value, or value_at_frame / additional_at_frame
+    scatter_log_x: bool = False
+    scatter_y: str = "value_at_frame"
+    scatter_log_y: bool = False
 
 
 @dataclass

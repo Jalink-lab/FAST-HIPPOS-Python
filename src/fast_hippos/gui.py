@@ -54,6 +54,11 @@ SETTINGS_NAME = "fast_hippos_settings.toml"
 TCSPC = {"input.modality": ["tcspc"]}
 CELLPOSE = {"segmentation.method": ["cellpose"]}
 SCREEN = {"screening.enabled": [True]}
+# what the scatter plot of the dashboard can show on an axis
+SCATTER_AXES = {"value_at_frame": "lifetime (or ratio) at the current frame",
+                "additional_at_frame": "additional channel at the current frame",
+                "mean_intensity": "mean_intensity", "area_px": "area_px", "circularity": "circularity",
+                **{k: k for k in METRICS}}
 
 # label, help, level ("basic" or "advanced"), optional: widget, choices, show (field -> allowed values).
 # Settings that are not listed here are shown in the advanced tab with a generated label.
@@ -136,6 +141,12 @@ FIELDS: dict[str, dict] = {
     "display.dashboard_tiles": {"label": "Full-resolution tiles for large images"},
     "display.save_png_plots": {"label": "Save PNG plots"},
     "display.save_tables": {"label": "Save per-frame trace tables"},
+    "display.traces_view": {"label": "Traces", "choices": {"auto": "automatic (lines up to 300 cells, else bands)",
+                                                            "lines": "lines", "bands": "bands", "density": "density"}},
+    "display.scatter_x": {"label": "Scatter plot: x", "choices": SCATTER_AXES},
+    "display.scatter_log_x": {"label": "Scatter plot: log x"},
+    "display.scatter_y": {"label": "Scatter plot: y", "choices": SCATTER_AXES},
+    "display.scatter_log_y": {"label": "Scatter plot: log y"},
     # ---- events
     "events.stimulation_frame": {"label": "Stimulation frame", "widget": "frame",
         "help": "First frame with the stimulus (0-based). Empty = detect automatically"},
@@ -297,6 +308,14 @@ TIPS: dict[str, str] = {
         "in. Takes extra disk space (folder 'tiles').",
     "display.save_png_plots": "Also save the plots (traces, kymographs, histograms) as PNG images.",
     "display.save_tables": "Save tables with the value of every cell in every frame (TSV, opens in Excel).",
+    "display.traces_view": "How the Traces panel of the dashboards starts: every cell its own line, the median with "
+        "percentile bands, or a density map. Automatic: lines up to 300 cells, bands for more. Can be changed in the "
+        "dashboard, which remembers it.",
+    "display.scatter_x": "The value on the horizontal axis of the scatter plot when a dashboard opens (it can be "
+        "changed there). 'at frame' values follow the current frame.",
+    "display.scatter_log_x": "Start the scatter plot with a logarithmic horizontal axis, e.g. for intensities.",
+    "display.scatter_y": "The value on the vertical axis of the scatter plot when a dashboard opens.",
+    "display.scatter_log_y": "Start the scatter plot with a logarithmic vertical axis.",
     # ---- stimulation and calibration
     "events.stimulation_frame": "First frame in which the stimulus acts (0-based). The frames before it are the "
         "baseline. Empty = found automatically as the first clear jump in the average trace.",
@@ -407,6 +426,8 @@ LAYOUT = [
          ("Lifetime overlay", ["display.overlay_smooth_xy", "display.overlay_smooth_t"]),
          ("Dashboard", ["display.dashboard", "display.dashboard_max_size", "display.dashboard_max_megapixels",
                         "display.dashboard_tiles", "display.histogram_bins"]),
+         ("Dashboard views", ["display.traces_view", "display.scatter_x", "display.scatter_log_x", "display.scatter_y",
+                              "display.scatter_log_y"]),
          ("Files", ["display.save_png_plots", "display.save_tables"]),
      ]},
 ]
@@ -437,6 +458,8 @@ ENABLE = {
     "display.dashboard_max_size": {"display.dashboard": [True]},
     "display.dashboard_max_megapixels": {"display.dashboard": [True]},
     "display.dashboard_tiles": {"display.dashboard": [True]},
+    **{f"display.{k}": {"display.dashboard": [True]} for k in ("traces_view", "scatter_x", "scatter_log_x", "scatter_y",
+                                                              "scatter_log_y")},
     "display.histogram_bins": {"display.dashboard": [True]},
 }
 REASONS = {  # why a condition on this field disables others

@@ -22,8 +22,8 @@ const S = {
   frame: 0, hover: -1, sel: new Set(), lastClicked: -1, playing: false,
   lut: D.display.lut, dmin: D.display.min, dmax: D.display.max, bright: Math.pow(10, 0.2),
   isrc: "movie", outl: "all", tsrc: SCR.params.smooth_traces > 0 ? "smoothed" : "raw",
-  show: "all", tcol: D.screening.enabled ? "hit" : "cell", tmode: N > 300 ? "bands" : "lines",
-  ksort: "@response", kdesc: false, kzoom: 1, kstart: 0, rows: "all", sortCol: null, sortDir: 1, sx: "mean_intensity", sy: "@value", slogx: false, slogy: false, sclass: false, hlog: false,
+  show: "all", tcol: D.screening.enabled ? "hit" : "cell", tmode: ["lines", "bands", "density"].includes(D.display.traces) ? D.display.traces : N > 300 ? "bands" : "lines",
+  ksort: "@response", kdesc: false, kzoom: 1, kstart: 0, rows: "all", sortCol: null, sortDir: 1, sx: D.display.sx || "mean_intensity", sy: D.display.sy || "@value", slogx: !!D.display.slogx, slogy: !!D.display.slogy, sclass: false, hlog: false,
   tool: "rect", showRoute: false, fillMetric: "",
 };
 const K = () => (S.tsrc === "smoothed" ? KS : KR);

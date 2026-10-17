@@ -68,7 +68,7 @@ class (*ch+* or *ch−*) is shown per cell, and can be used in criteria and in t
 </figure>
 
 Each criterion is a cell value, *<*, *>* or *between* (↔), and a threshold. The histogram shows the value over all
-cells, with the passing cells in pink, and *28 pass* counts them. Drag the black marker to change the threshold.
+cells, with the passing cells in pink, and *… pass* counts them. Drag the black marker to change the threshold.
 
 - **+ criterion** adds a criterion. Hover over a value in the list for its meaning, or see
   [Cell values](../reference/metrics.md).
@@ -79,11 +79,12 @@ cells, with the passing cells in pink, and *28 pass* counts them. Drag the black
 
 !!! example "In the example"
     The [example screen](../start/first-analysis.md#what-the-experiment-is-about) looks for ADRB2 knock-out cells
-    among wild-type cells: cells that hardly respond to isoproterenol. So the criterion is `response_mean_diff`
-    **<** 0.6: an average rise of the lifetime of less than 0.6 ns, where most cells rise by about 0.85 ns. The
-    knock-out cells carry a marker (the additional channel), so here you can check the criterion: in the scatter
-    plot of `response_mean_diff` against `additional_intensity`, most hits are marker-positive, and the
-    marker-positive cells that are not hits are knock-out cells that still respond.
+    among wild-type cells: cells that hardly respond to isoproterenol. Wild-type cells saturate the sensor at about
+    3.25 ns, so the criteria are `response_max_abs` **<** 3.1 (the lifetime stays low) **AND** `baseline_mean`
+    **between** 2.0 and 2.7 (a normal baseline). The gate *calibration − baseline* (0.5–1.2 ns) makes sure that
+    every hit still responds to the forskolin calibration; the *|baseline − population|* gate is off. The knock-out
+    cells carry a marker (the additional channel), so here you can check the result: in the scatter plot of
+    `additional_intensity` (log) against the lifetime during the response, 64 of the 75 hits are marker-positive.
 
 **Hits from *selection*.** Instead of criteria, you can also pick the hits by hand: select cells (click, lasso,
 table), switch *Hits from* to *selection* and click *Use selection*. *Add selection* adds more cells.
