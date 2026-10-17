@@ -18,11 +18,16 @@ After a run with screening, the output folder holds:
 short: the route is optimized, typically 15–20 % shorter than going from each hit to the nearest next one. The
 overview and the dashboards can draw these routes.
 
-Load the `.rgn` file in LAS X as a set of positions, and set up the experiment that should run at every position.
+To visit the hits:
 
-!!! info "In LAS X"
-    How positions are loaded depends on the LAS X version and the microscope. The `.rgn` files are the same as those
-    of the Fiji version of FAST-HIPPOS.
+1. In LAS X, open the **Navigator**.
+2. Right-click in it and choose **Load regions**, then choose the `.rgn` file. The positions appear as regions, in
+   the visiting order of the file.
+3. Set up the experiment that should run at every position (photoactivation, high-resolution imaging, …) and start
+   it.
+
+With more than one `.rgn` file, load and run them one after another; each next route starts near where the
+previous one ended. The `.rgn` files are the same as those of the Fiji version of FAST-HIPPOS.
 
 Need other hits than the run gave? The dashboard (*Hits → .rgn*, *Selection → .rgn*) and the overview (*Export*) save
 `.rgn` files of the current hits, of a hand-picked selection, or of a few images together.

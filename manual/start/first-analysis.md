@@ -14,6 +14,7 @@ text file:
 |---|---|
 | `example_screen_1.tif` … `example_screen_3.tif` | three fields of a pooled screen, 1000 × 700 pixels, 30 frames of 62 s |
 | `stage_positions.txt` | the stage position of each image (normally this is stored in the images themselves) |
+| `example_settings.toml` | all settings of this walk-through: *Open settings…* in the window loads them at once (set your Cellpose environment again afterwards, if you use one) |
 
 Each image has three channels: the two amplitude images of a two-component lifetime fit (lifetimes 0.6 and 3.4 ns,
 as exported from LAS X), and a third channel with a marker that is expressed by a small fraction of the cells. The
@@ -125,7 +126,8 @@ Then open the overview, to compare the three images and see where the hits are.
 ## 8. To the microscope
 
 The output folder now holds `HITS_example_run_1-29.rgn`: the stage positions of the 29 hits, in an efficient
-visiting order. Load it in LAS X to revisit the cells; see [back to the microscope](../guide/microscope.md).
+visiting order. Load it in the LAS X Navigator (right-click → *Load regions*) to revisit the cells; see
+[back to the microscope](../guide/microscope.md).
 
 ## What next?
 
