@@ -101,7 +101,7 @@ FIELDS: dict[str, dict] = {
     "preprocess.drift_reference": {"label": "Drift reference frame",
         "choices": {"first": "first", "last": "last", "previous": "previous"}},
     "preprocess.drift_edge_detect": {"label": "Drift: register edges"},
-    "preprocess.drift_blur_sigma": {"label": "Drift: blur σ (px)"},
+    "preprocess.drift_blur_sigma": {"label": "Drift: blur of the cross-correlation σ (px)", "help": "0 = no blur"},
     # ---- segmentation
     "segmentation.method": {"label": "Segmentation", "choices": {
         "cellpose": "Cellpose", "labelmap": "Existing label image", "threshold": "Threshold + watershed (no Cellpose)"}},
@@ -253,8 +253,9 @@ TIPS: dict[str, str] = {
         "one before it (best for slow, gradual drift).",
     "preprocess.drift_edge_detect": "Align on the edges in the image instead of the intensity itself. Helps when the "
         "brightness changes during the experiment.",
-    "preprocess.drift_blur_sigma": "Blurring (pixels) before aligning, so that noise does not disturb the alignment. "
-        "Larger = more robust, less precise.",
+    "preprocess.drift_blur_sigma": "The drift of a frame is the position of the peak of its cross-correlation with the "
+        "reference frame. Blurring that cross-correlation image (σ in pixels) makes the peak easier to find in noisy "
+        "images, as in the Fiji version (which used 4); larger = more robust, less precise. 0 = no blur.",
     # ---- segmentation
     "segmentation.method": "How the cells are found. Cellpose: a deep-learning model (best, uses the GPU). Existing "
         "label image: cells outlined elsewhere (e.g. in Fiji). Threshold + watershed: a simple classical method, no "
@@ -410,27 +411,29 @@ FD = {"input.modality": ["fd_flim"]}
 
 # Cards of the form: the basic settings, then the advanced ones under subheadings (an expanding pane).
 # Every setting appears exactly once (checked by the tests).
+# "|" in a group starts a new row, so that only related settings are next to each other
 LAYOUT = [
     {"title": "Images", "basic": ["input.files", "input.output", "input.modality", "input.tau1", "input.tau2",
                                   "input.additional_channel"],
      "advanced": [
-         ("Channels and metadata", ["input.intensity_channel", "input.pixel_size", "input.default_frame_interval",
-                                    "input.remove_last_frame", "input.series"]),
-         ("Pre-processing", ["preprocess.correct_bidirectional", "preprocess.bidirectional_axis", "preprocess.correct_drift", "preprocess.drift_reference",
-                             "preprocess.drift_edge_detect", "preprocess.drift_blur_sigma"]),
-         ("Frequency-domain FLIM", ["fdflim.reference", "fdflim.background", "fdflim.phases", "fdflim.frequency_mhz",
-                                    "fdflim.tau_ref", "fdflim.lifetime_from"], FD),
+         ("Channels and metadata", ["input.intensity_channel", "input.series", "|", "input.pixel_size",
+                                    "input.default_frame_interval", "|", "input.remove_last_frame"]),
+         ("Bidirectional scanning", ["preprocess.correct_bidirectional", "preprocess.bidirectional_axis"]),
+         ("Drift correction", ["preprocess.correct_drift", "|", "preprocess.drift_reference", "preprocess.drift_edge_detect",
+                               "|", "preprocess.drift_blur_sigma"]),
+         ("Frequency-domain FLIM", ["fdflim.reference", "fdflim.background", "|", "fdflim.phases", "fdflim.frequency_mhz",
+                                    "|", "fdflim.tau_ref", "fdflim.lifetime_from"], FD),
      ]},
     {"title": "Cell segmentation", "basic": ["segmentation.method", "segmentation.cellpose_model", "segmentation.diameter",
                                              "segmentation.labelmap", "segmentation.min_cell_size"],
      "advanced": [
-         ("Cellpose", ["segmentation.use_gpu", "segmentation.flow_threshold", "segmentation.cellprob_threshold",
-                       "segmentation.cellpose_version"], CELLPOSE),
+         ("Cellpose", ["segmentation.use_gpu", "segmentation.cellpose_version", "|", "segmentation.flow_threshold",
+                       "segmentation.cellprob_threshold"], CELLPOSE),
          ("Cellpose environments", ["segmentation.cellpose3_python", "segmentation.cellpose4_python"], CELLPOSE),
-         ("Image used for segmentation", ["segmentation.channel", "segmentation.gamma", "segmentation.start_frame",
+         ("Image used for segmentation", ["segmentation.channel", "segmentation.gamma", "|", "segmentation.start_frame",
                                           "segmentation.end_frame"]),
          ("Cell filters", ["segmentation.max_circularity", "segmentation.min_cell_intensity"]),
-         ("Hit positions on the nuclei", ["segmentation.classifier", "segmentation.classifier_class",
+         ("Hit positions on the nuclei", ["segmentation.classifier", "|", "segmentation.classifier_class",
                                           "segmentation.position_erosion"]),
      ]},
     {"title": "Stimulation and calibration", "basic": ["events.stimulation_frame", "events.calibration_frame",
@@ -442,12 +445,12 @@ LAYOUT = [
     {"title": "Screening", "basic": ["screening.enabled", "screening.criteria", "screening.classify_additional_channel"],
      "advanced": [
          ("Criteria", ["screening.logic", "screening.rise_time_fraction"]),
-         ("Response window", ["screening.response_window", "screening.response_window_anchor",
+         ("Response window", ["screening.response_window", "|", "screening.response_window_anchor",
                               "screening.response_window_margin"]),
          ("Quality gates", ["screening.baseline_calibration_diff", "screening.max_baseline_deviation"]),
          ("Additional channel", ["screening.additional_channel_metric", "screening.classification_threshold"]),
-         ("Hit list", ["screening.sort_by", "screening.sort_descending", "screening.manual_hits"]),
-         ("Stage positions and .rgn files", ["screening.stage_positions_file", "screening.max_hits_per_rgn",
+         ("Hit list", ["screening.sort_by", "screening.sort_descending", "|", "screening.manual_hits"]),
+         ("Stage positions and .rgn files", ["screening.stage_positions_file", "|", "screening.max_hits_per_rgn", "|",
                                              "screening.optimize_path", "screening.max_optimization_time"]),
          ("Stage axes in the .rgn files (LAS X Navigator)", ["screening.rgn_swap_xy", "screening.rgn_invert_x",
                                                              "screening.rgn_invert_y"], None, "column"),
@@ -457,12 +460,12 @@ LAYOUT = [
     {"title": "Display and output", "basic": [],
      "note": "The defaults suit most runs; colours and ranges can also be changed in the dashboard.",
      "advanced": [
-         ("Colour scale", ["display.lut", "display.min_lifetime", "display.max_lifetime"]),
+         ("Colour scale", ["display.lut", "|", "display.min_lifetime", "display.max_lifetime"]),
          ("Lifetime overlay", ["display.overlay_smooth_xy", "display.overlay_smooth_t"]),
-         ("Dashboard", ["display.dashboard", "display.dashboard_max_size", "display.dashboard_max_megapixels",
-                        "display.dashboard_tiles", "display.histogram_bins"]),
-         ("Dashboard views", ["display.traces_view", "display.scatter_x", "display.scatter_log_x", "display.scatter_y",
-                              "display.scatter_log_y"]),
+         ("Dashboard", ["display.dashboard", "|", "display.dashboard_max_size", "display.dashboard_max_megapixels",
+                        "|", "display.dashboard_tiles", "display.histogram_bins"]),
+         ("Dashboard views", ["display.traces_view", "|", "display.scatter_x", "display.scatter_log_x", "|",
+                              "display.scatter_y", "display.scatter_log_y"]),
          ("Files", ["display.save_png_plots", "display.save_tables"]),
      ]},
 ]

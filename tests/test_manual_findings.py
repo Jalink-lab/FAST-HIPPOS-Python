@@ -121,3 +121,18 @@ def test_empty_response_window_is_the_whole_response():
     assert old.screening.response_window is None and old.image["a"]["screening"]["response_window"] is None
     ev = Events(30, 5, 25)
     assert timed_window(ev, Settings().screening) == ev.response
+
+
+def test_drift_blur_is_on_the_cross_correlation():
+    from scipy import ndimage as ndi
+    from skimage.registration import phase_cross_correlation
+
+    from fast_hippos.preprocess import cross_correlation_shift
+
+    assert Settings().preprocess.drift_blur_sigma == 0
+    rng = np.random.default_rng(1)
+    a = ndi.gaussian_filter(rng.random((96, 128)), 3)
+    b = np.roll(a, (4, -6), axis=(0, 1)) + rng.normal(0, 0.002, a.shape)
+    expected, _, _ = phase_cross_correlation(a, b, normalization=None)
+    assert cross_correlation_shift(a, b).tolist() == expected.tolist() == [-4, 6]
+    assert cross_correlation_shift(a, b, blur_sigma=4).tolist() == [-4, 6]

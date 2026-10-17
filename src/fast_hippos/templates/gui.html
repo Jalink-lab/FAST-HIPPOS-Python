@@ -83,6 +83,7 @@ main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-con
 .field.off { opacity: .42; }
 .field.off.unused { opacity: .28; }  /* never used by this version */
 .body.col { grid-template-columns: 1fr; gap: 6px; }
+.adv .body + .body { padding-top: 0; }  /* the rows of one group */
 .field.off input, .field.off select, .field.off button { cursor: not-allowed; }
 #stopped { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 20; align-items: center; justify-content: center; flex-direction: column; gap: 10px; }
 #stopped.on { display: flex; }
@@ -361,7 +362,9 @@ function render() {
   let html = "", hidden = 0;
   for (const card of SCHEMA.layout) {
     const basic = card.basic.map(k => FIELD[k]).filter(f => shown(f.show));
-    const subs = card.advanced.filter(a => shown(a.show)).map(a => ({ title: a.title, column: a.column, fs: a.keys.map(k => FIELD[k]).filter(f => shown(f.show)) })).filter(a => a.fs.length);
+    // a group's rows ("|" starts a new one), each with the fields that are shown
+    const rowsOf = (keys) => keys.join(" ").split("|").map(r => r.trim().split(/\s+/).filter(Boolean).map(k => FIELD[k]).filter(f => shown(f.show))).filter(r => r.length);
+    const subs = card.advanced.filter(a => shown(a.show)).map(a => { const rows = rowsOf(a.keys); return { title: a.title, column: a.column, rows, fs: rows.flat() }; }).filter(a => a.fs.length);
     const changed = subs.flatMap(a => a.fs).filter(isChanged).length, open = ADV_ALL || openAdv.has(card.title);
     if (!open) hidden += changed;
     html += `<div class="card" style="--h:${HUES[card.title] ?? 212}" data-card-title="${esc(card.title)}"><h2 class="toggle" data-fold="${esc(card.title)}" title="Click to fold or unfold this section"><span class="fold">▾</span>${esc(card.title)}</h2>` +
@@ -370,7 +373,7 @@ function render() {
     if (subs.length) {
       html += `<div class="adv"><button class="advtoggle" data-card="${esc(card.title)}" title="Show or hide the less common settings of this section. A dot marks settings that differ from the default.">${open ? "▾" : "▸"} Advanced settings` +
         (changed ? ` · <span class="count">${changed} changed</span>` : "") + `</button>`;
-      if (open) html += subs.map(a => `<h3>${esc(a.title)}</h3><div class="body${a.column ? " col" : ""}">${a.fs.map(fieldHTML).join("")}</div>`).join("") +
+      if (open) html += subs.map(a => `<h3>${esc(a.title)}</h3>` + a.rows.map(r => `<div class="body${a.column ? " col" : ""}">${r.map(fieldHTML).join("")}</div>`).join("")).join("") +
         (changed ? `<div style="padding:0 12px 10px"><button class="small" data-resetcard="${esc(card.title)}" title="Set the advanced settings of this section back to their defaults">Reset these advanced settings</button></div>` : "");
       html += `</div>`;
     }
@@ -548,7 +551,7 @@ document.addEventListener("click", async (e) => {
     const t = b.dataset.fold; FOLDED.has(t) ? FOLDED.delete(t) : FOLDED.add(t); applyFold();
     api("prefs", { folded: [...FOLDED] }).catch(() => {}); return;
   }
-  if (b.dataset.resetcard) { const card = SCHEMA.layout.find(c => c.title === b.dataset.resetcard); card.advanced.flatMap(a => a.keys).forEach(k => set(k, structuredClone(FIELD[k].default))); render(); return; }
+  if (b.dataset.resetcard) { const card = SCHEMA.layout.find(c => c.title === b.dataset.resetcard); card.advanced.flatMap(a => a.keys).filter(k => k !== "|").forEach(k => set(k, structuredClone(FIELD[k].default))); render(); return; }
   if (b.dataset.browse) {
     const f = FIELD[b.dataset.browse], kind = b.dataset.kind, cur = get(f.key);
     const initial = Array.isArray(cur) ? cur[0] || S.input.output || "" : cur || "";

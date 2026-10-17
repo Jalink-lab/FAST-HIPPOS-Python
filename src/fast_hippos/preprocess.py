@@ -19,26 +19,35 @@ def registration_image(data: np.ndarray, channels: list[int]) -> np.ndarray:
     return np.nansum(data[:, [c - 1 for c in channels]], axis=1)
 
 
+def cross_correlation_shift(reference: np.ndarray, moving: np.ndarray, blur_sigma: float = 0.0) -> np.ndarray:
+    """(dy, dx) that registers `moving` onto `reference`: the peak of their cross-correlation, after blurring the
+    cross-correlation image with blur_sigma (pixels; 0 = none), as the Fiji macro does to find the peak robustly.
+    Without blur the same as skimage's phase_cross_correlation(normalization=None)."""
+    cc = np.real(np.fft.ifft2(np.fft.fft2(reference) * np.conj(np.fft.fft2(moving))))
+    if blur_sigma > 0:
+        cc = ndi.gaussian_filter(cc, blur_sigma, mode="wrap")  # the cross-correlation is periodic
+    peak = np.array(np.unravel_index(np.argmax(cc), cc.shape), dtype=float)
+    shape = np.array(cc.shape)
+    peak[peak > shape // 2] -= shape[peak > shape // 2]
+    return peak
+
+
 def estimate_drift(
-    reg: np.ndarray, reference: str = "first", edge_detect: bool = False, blur_sigma: float = 4.0
+    reg: np.ndarray, reference: str = "first", edge_detect: bool = False, blur_sigma: float = 0.0
 ) -> np.ndarray:
     """Per-frame (dy, dx) shifts (T, 2) that register each frame onto the reference frame."""
     reg = np.nan_to_num(reg.astype(np.float32))
     if edge_detect:
         reg = np.stack([_local_variance(f, 2) for f in reg])
-    if blur_sigma > 0:
-        # blurring both images is equivalent to blurring the cross-correlation (as in the Fiji macro)
-        reg = ndi.gaussian_filter(reg, sigma=(0, blur_sigma / np.sqrt(2), blur_sigma / np.sqrt(2)))
     n = reg.shape[0]
     shifts = np.zeros((n, 2))
     if reference == "previous":
         for t in range(1, n):
-            shift, _, _ = phase_cross_correlation(reg[t - 1], reg[t], normalization=None)
-            shifts[t] = shifts[t - 1] + shift
+            shifts[t] = shifts[t - 1] + cross_correlation_shift(reg[t - 1], reg[t], blur_sigma)
     else:
         ref = reg[0] if reference == "first" else reg[-1]
         for t in range(n):
-            shifts[t], _, _ = phase_cross_correlation(ref, reg[t], normalization=None)
+            shifts[t] = cross_correlation_shift(ref, reg[t], blur_sigma)
     return np.round(shifts)
 
 
@@ -50,7 +59,7 @@ def apply_shifts(data: np.ndarray, shifts: np.ndarray) -> np.ndarray:
     return out
 
 
-def correct_drift(data: np.ndarray, channels: list[int], reference="first", edge_detect=False, blur_sigma=4.0):
+def correct_drift(data: np.ndarray, channels: list[int], reference="first", edge_detect=False, blur_sigma=0.0):
     if data.shape[0] < 2:
         return data, np.zeros((data.shape[0], 2))
     shifts = estimate_drift(registration_image(data, channels), reference, edge_detect, blur_sigma)

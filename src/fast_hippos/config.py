@@ -64,7 +64,7 @@ class PreprocessSettings:
     correct_drift: bool = False
     drift_reference: str = "first"  # "first", "last" or "previous"
     drift_edge_detect: bool = False
-    drift_blur_sigma: float = 4.0
+    drift_blur_sigma: float = 0.0  # px; blur of the cross-correlation image, to find its peak robustly
 
 
 @dataclass
