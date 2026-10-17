@@ -24,16 +24,39 @@ def _spectrum(image: np.ndarray) -> np.ndarray:
     return sfft.rfft2(image.astype(np.float32, copy=False), workers=-1)
 
 
-def _peak_shift(ref_f: np.ndarray, mov_f: np.ndarray, shape: tuple[int, int], blur_sigma: float) -> np.ndarray:
-    """The shift from the spectra of the reference and the moving frame: the peak of their cross-correlation, after
-    blurring the cross-correlation image (float32, periodic) with blur_sigma pixels."""
-    cc = sfft.irfft2(ref_f * np.conj(mov_f), s=shape, workers=-1)
-    if blur_sigma > 0:
-        cc = ndi.gaussian_filter(cc, blur_sigma, mode="wrap")  # the cross-correlation is periodic
-    peak = np.array(np.unravel_index(np.argmax(cc), cc.shape), dtype=float)
+def _gauss(shape: tuple[int, int], sigma: float, cache: dict) -> np.ndarray | None:
+    """Fourier transform of a periodic Gaussian of sigma pixels, for the half spectrum of rfft2 (None for 0). Blurring
+    the cross-correlation is then a multiplication, whatever sigma is."""
+    if sigma <= 0:
+        return None
+    if sigma not in cache:
+        fy = sfft.fftfreq(shape[0])[:, None]
+        fx = sfft.rfftfreq(shape[1])[None, :]
+        cache[sigma] = np.exp(-2 * np.pi**2 * sigma**2 * (fy**2 + fx**2)).astype(np.float32)
+    return cache[sigma]
+
+
+def _cross_correlation(ref_f: np.ndarray, mov_f: np.ndarray, shape, g: np.ndarray | None) -> np.ndarray:
+    """The (blurred) cross-correlation image of two frames, from their spectra (float32, periodic)."""
+    prod = ref_f * np.conj(mov_f)
+    if g is not None:
+        prod *= g
+    return sfft.irfft2(prod, s=shape, workers=-1)
+
+
+def _peak(cc: np.ndarray) -> tuple[np.ndarray, tuple[int, int]]:
+    """The shift (dy, dx) of the highest point of a cross-correlation image, and that point."""
+    idx = np.unravel_index(int(np.argmax(cc)), cc.shape)
+    shift = np.array(idx, dtype=float)
     size = np.array(cc.shape)
-    peak[peak > size // 2] -= size[peak > size // 2]
-    return peak
+    shift[shift > size // 2] -= size[shift > size // 2]
+    return shift, idx
+
+
+def _peak_shift(ref_f: np.ndarray, mov_f: np.ndarray, shape, blur_sigma: float, cache: dict | None = None) -> np.ndarray:
+    """The shift from the spectra of the reference and the moving frame: the peak of their cross-correlation, after
+    blurring the cross-correlation image with blur_sigma pixels."""
+    return _peak(_cross_correlation(ref_f, mov_f, shape, _gauss(shape, blur_sigma, {} if cache is None else cache)))[0]
 
 
 def cross_correlation_shift(reference: np.ndarray, moving: np.ndarray, blur_sigma: float = 0.0) -> np.ndarray:
@@ -47,22 +70,23 @@ def estimate_drift(
     reg: np.ndarray, reference: str = "first", edge_detect: bool = False, blur_sigma: float = 2.0
 ) -> np.ndarray:
     """Per-frame (dy, dx) shifts (T, 2) that register each frame onto the reference frame. Every frame is
-    transformed once; per frame one cross-correlation image is made (and blurred)."""
+    transformed once; per frame one cross-correlation image is made (and blurred, in the Fourier domain)."""
     reg = np.nan_to_num(reg.astype(np.float32))
     if edge_detect:
         reg = np.stack([_local_variance(f, 2) for f in reg])
     n, shape = reg.shape[0], reg.shape[1:]
+    cache: dict = {}
     shifts = np.zeros((n, 2))
     if reference == "previous":
         prev = _spectrum(reg[0])
         for t in range(1, n):
             cur = _spectrum(reg[t])
-            shifts[t] = shifts[t - 1] + _peak_shift(prev, cur, shape, blur_sigma)
+            shifts[t] = shifts[t - 1] + _peak_shift(prev, cur, shape, blur_sigma, cache)
             prev = cur
     else:
         ref = _spectrum(reg[0] if reference == "first" else reg[-1])
         for t in range(n):
-            shifts[t] = _peak_shift(ref, _spectrum(reg[t]), shape, blur_sigma)
+            shifts[t] = _peak_shift(ref, _spectrum(reg[t]), shape, blur_sigma, cache)
     return np.round(shifts)
 
 
@@ -74,7 +98,7 @@ def apply_shifts(data: np.ndarray, shifts: np.ndarray) -> np.ndarray:
     return out
 
 
-def correct_drift(data: np.ndarray, channels: list[int], reference="first", edge_detect=False, blur_sigma=2.0):
+def correct_drift(data: np.ndarray, channels: list[int], reference="first", edge_detect=False, blur_sigma: float = 2.0):
     if data.shape[0] < 2:
         return data, np.zeros((data.shape[0], 2))
     shifts = estimate_drift(registration_image(data, channels), reference, edge_detect, blur_sigma)
