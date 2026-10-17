@@ -31,6 +31,7 @@ header h1 { font-size: 17px; margin: 0; font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; color: var(--muted); white-space: nowrap; }
 .chip b { color: var(--text); font-weight: 600; } .chip.hit b { color: var(--hit); }
+.chip.own { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
 .toolbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
   padding: 8px 16px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
 .toolbar label, .panel-f label, .row label, .gate label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }

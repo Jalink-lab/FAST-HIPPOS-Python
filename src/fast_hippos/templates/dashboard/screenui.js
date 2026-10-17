@@ -195,7 +195,7 @@ function initScreening() {
   $("route").onclick = () => computeRoute(); $("vroute2").checked = S.showRoute;
   $("vroute2").onchange = () => { S.showRoute = $("vroute2").checked; $("vroute").checked = S.showRoute; invalidate("viewerHov"); };
   $("scrtoml").onclick = exportTOML;
-  if (window.FH_GUI) { $("scrapply").hidden = false; $("scrapply").onclick = applyToRun; } $("hitstsv").onclick = exportHitsTSV; $("hitsrgn").onclick = exportHitsRGN; $("hitsrgn").disabled = !HAS_ABS;
+  if (window.FH_GUI) { for (const [id, scope] of [["scrapply", "all"], ["scrapplyimg", "image"]]) { $(id).hidden = false; $(id).onclick = () => applyTo(scope); } } $("hitstsv").onclick = exportHitsTSV; $("hitsrgn").onclick = exportHitsRGN; $("hitsrgn").disabled = !HAS_ABS;
   initTimeline(); fillParams();
   new ResizeObserver(() => updateScreenUI()).observe(body);
 }

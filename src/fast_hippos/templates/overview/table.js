@@ -5,6 +5,11 @@ const flagLevel = (im) => (im.flags.some(f => f.level === "bad") ? "bad" : im.fl
 const LEVEL_RANK = { ok: 0, info: 1, warn: 2, bad: 3 };
 const flagOn = (im, key) => im.flags.find(f => f.key === key);
 const maxHitPct = Math.max(1e-9, ...IM.map(im => pct(im.n_hits, im.n_valid)).filter(Number.isFinite));
+// how a stimulation / calibration frame was chosen: detected, set for all images, or set for this image (own settings)
+const OWN_NAMES = { stimulation_frame: "stimulation frame", calibration_frame: "calibration frame", baseline_only: "baseline only", sensitivity: "detection threshold", margin: "margin",
+  response_window: "response window", response_window_anchor: "response window anchor", response_window_margin: "response window margin" };
+const ownList = (im) => Object.values(im.own || {}).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_NAMES[k] || k} ${v === null || v === "" ? "automatic" : v === true ? "yes" : v === false ? "no" : v}`));
+const frameTag = (im, key) => (im.own && im.own.events && key in im.own.events ? (im.own.events[key] === null ? "auto" : "image") : im.events.detected ? "auto" : "set");
 const shortMetric = (m) => m.replace("response_", "resp. ").replace("_diff", " Δ").replace("_abs", "").replace("_", " ");
 
 // columns: key, label, tip, value (for sorting), cell (html), optional condition; QC flags tint the cell they concern
@@ -14,7 +19,8 @@ const COLS = [
     v: im => im.name.toLowerCase(),
     cell: im => (im.thumb ? `<img class="thumb" src="${im.thumb}" alt="">` : "") +
       (im.href ? `<a href="${esc(im.href)}" target="_blank" title="Open the dashboard of ${esc(im.name)}">${esc(im.name)}</a>`
-        : `<span class="nolink" title="No dashboard was written for this image (display.dashboard is off)">${esc(im.name)}</span>`) },
+        : `<span class="nolink" title="No dashboard was written for this image (display.dashboard is off)">${esc(im.name)}</span>`) +
+      (im.own ? ` <span class="ownbadge" title="${esc("This image has its own settings: " + ownList(im).join(", ") + ". Set in its dashboard with 'Apply to this image only'; remove them in the FAST-HIPPOS window (Stimulation and calibration).")}">own settings</span>` : "") },
   { key: "qc", label: "QC", tip: "Quality flags of the image (warnings only; nothing is filtered). Hover the dot for the flags and their thresholds; the chips below the table select the images with a flag",
     v: im => LEVEL_RANK[flagLevel(im)],
     cell: im => `<span class="qcdot ${flagLevel(im)}" title="${esc(im.flags.length ? im.flags.map(f => `${FLAG_LABEL[f.key]}: ${f.text}`).join("\n") : "No flags")}"></span>` },
@@ -30,10 +36,10 @@ const COLS = [
   { key: "hitresp", label: "hits: " + shortMetric(D.response_metric), if: SCREEN && hasStim, tip: `Median ${D.response_metric} of the hits only`, v: im => im.hit_response, cell: im => num(im.hit_response) },
   { key: "cal", label: "Cal Δ", if: hasCal, tip: "Median calibration − baseline of the valid cells: shows that the calibration (and the sensor) worked", v: im => im.cal_delta, cell: im => num(im.cal_delta), flag: "no_cal_response" },
   { key: "frames", label: "Frames · Δt", tip: "Number of frames and the time between frames", v: im => im.frames, cell: im => `${im.frames} · ${num(im.frame_interval, 2)} s` },
-  { key: "stim", label: "Stim", if: hasStim, tip: "First frame with the stimulation (0-based); auto = detected, set = from the settings; – = none",
-    v: im => im.events.stimulation ?? -1, cell: im => im.events.stimulation === null ? "–" : `${im.events.stimulation}<span class="tag">${im.events.detected ? "auto" : "set"}</span>`, flag: ["no_stimulation", "event_offset"] },
-  { key: "calf", label: "Cal", if: hasCal, tip: "First frame with the calibration (0-based); – = none",
-    v: im => im.events.calibration ?? -1, cell: im => im.events.calibration === null ? "–" : `${im.events.calibration}<span class="tag">${im.events.detected ? "auto" : "set"}</span>`, flag: "no_calibration" },
+  { key: "stim", label: "Stim", if: hasStim, tip: "First frame with the stimulation (0-based); auto = detected, set = from the settings of all images, image = set for this image only; – = none",
+    v: im => im.events.stimulation ?? -1, cell: im => im.events.stimulation === null ? "–" : `${im.events.stimulation}<span class="tag">${frameTag(im, "stimulation_frame")}</span>`, flag: ["no_stimulation", "event_offset"] },
+  { key: "calf", label: "Cal", if: hasCal, tip: "First frame with the calibration (0-based); auto = detected, set = from the settings of all images, image = set for this image only; – = none",
+    v: im => im.events.calibration ?? -1, cell: im => im.events.calibration === null ? "–" : `${im.events.calibration}<span class="tag">${frameTag(im, "calibration_frame")}</span>`, flag: "no_calibration" },
   { key: "class", label: "Class+", if: IM.some(im => im.class_pos !== null), tip: "Percentage of cells in class 1 of the additional channel (e.g. transfected)", v: im => im.class_pos, cell: im => num(im.class_pos, 1) },
   { key: "area", label: "Tiles · area", if: IM.some(im => im.n_tiles), tip: "Number of tiles of the scan and the scanned area", v: im => im.area_mm2 ?? -1,
     cell: im => (im.n_tiles ? `${im.n_tiles} · ${num(im.area_mm2, 2)} mm²` : "–"), flag: "no_positions" },

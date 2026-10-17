@@ -24,7 +24,7 @@ import time
 import urllib.parse
 import urllib.request
 import webbrowser
-from dataclasses import fields
+from dataclasses import fields, is_dataclass
 from enum import StrEnum
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -496,6 +496,8 @@ def schema() -> dict:
     section_types = get_type_hints(Settings)
     for section in fields(Settings):
         cls = section_types[section.name]
+        if not is_dataclass(cls):  # Settings.image: shown under 'Stimulation and calibration', not as fields
+            continue
         hints = get_type_hints(cls)
         items = []
         for f in fields(cls):
@@ -553,6 +555,12 @@ def _toml_value(v) -> str:
 def to_toml(settings: dict, header: str = "") -> str:
     lines = [header] if header else []
     for section, values in settings.items():
+        if section == "image":  # per-image settings: [image."<name>".events] etc.
+            for name, sections in (values or {}).items():
+                for sec, vals in sections.items():
+                    lines.append(f"\n[image.{json.dumps(name)}.{sec}]")
+                    lines += [f"{k} = {_toml_value(v)}" for k, v in vals.items()]
+            continue
         lines.append(f"\n[{section}]")
         for k, v in values.items():
             if v is None and isinstance(Settings().to_dict()[section].get(k), (list, tuple)):
@@ -632,6 +640,10 @@ def output_info(path: str, job: Job | None = None, settings: dict | None = None)
         job.roots.add(out.resolve())
     result = {"exists": exists, "images": [i["folder"] for i in info["images"]] if info else [], "run": info,
               "index": bool(exists and (out / "index.html").exists())}
+    if info:
+        from .pipeline import run_image_settings
+
+        info["image_settings"] = run_image_settings(out)  # the images with their own settings in that run
     if settings is not None and exists:
         result["plan"] = clear_plan(out, input_paths(settings_from_plain(settings)))
     return result
@@ -794,22 +806,55 @@ class Job:
         return out
 
 
-def apply_from_dashboard(job: Job, dashboard: str, toml_text: str, manual_tsv: str | None = None) -> int:
-    """Re-apply the screening settings of a dashboard to its whole run (the 'Apply to run' button)."""
+def apply_from_dashboard(job: Job, dashboard: str, toml_text: str, manual_tsv: str | None = None, image: str | None = None,
+                         scope: str = "all") -> int:
+    """The apply buttons of a dashboard (<output>/<image>/dashboard.html); either way all images are re-applied, since
+    the hit list and the .rgn files cover all of them.
+    scope "all" ('Apply to all images'): the dashboard's screening settings for all images of the output folder; a
+    timing changed there is used for all images too, and replaces the own timing of this image (other images keep
+    theirs). scope "image" ('Apply to this image only'): only the settings that can differ per image (stimulation
+    settings, response window) become this image's own; everything else stays as it is."""
     import tomllib
 
-    from .pipeline import reapply_settings
+    from .config import IMAGE_SETTINGS
+    from .pipeline import reapply_settings, run_image_settings
 
-    out = Path(dashboard).parent.parent  # <output>/<image>/dashboard.html
+    out = Path(dashboard).parent.parent
     (out / "screening_from_dashboard.toml").write_text(toml_text, encoding="utf-8")  # a record of what was applied
     changes = tomllib.loads(toml_text)
-    manual = changes.get("screening", {}).get("manual_hits")
-    if manual_tsv:
-        manual = manual or "manual_hits.tsv"
-        (out / manual).write_text(manual_tsv, encoding="utf-8")
-    if manual and not Path(manual).is_absolute():  # a hit list named in the dashboard's settings lives in the folder
-        changes.setdefault("screening", {})["manual_hits"] = str(out / manual)
-    return job.start(reapply_settings(out, changes), reapply=True, source="dashboard")
+    own_all = {name: {sec: dict(v) for sec, v in secs.items()} for name, secs in run_image_settings(out).items()}
+    if scope == "image":
+        if not image:
+            raise ValueError("Apply to this image only: the dashboard did not say which image")
+        own = {sec: {k: v for k, v in changes.get(sec, {}).items() if k in keys} for sec, keys in IMAGE_SETTINGS.items()}
+        own_all[image] = {sec: v for sec, v in own.items() if v}
+        changes = {"image": {name: secs for name, secs in own_all.items() if secs}}
+    else:
+        manual = changes.get("screening", {}).get("manual_hits")
+        if manual_tsv:
+            manual = manual or "manual_hits.tsv"
+            (out / manual).write_text(manual_tsv, encoding="utf-8")
+        if manual and not Path(manual).is_absolute():  # a hit list named in the dashboard's settings lives in the folder
+            changes.setdefault("screening", {})["manual_hits"] = str(out / manual)
+        if image and "events" in changes and image in own_all:  # the timing set here now holds for this image too
+            own_all[image].pop("events", None)
+            changes["image"] = {name: secs for name, secs in own_all.items() if secs}
+    settings = reapply_settings(out, changes)
+    _remember_image_settings(out, settings.get("image", {}))
+    return job.start(settings, reapply=True, source="dashboard")
+
+
+def _remember_image_settings(out: Path, image: dict) -> None:
+    """Keep the per-image settings in the settings the GUI starts with, when those are for this output folder (so
+    that a later re-apply from the GUI does not lose them)."""
+    try:
+        last = load_toml(LAST_SETTINGS)
+        if _key(last["input"]["output"]) != _key(out):
+            return
+        last["image"] = image
+        LAST_SETTINGS.write_text(to_toml(last, f"# FAST-HIPPOS {__version__} settings, written by the GUI"), encoding="utf-8")
+    except (OSError, ValueError, KeyError):
+        pass
 
 
 # ---------------------------------------------------------------- server
@@ -936,7 +981,8 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
                           else job.start(q["settings"], False, remember=q["settings"])},
         # the run that 'Apply to run' in a dashboard would process (<output>/<image>/dashboard.html)
         "runinfo": lambda q: output_info(str(Path(q["dashboard"]).parent.parent)),
-        "apply": lambda q: {"run_id": apply_from_dashboard(job, q["dashboard"], q["toml"], q.get("manual_tsv"))},
+        "apply": lambda q: {"run_id": apply_from_dashboard(job, q["dashboard"], q["toml"], q.get("manual_tsv"), q.get("image"),
+                                                           q.get("scope", "all"))},
         "stop": lambda q: (job.stop(), {"ok": True})[1],
         "status": lambda q: job.status(int(q.get("since", 0))),
         "open": lambda q: (open_path(q["path"]), {"ok": True})[1],

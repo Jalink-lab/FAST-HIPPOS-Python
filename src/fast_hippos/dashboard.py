@@ -135,6 +135,8 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
     return {
         "version": __version__,
         "name": result.name,
+        # the image's own settings (Settings.image), if any: shown in the dashboard and kept by 'Apply to all images'
+        "own_settings": settings.image.get(result.name) or None,
         "unit": result.unit,
         "is_lifetime": result.unit.startswith("Lifetime"),
         "n_cells": result.n_cells,

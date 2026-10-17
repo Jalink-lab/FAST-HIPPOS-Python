@@ -105,7 +105,10 @@ main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-con
 .checks { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 4px; }
 .checks li { display: flex; gap: 7px; } .checks .i { width: 16px; text-align: center; }
 .checks .err { color: var(--err); } .checks .warn { color: var(--warn); } .checks .ok { color: var(--ok); }
-.checks .info { color: var(--muted); } .checks .busy { color: var(--accent); }
+.checks .info { color: var(--muted); }
+.imgsets { padding: 8px 12px 10px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.imgsets-h { color: hsl(var(--h) var(--t-h3)); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
+.imgset { display: flex; gap: 8px; align-items: center; } .imgset .muted { flex: 1; } .checks .busy { color: var(--accent); }
 .checks .busy .i::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line);
   border-top-color: var(--accent); animation: spin .9s linear infinite; vertical-align: -1px; }
 .runbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -358,7 +361,8 @@ function render() {
     const changed = subs.flatMap(a => a.fs).filter(isChanged).length, open = ADV_ALL || openAdv.has(card.title);
     if (!open) hidden += changed;
     html += `<div class="card" style="--h:${HUES[card.title] ?? 212}" data-card-title="${esc(card.title)}"><h2 class="toggle" data-fold="${esc(card.title)}" title="Click to fold or unfold this section"><span class="fold">▾</span>${esc(card.title)}</h2>` +
-      (basic.length ? `<div class="body">${basic.map(fieldHTML).join("")}</div>` : `<div class="note">${esc(card.note || "")}</div>`);
+      (basic.length ? `<div class="body">${basic.map(fieldHTML).join("")}</div>` : `<div class="note">${esc(card.note || "")}</div>`) +
+      (card.title === "Stimulation and calibration" ? imageSettingsHTML() : "");
     if (subs.length) {
       html += `<div class="adv"><button class="advtoggle" data-card="${esc(card.title)}" title="Show or hide the less common settings of this section. A dot marks settings that differ from the default.">${open ? "▾" : "▸"} Advanced settings` +
         (changed ? ` · <span class="count">${changed} changed</span>` : "") + `</button>`;
@@ -381,7 +385,7 @@ function outputState() {
   const p = S.input.output || "";
   if (!(p in OUT)) {
     OUT[p] = null;
-    api("output", { path: p }).then(r => { OUT[p] = r; renderChecks(); renderResults(); })
+    api("output", { path: p }).then(r => { OUT[p] = r; adoptImageSettings(r); renderChecks(); renderResults(); })
       .catch(e => { OUT[p] = { exists: false, images: [], run: null, error: e.message }; renderChecks(); });
   }
   return OUT[p];
@@ -436,6 +440,8 @@ function checks() {
   if (imgs.length) {
     add("info", `The output folder holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
       + "Run analysis replaces it; Re-apply screening redoes the screening of these images.");
+    if (imageSettingsDiffer(o)) add("warn", `The run in the output folder has other own settings of single images (${Object.keys(o.run.image_settings || {}).join(", ") || "none"}) `
+      + "than this window: Re-apply screening uses the ones listed under Stimulation and calibration");
     if (runDiffersFromList(o)) add("warn", "The Images list differs from the images of that run: Re-apply screening processes the run's images, not the list");
   }
   if (S.segmentation.method === "cellpose") {
@@ -528,6 +534,7 @@ document.addEventListener("click", async (e) => {
   }
   if (b.dataset.remove) { S.input.files.splice(+b.dataset.remove, 1); render(); return; }
   if (b.hasAttribute("data-clearfiles")) { S.input.files = []; render(); return; }
+  if (b.dataset.rmimg) { delete S.image[b.dataset.rmimg]; render(); toast("Own settings removed: re-apply or run to use the settings above for this image", 4500); return; }
   if (b.hasAttribute("data-addcrit")) { S.screening.criteria.push({ metric: "response_max_diff", op: ">", value: 0.3, value2: null, logic: "AND" }); render(); return; }
   const crit = b.closest("[data-crit]");
   if (crit) {
@@ -596,7 +603,7 @@ async function start(reapply) {
 $("bRun").onclick = () => start(false);
 $("bReapply").onclick = () => start(true);
 $("bStop").onclick = () => api("stop");
-// polls all the time: runs can also be started from a dashboard ('Apply to run')
+// polls all the time: re-applies can also be started from a dashboard ('Apply to all images' / 'Apply to this image only')
 async function poll() {
   poll.fails = poll.fails || 0;
   let st;
@@ -627,8 +634,33 @@ async function poll() {
 }
 $("results").addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) api("open", { path: b.dataset.open }).catch(err => toast(err.message)); });
 
+// images with their own settings (Settings.image): set in an image's dashboard with 'Apply to this image only'
+const OWN_LABELS = { stimulation_frame: "stimulation", calibration_frame: "calibration", baseline_only: "baseline only", sensitivity: "detection threshold",
+  margin: "margin", response_window: "response window", response_window_anchor: "window anchor", response_window_margin: "window margin" };
+function ownText(own) {
+  return Object.values(own).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_LABELS[k] || k} ${v === null || v === "" ? "automatic" : v === true ? "yes" : v === false ? "no" : v}`)).join(", ");
+}
+// the own settings of single images of the run in a newly chosen output folder: taken over when this window has
+// none (so that a re-apply keeps them); a warning when both have some and they differ
+const sameJSON = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
+function imageSettingsDiffer(o) { return !!(o && o.run && !sameJSON(o.run.image_settings, S.image)); }
+function adoptImageSettings(o) {
+  const run = o && o.run && o.run.image_settings;
+  if (run && Object.keys(run).length && !Object.keys(S.image || {}).length) {
+    S.image = structuredClone(run); render();
+    toast(`Own settings of single images taken over from the run in the output folder: ${Object.keys(run).join(", ")}`, 5000);
+  }
+}
+function imageSettingsHTML() {
+  const entries = Object.entries(S.image || {});
+  const tip = "Images that use other stimulation settings or another response window than the settings above. Set them in the dashboard of "
+    + "the image with 'Apply to this image only'; they are used by runs and re-applies until you remove them here.";
+  if (!entries.length) return `<div class="imgsets muted" title="${esc(tip)}">All images use these settings. To give one image its own stimulation frames or response window, use <i>Apply to this image only</i> in its dashboard.</div>`;
+  return `<div class="imgsets" title="${esc(tip)}"><div class="imgsets-h">Own settings of single images</div>` + entries.map(([name, own]) =>
+    `<div class="imgset"><b>${esc(name)}</b><span class="muted">${esc(ownText(own))}</span><button class="small" data-rmimg="${esc(name)}" title="Remove the own settings of this image: it then uses the settings above (at the next run or re-apply)">✕</button></div>`).join("") + "</div>";
+}
 function setSettings(s) {
-  S = s;
+  S = s; S.image = S.image || {};
   for (const sec of SCHEMA.sections) for (const f of sec.fields) { const [a, k] = f.key.split("."); if (!(k in S[a])) S[a][k] = structuredClone(f.default); }
   inspect(S.input.files || []); render();
 }

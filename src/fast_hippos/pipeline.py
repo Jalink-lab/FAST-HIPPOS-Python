@@ -147,7 +147,7 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
     thumbs = {}
     for result in results:
         viewer = ViewerData.load(result.out_dir / "viewer.npz")
-        _write_dashboard(result, viewer, settings, routes.get(result.name))
+        _write_dashboard(result, viewer, settings.for_image(result.name), routes.get(result.name))
         thumbs[result.name] = thumbnail(viewer.projection8)
     started = info["started"] if reapply else _read_run_file(out).get("started")
     write_overview(results, settings, out, hits, thumbs, {"started": started,
@@ -284,10 +284,24 @@ def _write_run_file(out: Path, results: list[ImageResult], reapply: bool, starte
     shutil.rmtree(Path(out) / PREVIOUS_RUN, ignore_errors=True)
 
 
+def _describe_own(own: dict) -> str:
+    """'stimulation_frame 148, calibration_frame 1052, response_window 20' (None = detect automatically)."""
+    return ", ".join(f"{k} {'automatic' if v is None else v}" for section in own.values() for k, v in section.items())
+
+
+def run_image_settings(out: Path) -> dict:
+    """The per-image settings of the run in an output folder (Settings.image of its settings_used.json)."""
+    try:
+        return json.loads((Path(out) / "settings_used.json").read_text()).get("image", {}) or {}
+    except (OSError, ValueError):
+        return {}
+
+
 def reapply_settings(out: Path, changes: dict) -> dict:
     """Settings for re-applying the analysis in an output folder: those of the run in it (settings_used.json), with
     the event, screening and display settings taken from `changes`, key by key (the images, segmentation and traces
-    stay those of the run, and so do the RUN_TIME_ONLY settings, which a re-apply cannot change)."""
+    stay those of the run, and so do the RUN_TIME_ONLY settings, which a re-apply cannot change). A per-image part
+    ("image") in `changes` replaces that of the run as a whole (the GUI and the dashboard send the complete set)."""
     out = Path(out)
     used = out / "settings_used.json"
     if not used.exists() or not run_info(out):
@@ -297,6 +311,8 @@ def reapply_settings(out: Path, changes: dict) -> dict:
         if isinstance(changes.get(section), dict):
             kept = {k: base.get(section, {})[k] for k in RUN_TIME_ONLY.get(section, ()) if k in base.get(section, {})}
             base[section] = base.get(section, {}) | changes[section] | kept
+    if isinstance(changes.get("image"), dict):
+        base["image"] = changes["image"]
     base["input"]["output"] = str(out)
     return base
 
@@ -484,7 +500,11 @@ def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.nda
 
 
 def analyze(result: ImageResult, settings: Settings) -> None:
-    """Events, sorting, metrics, classification and hits (cheap; re-run by `reapply`)."""
+    """Events, sorting, metrics, classification and hits (cheap; re-run by `reapply`), with the image's own settings
+    where it has them (Settings.image)."""
+    if settings.image.get(result.name):
+        log.info("Own settings of this image: %s", _describe_own(settings.image[result.name]))
+    settings = settings.for_image(result.name)
     sc = settings.screening
     result.kymo_smoothed = kymograph.smooth_time(result.kymo, settings.display.smooth_traces)
     ev = events.determine(kymograph.population_mean(result.kymo), settings.events, result.kymo)

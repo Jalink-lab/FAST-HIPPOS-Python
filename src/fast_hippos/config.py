@@ -8,6 +8,7 @@ Conventions (differences from the Fiji macro are deliberate, see docs/SPEC.md):
 
 from __future__ import annotations
 
+import copy
 import tomllib
 from dataclasses import asdict, dataclass, field, fields, is_dataclass
 from enum import StrEnum
@@ -170,6 +171,21 @@ class Settings:
     display: DisplaySettings = field(default_factory=DisplaySettings)
     events: EventSettings = field(default_factory=EventSettings)
     screening: ScreeningSettings = field(default_factory=ScreeningSettings)
+    # settings of single images that differ from those above, by image name: {name: {"events": {...}, "screening":
+    # {...}}}; only IMAGE_SETTINGS can differ (in TOML: [image."name".events]). Set from a dashboard with 'Apply to
+    # this image only'.
+    image: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
+
+    def for_image(self, name: str) -> Settings:
+        """The settings for one image: these, with that image's own settings (if any) filled in."""
+        own = self.image.get(name)
+        if not own:
+            return self
+        s = copy.deepcopy(self)
+        for section, values in own.items():
+            for key, value in values.items():
+                setattr(getattr(s, section), key, value)
+        return s
 
     @classmethod
     def from_toml(cls, path: str | Path, overrides: list[str | Path] = ()) -> Settings:
@@ -235,6 +251,36 @@ def _from_dict(cls, data: dict[str, Any]):
     return cls(**kwargs)
 
 
+# the settings that may differ per image (Settings.image), by section
+IMAGE_SETTINGS = {
+    "events": ("stimulation_frame", "calibration_frame", "baseline_only", "sensitivity", "margin"),
+    "screening": ("response_window", "response_window_anchor", "response_window_margin"),
+}
+
+
+def _image_settings(value: dict) -> dict:
+    """Validate and convert per-image settings ({name: {section: {key: value}}}); empty entries are dropped."""
+    classes = {"events": EventSettings, "screening": ScreeningSettings}
+    out: dict[str, dict] = {}
+    for name, sections in value.items():
+        if not isinstance(sections, dict):
+            raise ValueError(f'[image."{name}"]: expected sections {" / ".join(IMAGE_SETTINGS)}')  # noqa: TRY004 - shown to the user like other setting errors
+        own = {}
+        for section, values in sections.items():
+            if section not in IMAGE_SETTINGS:
+                raise ValueError(f'[image."{name}".{section}]: only {" and ".join(IMAGE_SETTINGS)} settings can differ per image')
+            bad = set(values) - set(IMAGE_SETTINGS[section])
+            if bad:
+                raise ValueError(f'[image."{name}".{section}]: {", ".join(sorted(bad))} cannot differ per image (possible: '
+                                 f'{", ".join(IMAGE_SETTINGS[section])})')
+            hints = get_type_hints(classes[section])
+            if values:
+                own[section] = {k: _convert(hints[k], v) for k, v in values.items()}
+        if own:
+            out[str(name)] = own
+    return out
+
+
 def _convert(tp, value):
     if value is None:
         return None
@@ -242,6 +288,8 @@ def _convert(tp, value):
     args = get_args(tp)
     if is_dataclass(tp):
         return _from_dict(tp, value)
+    if origin is dict:  # Settings.image
+        return _image_settings(value)
     if origin is list:
         return [_convert(args[0], v) for v in value]
     if origin is tuple:

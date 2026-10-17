@@ -29,7 +29,7 @@ function tomlValue(v) { return v === null || v === undefined ? '""' : typeof v =
 // the screening settings as a TOML override for 'fast-hippos-cli reapply' (+ the hand-picked hits in selection mode)
 function screeningToml() {
   const p = SCR.params, e = SCR.events, L = [], manualFile = `${D.name}_manual_hits.tsv`;
-  L.push(`# Screening settings from the FAST-HIPPOS dashboard of '${D.name}'.`, "# Apply to the whole run with:", "#   fast-hippos-cli reapply <config.toml> --override <this file>", "");
+  L.push(`# Screening settings from the FAST-HIPPOS dashboard of '${D.name}'.`, "# Use them for all images of the output folder with:", "#   fast-hippos-cli reapply <config.toml> --override <this file>", "");
   if (eventsTouched) L.push("[events]", `stimulation_frame = ${tomlValue(e.stimulation)}`, `calibration_frame = ${tomlValue(e.calibration)}`, `baseline_only = ${e.baseline_only}`, `margin = ${e.margin}`, "");
   else L.push("# [events] unchanged: the automatic or manual frames of each image are kept", "");
   L.push("[display]", `smooth_traces = ${p.smooth_traces}`, "", "[screening]", "enabled = true", `logic = ${tomlValue(p.logic)}`,
@@ -60,27 +60,63 @@ async function guiApi(name, body = {}) {
   const r = await fetch("/api/" + name, { method: "POST", headers: { "Content-Type": "application/json", "X-FH-Token": window.FH_GUI.token }, body: JSON.stringify(body) });
   const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
 }
-async function applyToRun() {
+// ---------------------------------------------------------------- apply (only when opened from the FAST-HIPPOS window)
+// 'Apply to all images': these screening settings for all images of the output folder. 'Apply to this image only': the
+// settings that can differ per image (stimulation settings, response window) become this image's own. Either way all
+// images are re-applied, because the hit list and the .rgn files cover all of them.
+const OWN_KEYS = { events: ["stimulation_frame", "calibration_frame", "baseline_only", "margin"], screening: ["response_window", "response_window_anchor", "response_window_margin"] };
+const OWN_NAMES = { stimulation_frame: "stimulation frame", calibration_frame: "calibration frame", baseline_only: "baseline only", margin: "margin", sensitivity: "detection threshold",
+  response_window: "response window", response_window_anchor: "response window anchor", response_window_margin: "response window margin" };
+const ownValue = (v) => (v === null || v === undefined || v === "" ? "automatic" : v === true ? "yes" : v === false ? "no" : v);
+const describeOwn = (own) => Object.values(own || {}).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_NAMES[k] || k} ${ownValue(v)}`));
+// this image's own settings after applying: the ones it had, with the timing set here (if changed) and a response window
+// that differs from the one this dashboard started with
+function ownSettings() {
+  const own = structuredClone(D.own_settings || {}), p = SCR.params, p0 = D.screen.params, e = SCR.events;
+  if (eventsTouched) own.events = { ...(own.events || {}), stimulation_frame: e.baseline_only ? null : e.stimulation, calibration_frame: e.baseline_only ? null : e.calibration, baseline_only: e.baseline_only, margin: e.margin };
+  for (const k of OWN_KEYS.screening) if (p[k] !== p0[k]) own.screening = { ...(own.screening || {}), [k]: p[k] };
+  return own;
+}
+function ownToml(own) {
+  const L = [`# Own settings of '${D.name}' from its dashboard`];
+  for (const [sec, vals] of Object.entries(own)) { L.push("", `[${sec}]`); for (const [k, v] of Object.entries(vals)) L.push(`${k} = ${tomlValue(v)}`); }
+  return L.join("\n") + "\n";
+}
+async function applyTo(scope) {
   const dashboard = decodeURIComponent(location.pathname.replace(/^\/files\//, ""));
-  let info = null; try { info = (await guiApi("runinfo", { dashboard })).run; } catch { /* the question below then names no images */ }
-  const imgs = info ? info.images.map(i => i.name) : [];
-  const list = imgs.slice(0, 12).map(n => "  • " + n).join("\n") + (imgs.length > 12 ? `\n  … and ${imgs.length - 12} more` : "");
-  if (!confirm(`Apply these screening settings to the whole run${info ? ` of ${info.started}` : ""} in this output folder`
-      + (imgs.length ? `, ${imgs.length} image${imgs.length === 1 ? "" : "s"}:\n\n${list}` : "?") + "\n\nFor every image, stimulation detection, "
-      + "screening, hit lists, .rgn files and the dashboard are redone with these settings; segmentation and traces are kept. "
-      + "This dashboard reloads when it is done.\n\nContinue?")) return;
-  const { toml, manual } = screeningToml(), msg = $("applymsg"), btn = $("scrapply");
-  btn.disabled = true; msg.textContent = "starting…";
+  let info = null; try { info = (await guiApi("runinfo", { dashboard })).run; } catch { /* the questions below then name no images */ }
+  const imgs = info ? info.images.map(i => i.name) : [], n = imgs.length, others = Object.keys((info && info.image_settings) || {}).filter(x => x !== D.name);
+  const list = imgs.slice(0, 12).map(x => "  • " + x).join("\n") + (n > 12 ? `\n  … and ${n - 12} more` : "");
+  const all = n ? `all ${n} image${n === 1 ? "" : "s"}` : "all images";
+  let toml, manual = null;
+  if (scope === "image") {
+    const own = ownSettings(), lines = describeOwn(own);
+    if (!lines.length) { alert("Nothing to apply to this image only: change its stimulation frames (Timing) or its response window first."); return; }
+    if (!confirm(`Use these settings for ${D.name} only?\n\n${lines.map(l => "  • " + l).join("\n")}\n\nThe other images keep their settings. `
+        + `Criteria, quality gates and the other screening settings are not changed by this (use 'Apply to all images' for those). `
+        + `Because the hit list and the .rgn files cover all images, ${all} are re-applied (segmentation and traces are kept); this dashboard reloads when it is done.\n\nContinue?`)) return;
+    toml = ownToml(own);
+  } else {
+    const e = SCR.events, timing = !eventsTouched ? "The stimulation and calibration frames of each image stay as they are (detected, or set)."
+      : `The timing set here (${e.baseline_only ? "baseline only" : `stimulation frame ${ownValue(e.stimulation)}, calibration frame ${ownValue(e.calibration)}`}) is used for all images, this one included.`;
+    if (!confirm(`Use these screening settings for ${all} of this output folder${info ? ` (run of ${info.started})` : ""}?` + (n ? `\n\n${list}` : "")
+        + `\n\n${timing}` + (others.length ? `\nImages with their own settings keep those: ${others.join(", ")}.` : "")
+        + "\n\nFor every image, stimulation detection, screening, hit lists, .rgn files and the dashboard are redone; segmentation and traces are kept. "
+        + "This dashboard reloads when it is done.\n\nContinue?")) return;
+    ({ toml, manual } = screeningToml());
+  }
+  const msg = $("applymsg"), btns = [$("scrapply"), $("scrapplyimg")];
+  btns.forEach(b => { b.disabled = true; }); msg.textContent = "starting…";
   let run;
-  try { run = (await guiApi("apply", { dashboard, toml, manual_tsv: manual })).run_id; }
-  catch (e) { msg.textContent = e.message; btn.disabled = false; return; }
+  try { run = (await guiApi("apply", { dashboard, toml, manual_tsv: manual, image: D.name, scope })).run_id; }
+  catch (err) { msg.textContent = err.message; btns.forEach(b => { b.disabled = false; }); return; }
   const poll = async () => {
     let st; try { st = await guiApi("status", { since: 0 }); } catch { setTimeout(poll, 1500); return; }
-    if (st.run_id !== run) { msg.textContent = "another run started"; btn.disabled = false; return; }
+    if (st.run_id !== run) { msg.textContent = "another run started"; btns.forEach(b => { b.disabled = false; }); return; }
     const last = st.lines.filter(l => / (INFO|WARNING|ERROR) /.test(l)).pop() || "";
     if (st.state === "running") { msg.textContent = "applying… " + last.replace(/^\S+ +\S+ +/, ""); setTimeout(poll, 800); return; }
     if (st.state === "done") { msg.textContent = "done, reloading…"; location.reload(); return; }
-    msg.textContent = `${st.state}: ${st.lines.slice(-1)[0] || ""}`; btn.disabled = false;
+    msg.textContent = `${st.state}: ${st.lines.slice(-1)[0] || ""}`; btns.forEach(b => { b.disabled = false; });
   };
   poll();
 }

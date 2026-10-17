@@ -196,6 +196,7 @@ def build_overview_data(results: list[ImageResult], settings: Settings, out: Pat
                       **hit_info.get((r.name, int(h["cell"])), {"rank": None, "chunk": None, "visit": None})}
                      for _, h in hit_rows.iterrows()],
             "thumb": (thumbs or {}).get(r.name),
+            "own": settings.image.get(r.name) or None,  # the image's own settings (Settings.image)
         }
         images.append(img)
     stim = [i["events"]["stimulation"] for i in images if i["events"]["stimulation"] is not None]
@@ -246,7 +247,9 @@ def summary_table(data: dict) -> pd.DataFrame:
             "median_calibration_diff": i["cal_delta"], "frames": i["frames"], "frame_interval_s": i["frame_interval"],
             "stimulation_frame": ev["stimulation"], "calibration_frame": ev["calibration"],
             "events_detected": ev["detected"], "baseline_only": ev["baseline_only"],
-            "qc_flags": ",".join(f["key"] for f in i["flags"]), "source": i["source"],
+            "qc_flags": ",".join(f["key"] for f in i["flags"]),
+            "own_settings": "; ".join(f"{k}={v}" for sec in (i["own"] or {}).values() for k, v in sec.items()),
+            "source": i["source"],
         })
     return pd.DataFrame(rows)
 
