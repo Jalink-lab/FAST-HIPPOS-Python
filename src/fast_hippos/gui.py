@@ -255,7 +255,7 @@ TIPS: dict[str, str] = {
         "brightness changes during the experiment.",
     "preprocess.drift_blur_sigma": "The drift of a frame is the position of the peak of its cross-correlation with the "
         "reference frame. Blurring that cross-correlation image (σ in pixels) makes the peak easier to find in noisy "
-        "images, as in the Fiji version (which used 4); larger = more robust, less precise. 0 = no blur.",
+        "images, as in the Fiji version (which used 4). Default 2; larger = more robust, less precise. 0 = no blur.",
     # ---- segmentation
     "segmentation.method": "How the cells are found. Cellpose: a deep-learning model (best, uses the GPU). Existing "
         "label image: cells outlined elsewhere (e.g. in Fiji). Threshold + watershed: a simple classical method, no "

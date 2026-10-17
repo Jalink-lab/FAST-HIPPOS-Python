@@ -129,7 +129,7 @@ def test_drift_blur_is_on_the_cross_correlation():
 
     from fast_hippos.preprocess import cross_correlation_shift
 
-    assert Settings().preprocess.drift_blur_sigma == 0
+    assert Settings().preprocess.drift_blur_sigma == 2
     rng = np.random.default_rng(1)
     a = ndi.gaussian_filter(rng.random((96, 128)), 3)
     b = np.roll(a, (4, -6), axis=(0, 1)) + rng.normal(0, 0.002, a.shape)

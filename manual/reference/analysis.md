@@ -10,7 +10,7 @@ offset of bidirectional scanning is corrected (needed for some fast scans), and 
 by registering every frame to a reference frame (the first, the last or the previous frame): the shift of a frame is
 the position of the peak of its cross-correlation with the reference. For noisy images, that cross-correlation image
 can be blurred first (*Drift: blur of the cross-correlation σ*), as in the Fiji version, which used σ = 4; the
-default is 0, no blur. *Drift: register edges* aligns the edges of the cells instead of their intensity.
+default is 2 (0 = no blur). *Drift: register edges* aligns the edges of the cells instead of their intensity.
 
 ## 2. Segmentation
 
