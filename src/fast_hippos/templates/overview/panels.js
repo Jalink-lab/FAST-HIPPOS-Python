@@ -120,11 +120,13 @@ function drawScatter(ctx, ks) {
   const mx = S.metric, my = S.metricY, [x0, x1] = sharedRange(ks, mx, S.logx), [y0, y1] = sharedRange(ks, my, S.logy);
   MP.range(x0, x1, y0, y1); MP.axes(ctx, mx, my); ctx.save(); MP.clip(ctx);
   const hov = ks.includes(S.hover) ? S.hover : -1;
-  for (const k of ks) {
+  // the image under the mouse on top; the others dimmed, their hit rings too
+  for (const k of [...ks.filter(k => k !== hov), ...ks.filter(k => k === hov)]) {
     const im = IM[k], X = im.C[mx], Y = im.C[my], hit = im.C.hit; if (!X || !Y) continue;
-    ctx.fillStyle = withAlpha(imgColor(k), (hov >= 0 && hov !== k ? 0.12 : 0.5));
+    const dim = hov >= 0 && hov !== k;
+    ctx.fillStyle = withAlpha(imgColor(k), dim ? 0.12 : 0.5);
     for (let i = 0; i < im.n_shown; i++) { if (!Number.isFinite(X[i]) || !Number.isFinite(Y[i])) continue; ctx.fillRect(MP.X(X[i]) - 1.2, MP.Y(Y[i]) - 1.2, 2.4, 2.4); }
-    if (hit) { ctx.strokeStyle = css("--hit"); ctx.lineWidth = 1.2; for (let i = 0; i < im.n_shown; i++) { if (!hit[i] || !Number.isFinite(X[i]) || !Number.isFinite(Y[i])) continue; ctx.beginPath(); ctx.arc(MP.X(X[i]), MP.Y(Y[i]), 3.2, 0, 7); ctx.stroke(); } }
+    if (hit) { ctx.strokeStyle = withAlpha(css("--hit"), dim ? 0.2 : 1); ctx.lineWidth = 1.2; for (let i = 0; i < im.n_shown; i++) { if (!hit[i] || !Number.isFinite(X[i]) || !Number.isFinite(Y[i])) continue; ctx.beginPath(); ctx.arc(MP.X(X[i]), MP.Y(Y[i]), 3.2, 0, 7); ctx.stroke(); } }
   }
   ctx.restore();
 }
