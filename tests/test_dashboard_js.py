@@ -168,3 +168,18 @@ def test_startup_functions_are_defined():
     called = set(re.findall(r"(?<![.\w])([A-Za-z_]\w*)\(", top)) - {"if", "for", "new", "ResizeObserver", "matchMedia", "invalidate", "request", "select", "setTimeout", "zoomTo"}
     missing = [f for f in called if not re.search(rf"(function\*?\s+{f}\s*\(|const {f} = )", bundle)]
     assert not missing, missing
+
+
+def test_window_and_overview_javascript_compile():
+    """The scripts of the FAST-HIPPOS window and of the run overview must parse too."""
+    import re
+    from importlib import resources
+
+    templates = resources.files("fast_hippos") / "templates"
+    gui = (templates / "gui.html").read_text(encoding="utf-8")
+    sources = re.findall(r"<script>(.*?)</script>", gui, re.DOTALL)
+    sources += [(templates / "overview" / f).read_text(encoding="utf-8")
+                for f in ("data.js", "table.js", "panels.js", "maps.js", "export.js", "main.js")]
+    assert len(sources) > 6
+    for src in sources:
+        py_mini_racer.MiniRacer().eval(f"new Function({json.dumps(src)}); 0")

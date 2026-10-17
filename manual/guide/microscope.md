@@ -14,8 +14,9 @@ After a run with screening, the output folder holds:
 | `HITS_<run>_1-1000.rgn`, `HITS_<run>_1001-2000.rgn`, … | the hits in files of at most 1000 positions (*Hits per .rgn file*), each with its own short route |
 | `hits_1-1000.tsv`, … | the same hits as tables, in visiting order |
 
-`<run>` is the name of the output folder. Each file lists the positions in an order that keeps the stage travel
-short: the route is optimized, typically 15–20 % shorter than going from each hit to the nearest next one. The
+`<run>` is the name of the output folder, or the name of the image when the run has only one image. Each file lists
+the positions in an order that keeps the stage travel short: the route is optimized, typically 13–18 % shorter than
+going from each hit to the nearest next one. The
 overview and the dashboards can draw these routes.
 
 To visit the hits:
@@ -48,7 +49,13 @@ in the order of the images, separated by spaces, tabs, commas or new lines (it r
 images); or the `.lif` file with the positions (used only for images without positions of their own).
 
 Images without stage positions are still analyzed and screened, but their hits get no `.rgn` file; the window warns
-about this before the run.
+about this before the run. A stage positions file is only read by *Run analysis*, not by *Re-apply screening*.
+
+!!! info "Stage coordinates"
+    The positions file holds the stage X and Y as LAS X stores them in the image metadata (the same as Bio-Formats
+    shows). The positions in the `.rgn` files and in the tables (`abs_x_m`, `abs_y_m`, in metres) are in the frame of
+    the LAS X Navigator, measured to the cell: X = −stage Y, Y = −stage X. So don't be surprised that they look
+    swapped and negative.
 
 !!! tip "Hit positions on the nucleus"
     By default a hit position is the centre of the cell. With a *Nuclei classifier* (*Cell segmentation → Advanced*),
@@ -68,5 +75,6 @@ scanning phase* is on (once for all tiles), places each tile at its stage positi
 the output folder (`<name>_STITCHED.tif`), with the tile positions, so that it can be used again later. Tiles that
 overlap are not blended yet: the later tile covers the earlier one.
 
-If the `MetaData` folder is missing, choose the `.lif` file of the scan as *Stage positions file*: its positions are
-then saved next to the tiles (`tile_positions.tsv`), and the `.lif` file is not needed again.
+FAST-HIPPOS saves the tile positions it reads next to the tiles, as `tile_positions.tsv`, and uses that file from then
+on; delete it to read the positions again. If the `MetaData` folder is missing, choose the `.lif` file of the scan as
+*Stage positions file*: after the first run, the `.lif` file is not needed again.

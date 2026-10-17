@@ -1,3 +1,14 @@
+// where a gate starts when it is switched on: the lifetime defaults (ns), or for ratio and intensity data (other
+// units) a range that all cells pass, to be narrowed on the histogram
+function gateSeed() {
+  if (D.is_lifetime) return { g1: [0.5, 1], g2: 0.2 };
+  const fin = (a) => a.filter(v => typeof v === "number" && Number.isFinite(v));
+  const cal = fin(C.calibration_diff || []), dev = fin(C.baseline_dev_pop || []).map(Math.abs);
+  const r = (v) => +v.toPrecision(3);
+  if (!cal.length) return { g1: [0, 1], g2: dev.length ? r(Math.max(...dev) * 1.02) : 1 };
+  const lo = Math.min(...cal), hi = Math.max(...cal), pad = 0.02 * (hi - lo || Math.abs(hi) || 1);  // all cells pass
+  return { g1: [r(lo - pad), r(hi + pad)], g2: dev.length ? r(Math.max(...dev) * 1.02) : 1 };
+}
 // ---------------------------------------------------------------- live screening panel
 const METRIC_KEYS = Object.keys(D.screen.metrics).filter(k => k !== "additional_intensity" || KA);
 const critText = (c) => `${c.metric} ${c.op === "between" ? "between" : c.op} ${c.value}` + (c.op === "between" ? ` and ${c.value2}` : "");
@@ -142,8 +153,10 @@ function fillParams() {
   setAnchor(p.response_window_anchor); $("rm").value = p.response_window_margin;
   $("sm").value = p.smooth_traces; $("smv").textContent = p.smooth_traces ? `r = ${p.smooth_traces}` : "off";
   $("rf").value = p.rise_time_fraction; $("rfv").textContent = `${Math.round(p.rise_time_fraction * 100)} %`;
-  $("g1").checked = !!p.baseline_calibration_diff; [$("g1a").value, $("g1b").value] = p.baseline_calibration_diff || [0.5, 1];
-  $("g2").checked = p.max_baseline_deviation !== null && p.max_baseline_deviation !== undefined; $("g2v").value = p.max_baseline_deviation ?? 0.2;
+  document.querySelectorAll(".gunit").forEach(e => { e.textContent = D.is_lifetime ? "ns" : ""; });
+  const seed = gateSeed();
+  $("g1").checked = !!p.baseline_calibration_diff; [$("g1a").value, $("g1b").value] = p.baseline_calibration_diff || seed.g1;
+  $("g2").checked = p.max_baseline_deviation !== null && p.max_baseline_deviation !== undefined; $("g2v").value = p.max_baseline_deviation ?? seed.g2;
   $("am").value = p.additional_channel_metric; $("cls").checked = p.classify_additional_channel; $("clt").value = p.classification_threshold ?? "";
   const sb = $("sortby"); if (!sb.options.length) [["", "(cell order)"], ...METRIC_KEYS.map(k => [k, k])].forEach(([v, l]) => sb.add(new Option(l, v)));
   sb.value = p.sort_by || ""; $("sortdir").value = p.sort_descending ? "1" : "0"; $("chunk").value = p.max_hits_per_rgn; $("optpath").checked = p.optimize_path;
@@ -165,8 +178,9 @@ function initScreening() {
   $("sm").oninput = () => { p.smooth_traces = +$("sm").value; $("smv").textContent = p.smooth_traces ? `r = ${p.smooth_traces}` : "off"; if (p.smooth_traces > 0) { S.tsrc = "smoothed"; $("tsrc").value = "smoothed"; } scheduleRecompute(); };
   $("rf").oninput = () => { p.rise_time_fraction = +$("rf").value; $("rfv").textContent = `${Math.round(p.rise_time_fraction * 100)} %`; scheduleRecompute(); };
   const readGates = () => {
-    p.baseline_calibration_diff = $("g1").checked ? [numOrNull($("g1a")) ?? 0.5, numOrNull($("g1b")) ?? 1] : null;
-    p.max_baseline_deviation = $("g2").checked ? Math.abs(numOrNull($("g2v")) ?? 0.2) : null;
+    const seed = gateSeed();
+    p.baseline_calibration_diff = $("g1").checked ? [numOrNull($("g1a")) ?? seed.g1[0], numOrNull($("g1b")) ?? seed.g1[1]] : null;
+    p.max_baseline_deviation = $("g2").checked ? Math.abs(numOrNull($("g2v")) ?? seed.g2) : null;
     p.additional_channel_metric = $("am").value; p.classify_additional_channel = $("cls").checked; p.classification_threshold = numOrNull($("clt"));
     scheduleRecompute();
   };

@@ -186,6 +186,10 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
         "screen": {
             "events": {"stimulation": ev.stimulation, "calibration": ev.calibration, "baseline_only": ev.baseline_only,
                        "margin": ev.margin, "detected": ev.detected},
+            # how the frames of this image were given (None = detected): an export keeps what was not changed
+            "event_settings": {"stimulation_frame": settings.events.stimulation_frame,
+                               "calibration_frame": settings.events.calibration_frame,
+                               "no_calibration": settings.events.no_calibration},
             "params": {
                 "smooth_traces": settings.display.smooth_traces,
                 "response_window": sc.response_window,

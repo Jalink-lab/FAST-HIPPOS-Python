@@ -101,6 +101,16 @@ def cell_noise_sigma(kymo: np.ndarray) -> float:
     return value if np.isfinite(value) else 0.0
 
 
+def transitions(mean_trace: np.ndarray, sensitivity: float, kymo: np.ndarray | None = None) -> list[int]:
+    """All upward transitions (frames) that stand out from the noise, strongest first (see detect)."""
+    d2 = second_derivative(mean_trace)
+    sigma = noise_sigma(d2)
+    if kymo is not None:
+        sigma = max(sigma, cell_noise_sigma(kymo))
+    peaks, _props = find_peaks(d2, prominence=max(0, sensitivity * sigma))
+    return [int(p) + 1 for p in peaks[np.argsort(d2[peaks])[::-1]]]
+
+
 def detect(mean_trace: np.ndarray, sensitivity: float, kymo: np.ndarray | None = None) -> tuple[int | None, int | None]:
     """Find up to two upward transitions in the population-mean trace.
 
@@ -117,19 +127,12 @@ def detect(mean_trace: np.ndarray, sensitivity: float, kymo: np.ndarray | None =
     (cell_noise_sigma). The larger of the two is used: noise that all cells share (e.g. laser drift) is only in the
     first.
     """
-    d2 = second_derivative(mean_trace)
-    sigma = noise_sigma(d2)
-    if kymo is not None:
-        sigma = max(sigma, cell_noise_sigma(kymo))
-    tol = sensitivity * sigma
-    peaks, _props = find_peaks(d2, prominence=max(0, tol))
-    if peaks.size == 0:
+    top = sorted(transitions(mean_trace, sensitivity, kymo)[:2])
+    if not top:
         return None, None
-    top = peaks[np.argsort(d2[peaks])[::-1][:2]] + 1
-    top = np.sort(top)
-    if top.size == 1:
-        return int(top[0]), None
-    return int(top[0]), int(top[1])
+    if len(top) == 1:
+        return top[0], None
+    return top[0], top[1]
 
 
 def determine(mean_trace: np.ndarray, settings: EventSettings, kymo: np.ndarray | None = None) -> Events:
@@ -139,10 +142,33 @@ def determine(mean_trace: np.ndarray, settings: EventSettings, kymo: np.ndarray 
     if settings.baseline_only or n < 2:
         log.info("Baseline-only mode")
         return Events(n, baseline_only=True, margin=settings.margin)
-    if settings.stimulation_frame is not None or settings.calibration_frame is not None:
-        ev = Events(n, settings.stimulation_frame, settings.calibration_frame, margin=settings.margin)
-        log.info("Manual stimulation / calibration frames: %s / %s", ev.stimulation, ev.calibration)
+    s_set, c_set, no_cal = settings.stimulation_frame, settings.calibration_frame, settings.no_calibration
+    if no_cal:
+        c_set = None
+    if s_set is not None and (c_set is not None or no_cal):
+        ev = Events(n, s_set, c_set, margin=settings.margin)
+        log.info("Stimulation frame %s, calibration frame %s (set)", s_set, "none" if no_cal else c_set)
         return ev
+    if s_set is not None or c_set is not None:  # one frame set: the other is detected
+        found = transitions(mean_trace, settings.sensitivity, kymo)
+        if s_set is not None:
+            c = next((f for f in found if f > s_set + settings.margin), None)
+            log.info("Stimulation frame %d (set); %s", s_set,
+                     f"calibration detected at frame {c}" if c is not None else "no calibration detected after it")
+            return Events(n, s_set, c, margin=settings.margin)
+        s = next((f for f in found if f < c_set - settings.margin), None)
+        if s is None:
+            log.warning("Calibration frame %d (set); no stimulation detected before it", c_set)
+        else:
+            log.info("Calibration frame %d (set); stimulation detected at frame %d", c_set, s)
+        return Events(n, s, c_set, margin=settings.margin)
+    if no_cal:  # only the stimulation: the strongest transition
+        found = transitions(mean_trace, settings.sensitivity, kymo)
+        if not found:
+            log.warning("No stimulation detected; treating the whole trace as baseline")
+            return Events(n, baseline_only=True, detected=True, margin=settings.margin)
+        log.info("Detected stimulation at frame %d (no calibration)", found[0])
+        return Events(n, found[0], None, detected=True, margin=settings.margin)
     s, c = detect(mean_trace, settings.sensitivity, kymo)
     if s is None:
         log.warning("No stimulation or calibration detected; treating the whole trace as baseline")

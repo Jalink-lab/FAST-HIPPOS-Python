@@ -18,6 +18,10 @@
 
 ## The analysis
 
+??? question "My experiment has no calibration"
+    Tick *No calibration* (*Stimulation and calibration*). Only the stimulation is then looked for, and the response
+    lasts until the end of the movie; the calibration gate is not used.
+
 ??? question "The stimulation or the calibration was not found, or found at the wrong frame"
     Open the dashboard of the image, drag *S* and *C* to the right frames, and click *Apply to all images* (if all
     images follow the same protocol) or *Apply to this image only*. See
@@ -29,10 +33,11 @@
     another model. *Minimum cell size* removes debris; the advanced settings also filter on circularity and
     intensity.
 
-??? question "Many cells are not valid"
-    The quality gates remove them. Look at the histograms of the gates in the dashboard: is the calibration response
-    in the range of *calibration − baseline*? The default range (0.5–1 ns) suits the usual sensors; for another
-    sensor, set it to the response you expect.
+??? question "Many cells are not valid, or there are no hits at all"
+    The quality gates remove them (the log warns when hardly any cells pass). Look at the histograms of the gates in
+    the dashboard: is the calibration response in the range of *calibration − baseline*? The gates are in the unit
+    of the measured value; the default range (0.5–1 ns) suits the usual lifetime sensors. For ratio and intensity
+    data the gates start off; set them from their histograms. Without hit criteria no cell is a hit.
 
 ??? question "No .rgn files were written"
     The images have no stage positions (the window warns about this). See

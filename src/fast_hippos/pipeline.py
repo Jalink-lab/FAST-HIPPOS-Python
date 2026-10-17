@@ -95,6 +95,10 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
         log.info("The results of the previous run in this folder were moved to %s%s (removed when this run is complete, "
                  "kept if it is not): %s", PREVIOUS_RUN, os.sep, ", ".join(moved))
     (out / "settings_used.json").write_text(json.dumps(settings.to_dict(), indent=2))
+    from .gui import SETTINGS_NAME, to_toml
+
+    (out / SETTINGS_NAME).write_text(to_toml(settings.to_dict(), f"# FAST-HIPPOS {__version__}: the settings of the run in "
+                                     f"this folder\n# Run again with: fast-hippos-cli run {SETTINGS_NAME}"), encoding="utf-8")
 
     results: list[ImageResult] = []
     if reapply:
@@ -168,7 +172,8 @@ RUN_TIME_ONLY = {"display": ("overlay_smooth_xy", "overlay_smooth_t", "dashboard
                              "dashboard_tiles"), "screening": ("stage_positions_file",)}
 # files that a run writes in the output folder itself (they go with the run)
 _RUN_OUTPUTS = re.compile(r"(index\.html|cell_coordinates\.tsv|hits\.tsv|hits_\d+-\d+\.tsv|HITS_.*\.rgn|hit_positions\.png|"
-                          r"hit_chunks\.json|screening_from_dashboard\.toml|settings_used\.json|run\.json|run_log\.txt|run_summary\.tsv)")
+                          r"hit_chunks\.json|screening_from_dashboard\.toml|settings_used\.json|run\.json|run_log\.txt|run_summary\.tsv|"
+                          r"fast_hippos_settings\.toml)")
 _QUIET = ("settings_used.json", "run.json", "run_log.txt")  # moved along, but not worth listing to the user
 
 
@@ -244,6 +249,8 @@ def clear_run(out: Path, keep: list[Path] = ()) -> list[str]:
     if plan["blocked"]:
         raise ValueError("\n".join(plan["blocked"]))
     prev = out / PREVIOUS_RUN
+    if not plan["folders"] and not plan["files"]:
+        return []  # nothing to move: no (empty) _previous_run
     if prev.is_dir() and _read_run_file(out).get("complete", True):
         shutil.rmtree(prev)  # left over from a complete run (its removal failed): the folder holds the newer run
     partial = prev.is_dir()
@@ -284,9 +291,21 @@ def _write_run_file(out: Path, results: list[ImageResult], reapply: bool, starte
     shutil.rmtree(Path(out) / PREVIOUS_RUN, ignore_errors=True)
 
 
+OWN_NAMES = {"stimulation_frame": "stimulation frame", "calibration_frame": "calibration frame",
+             "baseline_only": "baseline only", "no_calibration": "no calibration", "sensitivity": "detection threshold",
+             "margin": "margin", "response_window": "response window", "response_window_anchor": "response window anchor",
+             "response_window_margin": "response window margin"}
+OWN_VALUES = {"after_stimulation": "after S", "before_calibration": "before C", True: "yes", False: "no"}
+
+
 def _describe_own(own: dict) -> str:
-    """'stimulation_frame 148, calibration_frame 1052, response_window 20' (None = detect automatically)."""
-    return ", ".join(f"{k} {'automatic' if v is None else v}" for section in own.values() for k, v in section.items())
+    """'stimulation frame 148, calibration frame 1052, response window 20' (empty frames: automatic, or none)."""
+    no_cal = bool(own.get("events", {}).get("no_calibration"))
+    def value(k, v):
+        if v is None:
+            return "none" if k == "calibration_frame" and no_cal else "automatic"
+        return OWN_VALUES.get(v, v) if isinstance(v, (bool, str)) else v
+    return ", ".join(f"{OWN_NAMES.get(k, k)} {value(k, v)}" for section in own.values() for k, v in section.items())
 
 
 def run_image_settings(out: Path) -> dict:
@@ -393,13 +412,16 @@ def process_image(
     proj = segmentation.projection(intensity, s_seg.start_frame, s_seg.end_frame)
     seg_img = proj if s_seg.channel is None else segmentation.projection(image.channel(s_seg.channel), s_seg.start_frame, s_seg.end_frame)
     labels = segmentation.segment(seg_img, s_seg)
-    labels = segmentation.filter_labels(labels, proj, s_seg.min_cell_size, s_seg.max_circularity, s_seg.min_cell_intensity)
+    # cell intensities as a mean per frame (in the units of the image), not the sum over the projected frames
+    n_proj = len(range(intensity.shape[0])[slice(s_seg.start_frame or 0, None if s_seg.end_frame is None else s_seg.end_frame + 1)])
+    mean_proj = proj / max(1, n_proj)
+    labels = segmentation.filter_labels(labels, mean_proj, s_seg.min_cell_size, s_seg.max_circularity, s_seg.min_cell_intensity)
     n = int(labels.max())
     log.info("%d cells", n)
     if n == 0:
         log.warning("No cells found in %s - skipped", image.name)
         return None
-    stats = segmentation.cell_statistics(labels, proj)
+    stats = segmentation.cell_statistics(labels, mean_proj)
 
     # traces
     kymo = kymograph.cell_values(intensity, lifetime, labels, s_in.modality)
@@ -483,12 +505,13 @@ def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.nda
         tile_size = (width * px * 1e-6, height * px * 1e-6)
         if positions_all is not None and (override or image.stage_position is None):
             if result.index >= len(positions_all):
-                raise ValueError(f"Stage positions file has {len(positions_all)} positions; image {result.index} has none")
+                raise ValueError(f"The stage positions file has {len(positions_all)} positions, but this is image "
+                                 f"{result.index + 1} ({image.name}); give X and Y for every image")
             position = positions_all[result.index]
         elif image.stage_position is not None:
             position = image.stage_position
         else:
-            log.warning("No stage position for %s: using (0, 0)", image.name)
+            log.warning("No stage position for %s: its hits will not go into the .rgn files", image.name)
             position = (0.0, 0.0)
             result.stage_known = False
         positions = np.array([position], dtype=float)
@@ -679,6 +702,10 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
     elif len(hits):
         log.warning("Hits found but no stage positions: no .rgn files written")
     log.info("Screening total: %d hits in %d cells", len(all_hits), len(all_cells))
+    names = {r.name for r in results}
+    for name in settings.image:
+        if name not in names:
+            log.warning("Own settings for image '%s' match no image of this run (images: %s)", name, ", ".join(sorted(names)))
     (out / "hit_chunks.json").write_text(
         json.dumps([{"image": c["image"].tolist(), "cell": c["cell"].tolist()} for c in chunks])
     )

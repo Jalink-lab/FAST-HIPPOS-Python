@@ -161,7 +161,7 @@ def test_bidirectional_correction_per_tile(tmp_path):
     (folder / "MetaData" / "scan.xml").write_text(_leica_xml(offsets, tile=tile))
     image = stitch.stitch_folder(folder, bidirectional="y")
     assert abs(stage.parse_stitched_info(image.info).bidirectional) == pytest.approx(1.6, abs=0.1)
-    assert image.data.dtype == np.float32
+    assert image.data.dtype == np.uint16 and image.data.min() >= 0  # the type of the tiles is kept
     from fast_hippos.preprocess import estimate_bidirectional_shift
 
     assert abs(estimate_bidirectional_shift(image.data[:, 0], "y")) < 0.15  # aligned after correction

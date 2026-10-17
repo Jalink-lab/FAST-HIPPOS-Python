@@ -30,7 +30,7 @@ The plot shows the average trace of all cells, with the baseline (blue), the res
 
 - **Stimulation and calibration.** Drag the *S* and *C* markers, or type the frames. Frames count from 0 and mark the
   *first* frame with the stimulus. *reset* goes back to the frames found by the analysis. *baseline only* is for
-  movies without stimulation.
+  movies without stimulation. An empty *cal* means: no calibration (for experiments without one).
 - **margin**: frames left out before each transition, so that a stimulus halfway through a frame doesn't count as
   baseline.
 - **response window**: the frames whose average is the *mean response* (`response_mean_diff` and
@@ -47,6 +47,11 @@ The plot shows the average trace of all cells, with the baseline (blue), the res
 
 Gates remove cells whose traces cannot be trusted; every hit must pass them. Each gate shows the histogram of its
 value over all cells, with draggable limits, and how many cells fail.
+
+The gates are in the unit of the measured value: ns for lifetimes, ratio units for ratio imaging, intensity for
+intensity data. Their default values (0.5–1 ns and 0.2 ns) are meant for lifetimes; for ratio and intensity data the
+gates start switched off. Switch them on in the dashboard: they then start with a range that all cells pass, which
+you narrow on the histogram. When hardly any cells pass the gates, the log warns about it.
 
 - **calibration − baseline**: how much the cell responds to the calibration. A cell that doesn't respond to the
   maximal stimulus probably has no working sensor, or isn't a healthy cell.
@@ -74,7 +79,8 @@ cells, with the passing cells in pink, and *… pass* counts them. Drag the blac
   [Cell values](../reference/metrics.md).
 - **AND / OR**: click the label of a criterion to switch. **AND** criteria are all required; of the **OR** criteria at
   least one must pass. For example *AND baseline < 2.4*, *OR response < 0.5*, *OR rise time > 5* gives cells with a
-  low baseline that either respond weakly or slowly.
+  low baseline that either respond weakly or slowly. (The rise time is only meaningful for cells that respond:
+  combine it with an AND criterion on the response.)
 - **×** removes a criterion.
 
 !!! example "In the example"

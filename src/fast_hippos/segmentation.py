@@ -52,6 +52,10 @@ def segment(img: np.ndarray, settings: SegmentationSettings) -> np.ndarray:
             raise ValueError(f"Labelmap shape {labels.shape} does not match the image {img.shape}")
         return labels
     if method == "threshold":
+        if settings.gamma:  # lift dim cells above the automatic (Otsu) threshold
+            x = np.nan_to_num(img.astype(np.float64))
+            x = np.clip(x - x.min(), 0, None)
+            img = (x / (x.max() or 1)) ** settings.gamma
         return threshold_segmentation(img, settings.diameter or 20)
     if method == "cellpose":
         return run_cellpose(prepare_for_cellpose(img, settings.gamma), settings)
@@ -105,7 +109,8 @@ def run_cellpose(img: np.ndarray, settings: SegmentationSettings) -> np.ndarray:
         src, dst = Path(tmp) / "image.npy", Path(tmp) / "masks.npy"
         np.save(src, img)
         result = subprocess.run(
-            [str(python), str(runner), str(src), str(dst), json.dumps(params)], capture_output=True, text=True, check=False
+            [str(python), str(runner), str(src), str(dst), json.dumps(params)], capture_output=True, text=True,
+            encoding="utf-8", errors="replace", check=False
         )
         if result.returncode != 0 or not dst.exists():
             raise RuntimeError(f"Cellpose failed:\n{result.stderr[-3000:]}")

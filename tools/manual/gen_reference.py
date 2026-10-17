@@ -63,7 +63,27 @@ def metrics_page() -> str:
            "quantity: the ratio for ratio imaging, the intensity for intensity-only data."), "",
            "| Name | Meaning |", "|---|---|"]
     out += [f"| `{k}` | {v} |" for k, v in METRICS.items()]
+    out += ["", "## Other values in the tables", "",
+            "These are in `cells.tsv` and in the Cells table of the dashboard (and can be shown in the scatter plot).", "",
+            "| Name | Meaning |", "|---|---|"]
+    out += [f"| `{k}` | {v} |" for k, v in OTHER_VALUES.items()]
     return "\n".join(out) + "\n"
+
+
+OTHER_VALUES = {
+    "area_px": "Size of the cell in pixels.",
+    "mean_intensity": "Mean pixel value of the cell per frame, over the frames used for the segmentation, in the units "
+        "of the image (photon counts or amplitudes). The *Minimum cell intensity* filter uses the same value.",
+    "circularity": "4π · area / perimeter²: 1 for a circle, lower for irregular shapes.",
+    "centroid_x, centroid_y": "Centre of the cell in the image (pixels).",
+    "pos_x_px, pos_y_px": "The position used for the hit: the centre of the cell, or of its nucleus with a nuclei "
+        "classifier (pixels).",
+    "abs_x_m, abs_y_m": "That position as a stage position (metres), as written to the .rgn files: in the frame of "
+        "the LAS X Navigator (see [Back to the microscope](../guide/microscope.md#where-the-stage-positions-come-from)).",
+    "class_additional": "1 when the cell is positive for the additional channel (classification on), else 0.",
+    "valid": "The cell passes the quality gates.",
+    "hit": "The cell is a hit.",
+}
 
 
 if __name__ == "__main__":

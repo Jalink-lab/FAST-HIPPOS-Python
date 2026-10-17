@@ -21,7 +21,7 @@ smoothed), which cells are shown, and how to select (box or lasso). *↑ Overvie
 ## Everything is linked
 
 **Hover** over a cell in the image, a trace, a kymograph column, a point in the scatter plot or a row in the table:
-the cell is highlighted in yellow everywhere, and the *Cell* card shows it in detail.
+the cell is highlighted (yellow, or orange in the light theme) everywhere, and the *Cell* card shows it in detail.
 
 **Select** cells by clicking; ++ctrl++ + click adds or removes a cell. ++shift++ + drag selects a box or a free-hand
 lasso in the image and the scatter plot (++l++ switches between them), or a range of columns in the kymograph. The

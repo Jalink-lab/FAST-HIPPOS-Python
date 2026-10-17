@@ -9,7 +9,7 @@ What can differ per image:
 
 | | |
 |---|---|
-| Stimulation | stimulation frame, calibration frame, *baseline only*, margin, detection threshold |
+| Stimulation | stimulation frame, calibration frame, *no calibration*, *baseline only*, margin, and the detection threshold (only in a [settings file](../reference/command-line.md#settings-files)) |
 | Response window | length, anchor (*after S* / *before C*) and margin |
 
 Everything else, in particular the quality gates and the hit criteria, is the same for all images: a hit means the

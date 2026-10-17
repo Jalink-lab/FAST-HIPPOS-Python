@@ -147,7 +147,12 @@ def find_hits(df: pd.DataFrame, settings: ScreeningSettings, has_calibration: bo
         if or_passes:
             ok &= pd.concat(or_passes, axis=1).any(axis=1)
         df["hit"] = df["valid"] & ok
-    log.info("Screening: %d hits in %d cells (%.1f %%)", df["hit"].sum(), len(df), 100 * df["hit"].mean() if len(df) else 0)
+    n_valid = int(df["valid"].sum())
+    log.info("Screening: %d hits in %d cells (%.1f %%; %d valid)", df["hit"].sum(), len(df),
+             100 * df["hit"].mean() if len(df) else 0, n_valid)
+    if len(df) >= 10 and n_valid < 0.2 * len(df):
+        log.warning("Only %d of %d cells pass the quality gates: check their ranges (Screening, advanced settings: "
+                    "Quality gates; or in the dashboard)", n_valid, len(df))
     return df
 
 

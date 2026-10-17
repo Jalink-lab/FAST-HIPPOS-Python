@@ -37,7 +37,9 @@ criteria = [
 - The key of every setting is shown in [All settings](settings.md), and `fast-hippos-cli init-config` writes an
   annotated example file.
 
-[Settings for single images](../guide/own-settings.md) are written as tables per image:
+[Settings for single images](../guide/own-settings.md) are written as tables per image. The name is the image name
+as the overview and the dashboard show it: the file name without extension (`<file> - <series>` for a `.lif` file,
+`<prefix>_STITCHED` for a tile folder). The log warns about a name that matches no image of the run.
 
 ```toml
 [image."plate1 - Position 7".events]
@@ -54,15 +56,17 @@ Run the commands in PowerShell, in the FAST-HIPPOS folder, as `uv run fast-hippo
 |---|---|
 | `fast-hippos-cli run settings.toml` | the full analysis |
 | `fast-hippos-cli reapply settings.toml` | redo stimulation detection, screening and dashboards for the run in the output folder, with the `[events]`, `[screening]` and `[display]` settings of the file |
-| `fast-hippos-cli reapply settings.toml --override screening.toml` | the same, with the settings of a second file on top, e.g. one saved with *Settings → TOML* in a dashboard |
+| `fast-hippos-cli reapply settings.toml --override screening.toml` | the same, with the settings of a second file on top, e.g. one saved with *Settings → TOML* in a dashboard (`run` takes `--override` too) |
 | `fast-hippos-cli init-config example.toml` | write an annotated example settings file |
-| `fast-hippos-cli stitch tiles_folder [--lif scan.lif] [--bidirectional y]` | only stitch a folder of exported tiles |
+| `fast-hippos-cli stitch tiles_folder [--lif scan.lif] [--bidirectional y]` | only stitch a folder of exported tiles; writes `<prefix>_STITCHED.tif` next to the folder (or `--output`), replacing an existing one |
 | `fast-hippos-cli train-classifier projection.tif scribbles.tif nuclei.joblib` | train a nuclei classifier for the hit positions |
 | `fast-hippos-cli demo` | analyze a small synthetic experiment and open its dashboard |
 | `fast-hippos-cli gui` | open the window (with a console that shows its messages) |
 | `fast-hippos-cli shortcut` | put a shortcut on the desktop (Windows) |
 
-`fast-hippos-cli <command> --help` lists the options of a command.
+`fast-hippos-cli <command> --help` lists the options of a command. Like the window, every `run` and `reapply` writes
+its settings as `fast_hippos_settings.toml` into the output folder. A mistake in a settings file (an unknown
+setting, a TOML syntax error) gives a short error message naming the section.
 
 !!! note "Re-apply and settings for single images"
     A `reapply` keeps the own settings of single images of the run, unless the settings file has an `[image…]`

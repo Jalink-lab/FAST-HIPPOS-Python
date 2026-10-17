@@ -254,7 +254,7 @@ function cpStatus() {
   const v = cpVersion(), r = CP[`${v}|${cpPython()}`];
   if (!r) { setTimeout(checkCellpose); return `<span class="chip">checking Cellpose…</span>`; }
   if (r.pending) return `<span class="chip">checking Cellpose ${v}…</span>`;
-  if (r.error || !r.cellpose) return `<span class="chip warn">Cellpose ${v} not found${cpPython() ? "" : " in this environment: set its python.exe under Advanced → Segmentation"}</span>`;
+  if (r.error || !r.cellpose) return `<span class="chip warn">Cellpose ${v} not found${cpPython() ? "" : " in this environment: set its python.exe under Cell segmentation → Advanced settings → Cellpose environments"}</span>`;
   const major = +r.cellpose.split(".")[0];
   if (major !== v) return `<span class="chip warn">environment has Cellpose ${esc(r.cellpose)}, model needs ${v}</span>`;
   return `<span class="chip ok">Cellpose ${esc(r.cellpose)} · ${r.gpu ? "GPU " + esc(r.gpu) : "CPU only"}</span>`;
@@ -309,7 +309,7 @@ function widget(f) {
           <input data-c="value" type="number" step="any" value="${c.value ?? ""}" title="Threshold, in the unit of the metric (e.g. ns for lifetimes)">
           ${c.op === "between" ? `<input data-c="value2" type="number" step="any" value="${c.value2 ?? ""}" title="Upper limit of the range">` : "<span></span>"}
           <button class="small" data-c="remove" title="Remove this criterion">✕</button></div>`).join("")}
-        <div class="row"><button class="small" data-addcrit title="Add a condition that hits must meet">+ criterion</button><span class="muted">${crit.length ? "hover a metric for its meaning; thresholds can be refined later in the dashboard" : "no criteria: all valid cells are listed, refine in the dashboard"}</span></div></div>`;
+        <div class="row"><button class="small" data-addcrit title="Add a condition that hits must meet">+ criterion</button><span class="muted">${crit.length ? "hover a metric for its meaning; thresholds can be refined later in the dashboard" : "no criteria yet: add one, or set them later in the dashboard"}</span></div></div>`;
     }
     default: return `<input id="${id}" type="text" value="${esc(v ?? "")}">`;
   }
@@ -440,21 +440,24 @@ function checks() {
   if (imgs.length) {
     add("info", `The output folder holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
       + "Run analysis replaces it; Re-apply screening redoes the screening of these images.");
-    if (imageSettingsDiffer(o)) add("warn", `The run in the output folder has other own settings of single images (${Object.keys(o.run.image_settings || {}).join(", ") || "none"}) `
+    if (imageSettingsDiffer(o)) add("warn", `The run in the output folder has other own settings for ${differingImages(o).join(", ")} `
       + "than this window: Re-apply screening uses the ones listed under Stimulation and calibration");
+    const normPath = (p) => p ? String(p).replace(/\\/g, "/").toLowerCase() : "";
+    if (normPath(o.run.stage_positions_file) !== normPath(S.screening.stage_positions_file) && S.screening.enabled)
+      add("warn", "The stage positions file differs from that of the run in the output folder: only Run analysis uses it (Re-apply screening keeps the run's positions)");
     if (runDiffersFromList(o)) add("warn", "The Images list differs from the images of that run: Re-apply screening processes the run's images, not the list");
   }
   else if (Object.keys(S.image || {}).length && S.input.output && o)
     add("warn", `Own settings of single images (${Object.keys(S.image).join(", ")}) will be used by Run analysis: remove them under Stimulation and calibration if they belong to another experiment`);
   if (S.segmentation.method === "cellpose") {
     const r = CP[`${cpVersion()}|${cpPython()}`];
-    if (r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== cpVersion())) add("err", `Cellpose ${cpVersion()} is not available (Advanced → Segmentation)`);
+    if (r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== cpVersion())) add("err", `Cellpose ${cpVersion()} is not available (Cell segmentation → Advanced settings → Cellpose environments)`);
     else if (r && r.cellpose && !r.gpu && S.segmentation.use_gpu) add("warn", "No GPU found: Cellpose will run on the CPU (slow)");
   }
   if (S.display.min_lifetime != null && S.display.max_lifetime != null && S.display.max_lifetime <= S.display.min_lifetime) add("err", "Colour scale: the maximum must be larger than the minimum");
   if (S.screening.enabled) {
-    if (!S.screening.stage_positions_file && !ff.positions) add("warn", "Not every image has stage positions: hits are found, but their .rgn positions are not real (Screening, advanced: Stage positions file)");
-    if (!S.screening.criteria.length && !S.screening.manual_hits && !S.screening.random_hits) add("warn", "No hit criteria: every valid cell becomes a hit");
+    if (!S.screening.stage_positions_file && !ff.positions) add("warn", "Not every image has stage positions: their hits are found, but left out of the .rgn files (Screening, advanced: Stage positions file)");
+    if (!S.screening.criteria.length && !S.screening.manual_hits && !S.screening.random_hits) add("warn", "No hit criteria: no cell becomes a hit (add criteria here or in the dashboard)");
     if (S.screening.classify_additional_channel && !S.input.additional_channel) add("warn", "Classification needs an additional channel");
     if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
   }
@@ -504,8 +507,29 @@ document.addEventListener("change", (e) => {
     c[k] = k === "value" || k === "value2" ? (el.value === "" ? null : +el.value) : el.value;
     render(); return;
   }
-  if (el.closest("[data-key]")) { readInput(el); render(); }
+  if (el.closest("[data-key]")) {
+    const before = S.input.modality; readInput(el);
+    if (S.input.modality !== before) gatesForImageType(before);
+    render();
+  }
 });
+// the default quality gates are lifetimes (ns): off for ratio and intensity data, back for lifetimes
+const LIFETIME_TYPES = ["tcspc", "fast_flim", "tau_contrast", "fd_flim"];
+function gatesForImageType(before) {
+  const sc = S.screening, d = DEFAULTS.screening, life = LIFETIME_TYPES.includes(S.input.modality);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  if (LIFETIME_TYPES.includes(before) && !life && (same(sc.baseline_calibration_diff, d.baseline_calibration_diff) || same(sc.max_baseline_deviation, d.max_baseline_deviation))) {
+    if (same(sc.baseline_calibration_diff, d.baseline_calibration_diff)) sc.baseline_calibration_diff = null;
+    if (same(sc.max_baseline_deviation, d.max_baseline_deviation)) sc.max_baseline_deviation = null;
+    toast("The default quality gates are lifetimes (ns), so they are off for this image type: set them from their histograms in the dashboard", 6000);
+  } else if (!LIFETIME_TYPES.includes(before) && life && sc.baseline_calibration_diff === null && sc.max_baseline_deviation === null) {
+    sc.baseline_calibration_diff = structuredClone(d.baseline_calibration_diff); sc.max_baseline_deviation = d.max_baseline_deviation;
+    toast("Quality gates set to their lifetime defaults (Screening, advanced settings)", 5000);
+  }
+}
+// every change is kept for the next start of the window (a second after the last change; invalid settings are not)
+let rememberTimer = null;
+document.addEventListener("change", () => { clearTimeout(rememberTimer); rememberTimer = setTimeout(() => api("remember", { settings: S }).catch(() => {}), 1000); });
 document.addEventListener("input", (e) => { if (e.target.type === "number" && e.target.closest("[data-key]") && !e.target.closest("[data-crit]")) { readInput(e.target); renderChecks(); } });
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("button, h2.toggle"); if (!b) return;
@@ -596,7 +620,7 @@ $("bSave").onclick = async () => {
 };
 $("bReset").onclick = () => {
   const files = S.input.files, out = S.input.output, next = structuredClone(DEFAULTS), kept = keepCellposeEnvs(next);
-  setSettings(next); S.input.files = files; S.input.output = out; render();
+  setSettings(next); S.input.files = files; S.input.output = out; render(); $("from").textContent = "default settings";
   toast(`Defaults restored (images, output folder${kept.length ? " and Cellpose environment" : ""} kept)`);
 };
 
@@ -619,6 +643,8 @@ async function start(reapply) {
   if (!reapply && (plan.folders.length || plan.files.length) && !confirm(`The output folder\n${folder}\nholds the results of `
       + (o.run ? `the run of ${o.run.started}` : "an earlier run") + ". Running the analysis first moves them into the subfolder "
       + "_previous_run, which is deleted when the new run is complete (and kept if it does not finish):\n\n"
+      + (o.run && o.run.previous_run && o.run.complete === false ? "Note: the run in the folder did not finish, and _previous_run holds the complete run before it. "
+        + "That one is deleted when the new run is complete: move it back first to keep it.\n\n" : "")
       + (names.length ? `Results of ${plural(names.length, "image")}:\n${bulletList(names)}\n\n` : "")
       + (plan.files.length ? `Files of that run:\n${bulletList(plan.files, 20)}\n\n` : "")
       + `Then it analyzes:\n${bulletList((S.input.files || []).map(fileName))}\n\nNothing else in the folder is touched.` + ownNote + "\n\nContinue?")) return;
@@ -661,14 +687,21 @@ async function poll() {
 $("results").addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) api("open", { path: b.dataset.open }).catch(err => toast(err.message)); });
 
 // images with their own settings (Settings.image): set in an image's dashboard with 'Apply to this image only'
-const OWN_LABELS = { stimulation_frame: "stimulation", calibration_frame: "calibration", baseline_only: "baseline only", sensitivity: "detection threshold",
+const OWN_LABELS = { stimulation_frame: "stimulation", calibration_frame: "calibration", baseline_only: "baseline only", no_calibration: "no calibration", sensitivity: "detection threshold",
   margin: "margin", response_window: "response window", response_window_anchor: "window anchor", response_window_margin: "window margin" };
+const OWN_VALUES = { after_stimulation: "after S", before_calibration: "before C" };
 function ownText(own) {
-  return Object.values(own).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_LABELS[k] || k} ${v === null || v === "" ? "automatic" : v === true ? "yes" : v === false ? "no" : v}`)).join(", ");
+  const noCal = !!(own.events && own.events.no_calibration);
+  const val = (k, v) => v === null || v === "" ? (k === "calibration_frame" && noCal ? "none" : "automatic") : v === true ? "yes" : v === false ? "no" : OWN_VALUES[v] || v;
+  return Object.values(own).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_LABELS[k] || k} ${val(k, v)}`)).join(", ");
 }
 // the own settings of single images of the run in a newly chosen output folder: taken over when this window has
 // none (so that a re-apply keeps them); a warning when both have some and they differ
 const sameJSON = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
+function differingImages(o) {  // the images whose own settings differ between the run and this window
+  const a = (o.run && o.run.image_settings) || {}, b = S.image || {};
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(n => JSON.stringify(a[n] || null) !== JSON.stringify(b[n] || null));
+}
 function imageSettingsDiffer(o) { return !!(o && o.run && !sameJSON(o.run.image_settings, S.image)); }
 function adoptImageSettings(o) {
   const run = o && o.run && o.run.image_settings;

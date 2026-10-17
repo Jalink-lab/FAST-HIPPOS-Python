@@ -110,6 +110,8 @@ def _flags(img: dict, run: dict, screening: bool) -> list[str]:
     if img["n_cells"] and img["n_valid"] / img["n_cells"] < 0.7:
         out.append("low_valid")
     ev = img["events"]
+    if ev["baseline_only"] and ev.get("detected") and run["n_images"] > 1 and run["with_stimulation"] > run["n_images"] / 2:
+        out.append("no_stimulation")  # nothing found, so analysed as baseline only
     if not ev["baseline_only"]:
         if ev["stimulation"] is None and run["n_images"] > 1 and run["with_stimulation"] > run["n_images"] / 2:
             out.append("no_stimulation")

@@ -25,12 +25,28 @@ async function exportHitsRGN() {
     setTimeout(() => download(name, rgnXml(items, "hits"), "application/xml"), 350 * k);
   });
 }
+function timingSettings() {
+  const e = SCR.events, run = D.screen.events, given = D.screen.event_settings || {};
+  if (e.baseline_only) return { stimulation_frame: null, calibration_frame: null, baseline_only: true, no_calibration: false, margin: e.margin };
+  const sChanged = e.stimulation !== run.stimulation || run.baseline_only, cChanged = e.calibration !== run.calibration || run.baseline_only;
+  const noCal = cChanged ? e.calibration === null : !!given.no_calibration;
+  return {
+    stimulation_frame: sChanged ? e.stimulation : (given.stimulation_frame ?? null),
+    calibration_frame: noCal ? null : cChanged ? e.calibration : (given.calibration_frame ?? null),
+    baseline_only: false, no_calibration: noCal, margin: e.margin,
+  };
+}
+// 'stimulation frame 7, calibration frame automatic' etc.
+function describeTiming(t) {
+  if (t.baseline_only) return "baseline only";
+  return `stimulation frame ${ownValue(t.stimulation_frame)}, calibration frame ${t.no_calibration ? "none" : ownValue(t.calibration_frame)}`;
+}
 function tomlValue(v) { return v === null || v === undefined ? '""' : typeof v === "string" ? JSON.stringify(v) : Array.isArray(v) ? `[${v.map(tomlValue).join(", ")}]` : typeof v === "boolean" ? String(v) : String(+(+v).toPrecision(10)); }
 // the screening settings as a TOML override for 'fast-hippos-cli reapply' (+ the hand-picked hits in selection mode)
 function screeningToml() {
   const p = SCR.params, e = SCR.events, L = [], manualFile = `${D.name}_manual_hits.tsv`;
   L.push(`# Screening settings from the FAST-HIPPOS dashboard of '${D.name}'.`, "# Use them for all images of the output folder with:", "#   fast-hippos-cli reapply <config.toml> --override <this file>", "");
-  if (eventsTouched) L.push("[events]", `stimulation_frame = ${tomlValue(e.stimulation)}`, `calibration_frame = ${tomlValue(e.calibration)}`, `baseline_only = ${e.baseline_only}`, `margin = ${e.margin}`, "");
+  if (eventsTouched) { const t = timingSettings(); L.push("[events]", ...Object.entries(t).map(([k, v]) => `${k} = ${tomlValue(v)}`), ""); }
   else L.push("# [events] unchanged: the automatic or manual frames of each image are kept", "");
   L.push("[display]", `smooth_traces = ${p.smooth_traces}`, "", "[screening]", "enabled = true", `logic = ${tomlValue(p.logic)}`,
     `response_window = ${p.response_window}`, `response_window_anchor = ${tomlValue(p.response_window_anchor)}`, `response_window_margin = ${p.response_window_margin}`,
@@ -64,16 +80,18 @@ async function guiApi(name, body = {}) {
 // 'Apply to all images': these screening settings for all images of the output folder. 'Apply to this image only': the
 // settings that can differ per image (stimulation settings, response window) become this image's own. Either way all
 // images are re-applied, because the hit list and the .rgn files cover all of them.
-const OWN_KEYS = { events: ["stimulation_frame", "calibration_frame", "baseline_only", "margin"], screening: ["response_window", "response_window_anchor", "response_window_margin"] };
-const OWN_NAMES = { stimulation_frame: "stimulation frame", calibration_frame: "calibration frame", baseline_only: "baseline only", margin: "margin", sensitivity: "detection threshold",
+const OWN_KEYS = { events: ["stimulation_frame", "calibration_frame", "baseline_only", "no_calibration", "margin"], screening: ["response_window", "response_window_anchor", "response_window_margin"] };
+const OWN_NAMES = { stimulation_frame: "stimulation frame", calibration_frame: "calibration frame", baseline_only: "baseline only", no_calibration: "no calibration", margin: "margin", sensitivity: "detection threshold",
   response_window: "response window", response_window_anchor: "response window anchor", response_window_margin: "response window margin" };
-const ownValue = (v) => (v === null || v === undefined || v === "" ? "automatic" : v === true ? "yes" : v === false ? "no" : v);
-const describeOwn = (own) => Object.values(own || {}).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_NAMES[k] || k} ${ownValue(v)}`));
+const OWN_VALUES = { after_stimulation: "after S", before_calibration: "before C" };
+const ownValue = (v) => (v === null || v === undefined || v === "" ? "automatic" : v === true ? "yes" : v === false ? "no" : OWN_VALUES[v] || v);
+const describeOwn = (own) => Object.values(own || {}).flatMap(sec => Object.entries(sec).map(([k, v]) =>
+  `${OWN_NAMES[k] || k} ${k === "calibration_frame" && v === null && own.events && own.events.no_calibration ? "none" : ownValue(v)}`));
 // this image's own settings after applying: the ones it had, with the timing set here (if changed) and a response window
 // that differs from the one this dashboard started with
 function ownSettings() {
   const own = structuredClone(D.own_settings || {}), p = SCR.params, p0 = D.screen.params, e = SCR.events;
-  if (eventsTouched) own.events = { ...(own.events || {}), stimulation_frame: e.baseline_only ? null : e.stimulation, calibration_frame: e.baseline_only ? null : e.calibration, baseline_only: e.baseline_only, margin: e.margin };
+  if (eventsTouched) own.events = { ...(own.events || {}), ...timingSettings() };
   for (const k of OWN_KEYS.screening) if (p[k] !== p0[k]) own.screening = { ...(own.screening || {}), [k]: p[k] };
   return own;
 }
@@ -102,10 +120,10 @@ async function applyTo(scope) {
     const e = SCR.events, p = SCR.params, p0 = D.screen.params, mine = (D.own_settings && D.own_settings.screening) || {};
     const ownTiming = owners("events"), ownWindow = owners("screening");
     const timing = !eventsTouched ? "The stimulation and calibration frames of each image stay as they are (detected, set, or its own)."
-      : `The timing set here (${e.baseline_only ? "baseline only" : `stimulation frame ${ownValue(e.stimulation)}, calibration frame ${ownValue(e.calibration)}`}) is used for all images, this one included`
+      : `The timing set here (${describeTiming(timingSettings())}) is used for all images, this one included`
         + (ownTiming.length ? `, except those with their own timing: ${ownTiming.join(", ")}.` : ".");
     const kept = OWN_KEYS.screening.filter(k => k in mine && p[k] === p0[k]), replaced = OWN_KEYS.screening.filter(k => k in mine && p[k] !== p0[k]);
-    const windowNote = (kept.length ? `\n${D.name} keeps its own ${kept.map(k => `${OWN_NAMES[k]} ${mine[k]}`).join(", ")}.` : "")
+    const windowNote = (kept.length ? `\n${D.name} keeps its own ${kept.map(k => `${OWN_NAMES[k]} ${ownValue(mine[k])}`).join(", ")}.` : "")
       + (replaced.length ? `\nThe ${replaced.map(k => `${OWN_NAMES[k]} ${p[k]}`).join(", ")} set here is used for all images, ${D.name} included (instead of its own).` : "")
       + (ownWindow.length ? `\nImages that keep their own response window: ${ownWindow.join(", ")}.` : "");
     if (!confirm(`Use these screening settings for ${all} of this output folder${info ? ` (run of ${info.started})` : ""}?` + (n ? `\n\n${list}` : "")

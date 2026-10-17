@@ -96,8 +96,17 @@ def read_positions_file(path: Path, n: int | None = None) -> np.ndarray:
         from .io import lif_stage_positions
 
         return lif_stage_positions(path, n)
-    values = [float(v) for v in path.read_text().replace(",", " ").split()]
-    positions = np.array(values).reshape(-1, 2)
+    values = []
+    for k, line in enumerate(path.read_text().splitlines(), start=1):
+        tokens = line.replace(",", " ").split()
+        try:
+            values += [float(t) for t in tokens]
+        except ValueError:
+            if values or k > 3:  # a header line at the top is skipped; elsewhere text is an error
+                raise ValueError(f"{path.name}, line {k}: '{line.strip()[:40]}' is not a pair of numbers") from None
+    if len(values) % 2:
+        raise ValueError(f"{path.name} holds {len(values)} numbers: expected X and Y (in metres) for every image")
+    positions = np.array(values, dtype=float).reshape(-1, 2)
     return positions[:n] if n else positions
 
 

@@ -104,8 +104,8 @@ FIELDS: dict[str, dict] = {
         "cellpose": "Cellpose", "labelmap": "Existing label image", "threshold": "Threshold + watershed (no Cellpose)"}},
     "segmentation.cellpose_model": {"label": "Cellpose model", "widget": "model", "show": CELLPOSE,
         "help": "cyto3 / nuclei: Cellpose 3 · cpsam: Cellpose 4 (Cellpose-SAM) · or a custom model file"},
-    "segmentation.diameter": {"label": "Cell diameter (px)", "show": CELLPOSE,
-        "help": "0 = automatic (Cellpose 3 models). Setting it is faster."},
+    "segmentation.diameter": {"label": "Cell diameter (px)", "show": {"segmentation.method": ["cellpose", "threshold"]},
+        "help": "0 = automatic (Cellpose 3 models; 20 px for Threshold + watershed). Setting it is faster."},
     "segmentation.labelmap": {"label": "Label image", "widget": "file",
         "show": {"segmentation.method": ["labelmap"]}},
     "segmentation.min_cell_size": {"label": "Minimum cell size (px)"},
@@ -153,6 +153,7 @@ FIELDS: dict[str, dict] = {
     "events.calibration_frame": {"label": "Calibration frame", "widget": "frame",
         "help": "First frame with the calibration. Empty = detect automatically"},
     "events.baseline_only": {"label": "Baseline only (no stimulation)"},
+    "events.no_calibration": {"label": "No calibration"},
     "events.sensitivity": {"label": "Detection threshold (× noise σ)",
         "help": "How far a jump in the mean trace must stand out from the noise to count as a stimulation or "
         "calibration. Lower = more sensitive: finds weaker responses, or responses of fewer cells, but also more "
@@ -234,7 +235,7 @@ TIPS: dict[str, str] = {
     # ---- pre-processing
     "preprocess.correct_bidirectional": "With bidirectional scanning, the lines scanned forward and backward can be "
         "slightly shifted, which makes edges look jagged. This measures the shift and corrects it. For tile folders "
-        "and .lif tile scans it is done per tile.",
+        "and .lif tile scans, one shift is measured over all tiles and applied to each tile before stitching.",
     "preprocess.bidirectional_axis": "Direction of the shift between forward and backward scan lines: along y when "
         "the fast scan direction is vertical in the image (Leica Stellaris), along x when it is horizontal. A "
         "property of the microscope.",
@@ -253,7 +254,8 @@ TIPS: dict[str, str] = {
     "segmentation.cellpose_model": "The Cellpose model. cyto3: whole cells (Cellpose 3). nuclei: nuclei only. cpsam: "
         "Cellpose-SAM (Cellpose 4), generally the most accurate but slower. Or a model you trained yourself.",
     "segmentation.diameter": "Typical cell diameter in pixels. 0 = let Cellpose 3 estimate it per image. Giving it "
-        "is faster and often more consistent.",
+        "is faster and often more consistent. Threshold + watershed uses it for smoothing and for splitting touching "
+        "cells (0 = 20 px).",
     "segmentation.labelmap": "An image in which every cell has its own number (0 = background), with the same size "
         "as the analyzed image.",
     "segmentation.min_cell_size": "Objects smaller than this (pixels) are removed: debris, fragments and noise.",
@@ -271,7 +273,8 @@ TIPS: dict[str, str] = {
     "segmentation.channel": "Use another channel to find the cells, e.g. a membrane or nuclear stain. Empty = the "
         "intensity of the FLIM data.",
     "segmentation.gamma": "Brighten dim cells before segmentation: values below 1 (e.g. 0.5) lift dark regions. "
-        "Only affects finding the cells, not the measurements. Empty = off.",
+        "Only affects finding the cells, not the measurements. Useful for Threshold + watershed, whose automatic "
+        "(Otsu) threshold can miss dim cells next to bright ones. Empty = off.",
     "segmentation.start_frame": "The cells are found in the average of a range of frames. First frame of that range "
         "(0-based). Empty = from the start.",
     "segmentation.end_frame": "Last frame (0-based, included) of the range that is averaged for finding the cells. "
@@ -279,7 +282,8 @@ TIPS: dict[str, str] = {
     "segmentation.max_circularity": "Remove objects that are too round, e.g. dead or rounded-up cells. A perfect "
         "circle is 1, so 1 means no filter; 0.9 removes the roundest objects.",
     "segmentation.min_cell_intensity": "Remove cells whose mean intensity is below this value, e.g. untransfected "
-        "or out-of-focus cells. 0 = no filter.",
+        "or out-of-focus cells: the mean pixel value per frame, in the units of the image (as mean_intensity in the "
+        "tables of the dashboard). 0 = no filter.",
     "segmentation.classifier": "A pixel classifier that recognizes nuclei. With it, the stage position of a hit is "
         "the centre of its nucleus instead of the centre of the cell outline. Train one with fast-hippos-cli "
         "train-classifier.",
@@ -318,14 +322,19 @@ TIPS: dict[str, str] = {
     "display.scatter_log_y": "Start the scatter plot with a logarithmic vertical axis.",
     # ---- stimulation and calibration
     "events.stimulation_frame": "First frame in which the stimulus acts (0-based). The frames before it are the "
-        "baseline. Empty = found automatically as the first clear jump in the average trace.",
+        "baseline. Empty = found automatically as the first clear jump in the average trace (before the "
+        "calibration frame, if that is set).",
     "events.calibration_frame": "First frame with the calibration stimulus (e.g. forskolin + IBMX), which gives the "
-        "maximal response. Empty = found automatically as the second jump.",
+        "maximal response. Empty = found automatically as the second jump (after the stimulation frame, if that is "
+        "set). For experiments without a calibration, tick 'No calibration'.",
+    "events.no_calibration": "For experiments without a calibration: only the stimulation is looked for (or set), "
+        "and the response lasts until the end of the time-lapse. Without this, the end of a transient response "
+        "may be taken for a calibration. The calibration gate is then not used.",
     "events.baseline_only": "For experiments without a stimulus: the whole time-lapse is baseline; no stimulation or "
         "calibration is looked for.",
     "events.sensitivity": "How far a jump in the average trace must stand out from the noise to count as a "
         "stimulation or calibration, in units of the noise σ. Lower = more sensitive, but more false detections. "
-        "Only used when the frames are empty.",
+        "Used for the frames that are empty.",
     "events.margin": "Frames left out just before each transition (end of the baseline and end of the response), "
         "because the change may already start there.",
     # ---- screening
@@ -334,16 +343,20 @@ TIPS: dict[str, str] = {
     "screening.criteria": "Conditions that a cell must meet to be a hit, e.g. response_max_diff > 0.3. AND: must "
         "pass. OR: at least one of the OR criteria must pass. Hover over a metric for its meaning; thresholds can be "
         "tuned later in the dashboard.",
-    "screening.stage_positions_file": "Only for images without stage positions of their own: the .lif file of the "
-        "experiment, or a text file with X Y in metres per image (x0 y0 x1 y1 …).",
+    "screening.stage_positions_file": "For images without stage positions of their own. A text file with the stage "
+        "X Y in metres for every image, in the order of the images (x0 y0 x1 y1 …; it replaces the positions in the "
+        "images), or the .lif file of the experiment (used only for images without positions of their own).",
     "screening.classify_additional_channel": "Split the cells in two groups on the intensity of the additional "
         "channel (e.g. transfected or not), with an automatic threshold. Adds a class column to the tables.",
     "screening.logic": "AND or OR, for criteria that do not set their own.",
     "screening.baseline_calibration_diff": "Quality check: only cells whose calibration response (calibration − "
-        "baseline) lies in this range can be hits. Removes cells that do not respond to the calibration. Empty = "
-        "off.",
+        "baseline) lies in this range can be hits. Removes cells that do not respond to the calibration. In the unit "
+        "of the measured value: ns for lifetimes, ratio units for ratio imaging, intensity for intensity data. The "
+        "default 0.5–1 ns is for lifetimes; for ratio and intensity data the gate starts off (set it from its "
+        "histogram in the dashboard). Empty = off.",
     "screening.max_baseline_deviation": "Quality check: only cells whose baseline differs at most this much from "
-        "the population baseline can be hits. Removes outliers. Empty = off.",
+        "the population baseline can be hits. Removes outliers. In the unit of the measured value; the default "
+        "0.2 ns is for lifetimes, for ratio and intensity data the gate starts off. Empty = off.",
     "screening.response_window": "Length (frames) of the part of the response used for the 'mean' response metrics. "
         "-1 = the whole response, from stimulation to calibration.",
     "screening.response_window_anchor": "Where that window lies: at the start of the response (after the "
@@ -394,15 +407,16 @@ LAYOUT = [
                                              "segmentation.labelmap", "segmentation.min_cell_size"],
      "advanced": [
          ("Cellpose", ["segmentation.use_gpu", "segmentation.flow_threshold", "segmentation.cellprob_threshold",
-                       "segmentation.cellpose_version", "segmentation.channel", "segmentation.gamma"], CELLPOSE),
+                       "segmentation.cellpose_version"], CELLPOSE),
          ("Cellpose environments", ["segmentation.cellpose3_python", "segmentation.cellpose4_python"], CELLPOSE),
-         ("Projection used for segmentation", ["segmentation.start_frame", "segmentation.end_frame"]),
+         ("Image used for segmentation", ["segmentation.channel", "segmentation.gamma", "segmentation.start_frame",
+                                          "segmentation.end_frame"]),
          ("Cell filters", ["segmentation.max_circularity", "segmentation.min_cell_intensity"]),
          ("Hit positions on the nuclei", ["segmentation.classifier", "segmentation.classifier_class",
                                           "segmentation.position_erosion"]),
      ]},
     {"title": "Stimulation and calibration", "basic": ["events.stimulation_frame", "events.calibration_frame",
-                                                       "events.baseline_only"],
+                                                       "events.baseline_only", "events.no_calibration"],
      "advanced": [
          ("Automatic detection", ["events.sensitivity", "events.margin"]),
          ("Traces", ["display.smooth_traces"]),
@@ -436,8 +450,9 @@ LAYOUT = [
 # {field: [allowed values]} or {field: {"set": bool}} or {field: {"not": [values]}}; all must hold.
 ENABLE = {
     "events.stimulation_frame": {"events.baseline_only": [False]},
-    "events.calibration_frame": {"events.baseline_only": [False]},
-    "events.sensitivity": {"events.baseline_only": [False], "events.stimulation_frame": {"set": False}},
+    "events.calibration_frame": {"events.baseline_only": [False], "events.no_calibration": [False]},
+    "events.no_calibration": {"events.baseline_only": [False]},
+    "events.sensitivity": {"events.baseline_only": [False]},
     "preprocess.bidirectional_axis": {"preprocess.correct_bidirectional": [True]},
     "preprocess.drift_reference": {"preprocess.correct_drift": [True]},
     "preprocess.drift_edge_detect": {"preprocess.correct_drift": [True]},
@@ -464,7 +479,7 @@ ENABLE = {
 }
 REASONS = {  # why a condition on this field disables others
     "events.baseline_only": "'Baseline only' is on",
-    "events.stimulation_frame": "only for automatic detection (no stimulation frame set)",
+    "events.no_calibration": "'No calibration' is on",
     "preprocess.correct_drift": "drift correction is off",
     "preprocess.correct_bidirectional": "bidirectional correction is off",
     "screening.enabled": "screening is off",
@@ -669,9 +684,22 @@ def output_info(path: str, job: Job | None = None, settings: dict | None = None)
         from .pipeline import run_image_settings
 
         info["image_settings"] = run_image_settings(out)  # the images with their own settings in that run
+        info["inputs"] = [os.path.normcase(str(Path(p).resolve())) for p in info.get("inputs") or []] or None
+        try:
+            used = json.loads((out / "settings_used.json").read_text())
+            info["stage_positions_file"] = used.get("screening", {}).get("stage_positions_file")
+        except (OSError, ValueError):
+            info["stage_positions_file"] = None
     if settings is not None and exists:
         result["plan"] = clear_plan(out, input_paths(settings_from_plain(settings)))
     return result
+
+
+def remember_settings(settings: dict) -> None:
+    """The settings of the page, so that the window starts with them next time (also without a run)."""
+    settings_from_plain(settings)  # only valid settings
+    STATE_DIR.mkdir(exist_ok=True)
+    LAST_SETTINGS.write_text(to_toml(settings, f"# FAST-HIPPOS {__version__} settings, written by the GUI"), encoding="utf-8")
 
 
 def start_reapply(job: Job, gui_settings: dict) -> int:
@@ -711,7 +739,8 @@ def _probe_cellpose(exe: str) -> dict:
     if not Path(exe).exists():
         return {"error": f"Not found: {exe}"}
     try:
-        r = subprocess.run([exe, "-c", _CELLPOSE_PROBE], capture_output=True, text=True, timeout=120, check=False,
+        r = subprocess.run([exe, "-c", _CELLPOSE_PROBE], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=120, check=False,
                            creationflags=NO_WINDOW)
         return json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else {"error": r.stderr[-500:]}
     except Exception as e:  # noqa: BLE001 - shown to the user
@@ -780,11 +809,12 @@ class Job:
         settings_from_plain(settings)  # validate before starting
         out = Path(settings["input"]["output"])
         out.mkdir(parents=True, exist_ok=True)
-        toml = out / SETTINGS_NAME
-        header = f"# FAST-HIPPOS {__version__} settings, written by the GUI\n# Run again with: fast-hippos-cli run {SETTINGS_NAME}"
+        # the run itself writes fast_hippos_settings.toml into the output folder, after moving the previous run away
+        STATE_DIR.mkdir(exist_ok=True)
+        toml = STATE_DIR / "run_settings.toml"
+        header = f"# FAST-HIPPOS {__version__} settings, written by the GUI"
         toml.write_text(to_toml(settings, header), encoding="utf-8")
         if remember is not None:
-            STATE_DIR.mkdir(exist_ok=True)
             LAST_SETTINGS.write_text(to_toml(remember, header), encoding="utf-8")
         cmd = [_python(), "-u", "-m", "fast_hippos.cli", "reapply" if reapply else "run", str(toml)]
         if source == "gui":  # the page sends its complete own settings of single images
@@ -884,18 +914,21 @@ def apply_from_dashboard(job: Job, dashboard: str, toml_text: str, manual_tsv: s
         job.applied = f"Settings for all images applied from the dashboard of {image}" if image else "Settings for all images applied from a dashboard"
     changes["image"] = _image_settings({name: {sec: v for sec, v in secs.items() if v} for name, secs in own_all.items()})
     settings = reapply_settings(out, changes)
-    _remember_image_settings(out, settings.get("image", {}))
+    _remember_applied(out, settings)
     return job.start(settings, reapply=True, source="dashboard")
 
 
-def _remember_image_settings(out: Path, image: dict) -> None:
-    """Keep the per-image settings in the settings the GUI starts with, when those are for this output folder (so
-    that a later re-apply from the GUI does not lose them)."""
+def _remember_applied(out: Path, settings: dict) -> None:
+    """Keep what a dashboard applied (stimulation, screening and display settings, own settings of single images) in
+    the settings the window starts with, when those are for this output folder: a later Re-apply or Run from a
+    reopened window then uses them too."""
     try:
         last = load_toml(LAST_SETTINGS)
         if _key(last["input"]["output"]) != _key(out):
             return
-        last["image"] = image
+        for section in ("events", "screening", "display"):
+            last[section] = settings[section]
+        last["image"] = settings.get("image", {})
         LAST_SETTINGS.write_text(to_toml(last, f"# FAST-HIPPOS {__version__} settings, written by the GUI"), encoding="utf-8")
     except (OSError, ValueError, KeyError):
         pass
@@ -1029,6 +1062,8 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
                                                            q.get("scope", "all"))},
         # the own settings of an image were removed in the page: a dashboard apply must not bring them back
         "unown": lambda q: (job.removed.setdefault(_key(q["output"]), set()).add(q["image"]), {"ok": True})[1],
+        # the settings of the page, kept for the next start of the window (after every change)
+        "remember": lambda q: (remember_settings(q["settings"]), {"ok": True})[1],
         "stop": lambda q: (job.stop(), {"ok": True})[1],
         "status": lambda q: job.status(int(q.get("since", 0))),
         "open": lambda q: (open_path(q["path"]), {"ok": True})[1],

@@ -14,9 +14,11 @@ example_run/
 ├── hits_1-75.tsv              … per .rgn file, in visiting order
 ├── cell_coordinates.tsv       positions of all cells
 ├── run_summary.tsv            the images table of the overview
+├── hit_positions.png          a map of the hits and their routes
 ├── run_log.txt                the log
 ├── fast_hippos_settings.toml  the settings of the run, to open in the window or use on the command line
 ├── settings_used.json         the same, as the program used them
+├── run.json, hit_chunks.json  bookkeeping of the run (which files it wrote; the hits per .rgn file)
 ├── example_screen_1/          one folder per image
 │   ├── dashboard.html         the dashboard
 │   ├── cells.tsv              all cells: position, size, values, gates, hit or not
@@ -42,6 +44,10 @@ The `.tsv` files are tab-separated tables: open them in Excel, or in Python or R
 be replaced (the image folders and the files of the run), and moves them into a subfolder `_previous_run` before it
 starts. When the new run is complete, `_previous_run` is deleted; if the run is stopped or fails, it is kept, so
 nothing is lost. Other files in the folder are never touched.
+
+To go back to the previous run after a stopped run: delete the partial results of the stopped run (the image folders
+and the files listed above), and move the contents of `_previous_run` back into the output folder. Do this before
+the next complete run, which deletes `_previous_run` (the window reminds you).
 
 **Re-apply screening** keeps the segmentation and the traces of the run in the folder, and redoes the rest with the
 current settings: stimulation detection, screening, hit lists, `.rgn` files, overview and dashboards. It takes

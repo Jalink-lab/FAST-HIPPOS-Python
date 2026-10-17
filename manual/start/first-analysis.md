@@ -117,8 +117,9 @@ For this example, the images have no stage positions of their own, so also choos
 positions file* (under *Stage positions and .rgn files*). With your own LAS X data this is not needed.
 
 !!! tip "The dashboard views of this example"
-    `example_settings.toml` also sets how the dashboards start (*Display and output → Advanced settings → Dashboard
-    views*): every trace as a line, and a scatter plot of the marker intensity (log scale) against the lifetime.
+    `example_settings.toml` also sets how the dashboards start (*Display and output → Advanced settings*): a colour
+    range of 2.0–3.6 ns, every trace as a line, and a scatter plot of the marker intensity (log scale) against the
+    lifetime. Without it, the colour range is taken from the data, so your dashboard may look slightly different.
 
 ## 6. Run
 

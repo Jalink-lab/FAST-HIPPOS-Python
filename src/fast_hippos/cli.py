@@ -49,10 +49,16 @@ def main(argv: list[str] | None = None) -> int:
         args = p.parse_args(["gui"])
 
     if args.command in ("run", "reapply"):
+        import tomllib
+
         from .config import Settings
         from .pipeline import run
 
-        settings = Settings.from_toml(args.config, overrides=args.override)
+        try:
+            settings = Settings.from_toml(args.config, overrides=args.override)
+        except (ValueError, tomllib.TOMLDecodeError, OSError) as e:
+            print(f"Error in the settings ({args.config}): {e}", file=sys.stderr)
+            return 2
         if args.command == "run" and not settings.input.files:
             p.error("no input files in [input] files")
         if args.command == "reapply":  # the run in the output folder, with this config's event / screening / display settings

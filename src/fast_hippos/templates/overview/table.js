@@ -6,9 +6,11 @@ const LEVEL_RANK = { ok: 0, info: 1, warn: 2, bad: 3 };
 const flagOn = (im, key) => im.flags.find(f => f.key === key);
 const maxHitPct = Math.max(1e-9, ...IM.map(im => pct(im.n_hits, im.n_valid)).filter(Number.isFinite));
 // how a stimulation / calibration frame was chosen: detected, set for all images, or set for this image (own settings)
-const OWN_NAMES = { stimulation_frame: "stimulation frame", calibration_frame: "calibration frame", baseline_only: "baseline only", sensitivity: "detection threshold", margin: "margin",
+const OWN_NAMES = { stimulation_frame: "stimulation frame", calibration_frame: "calibration frame", baseline_only: "baseline only", no_calibration: "no calibration", sensitivity: "detection threshold", margin: "margin",
   response_window: "response window", response_window_anchor: "response window anchor", response_window_margin: "response window margin" };
-const ownList = (im) => Object.values(im.own || {}).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_NAMES[k] || k} ${v === null || v === "" ? "automatic" : v === true ? "yes" : v === false ? "no" : v}`));
+const OWN_VALUES = { after_stimulation: "after S", before_calibration: "before C" };
+const ownList = (im) => Object.values(im.own || {}).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_NAMES[k] || k} ${v === null || v === ""
+  ? (k === "calibration_frame" && im.own.events && im.own.events.no_calibration ? "none" : "automatic") : v === true ? "yes" : v === false ? "no" : OWN_VALUES[v] || v}`));
 const frameTag = (im, key) => (im.own && im.own.events && key in im.own.events ? (im.own.events[key] === null ? "auto" : "image") : im.events.detected ? "auto" : "set");
 const shortMetric = (m) => m.replace("response_", "resp. ").replace("_diff", " Δ").replace("_abs", "").replace("_", " ");
 

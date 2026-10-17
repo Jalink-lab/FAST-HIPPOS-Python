@@ -369,10 +369,15 @@ def stitch_tiles(tiles: list[np.ndarray], layout: TileLayout, bidirectional: str
         summed = sum(preprocess.summed_image(t, chans) for t in tiles)
         shift = preprocess.estimate_bidirectional_shift(summed, bidirectional)
         if abs(shift) >= preprocess.MIN_BIDIRECTIONAL_SHIFT:
-            log.info("Bidirectional phase correction per tile (along %s): %.2f px", bidirectional, shift)
+            log.info("Bidirectional phase correction (one shift, measured over all tiles, applied to each; along %s): "
+                     "%.2f px", bidirectional, shift)
+            dtype = tiles[0].dtype
             tiles = [preprocess.apply_bidirectional(t, shift, bidirectional) for t in tiles]
+            if np.issubdtype(dtype, np.integer):  # keep counts / amplitudes as integers, without negative values
+                info_t = np.iinfo(dtype)
+                tiles = [np.clip(np.rint(t), 0, info_t.max).astype(dtype) for t in tiles]
         else:
-            log.info("Bidirectional phase correction per tile (along %s): %.2f px, not applied", bidirectional, shift)
+            log.info("Bidirectional phase correction (along %s): %.2f px, too small, not applied", bidirectional, shift)
     data = fuse(tiles, layout.offsets_px(), layout.shape)
     info = layout.stage_info(shift)
     nx, ny = info.n_tiles

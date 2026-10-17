@@ -31,7 +31,9 @@ The mean intensity of the additional channel, if any, is measured too.
 ## 4. Stimulation and calibration
 
 If the frames are not set, they are detected in the average trace of all cells: a stimulation or calibration shows up
-as a sudden step, a peak in the second derivative of the trace. A peak counts when it stands out from the noise of
+as a sudden step, a peak in the second derivative of the trace. When one frame is set, the other is detected (the
+strongest step after the stimulation, or before the calibration); with *No calibration* only the stimulation is
+looked for. A peak counts when it stands out from the noise of
 the trace by the *detection threshold* (5 × the noise σ by default; lower is more sensitive). The noise is estimated
 robustly, so that a large calibration step does not hide a smaller stimulation.
 
@@ -60,7 +62,7 @@ The dashboard recomputes all of this in the browser, with the same results as th
 The stage position of a hit is the stage position of its image plus the offset of the cell in the image (its
 centre, or the centre of its nucleus with a nuclei classifier). The hits are split into `.rgn` files of at most 1000
 positions, and the order within each file is optimized to make the route of the stage short: a nearest-neighbour
-route, improved by 2-opt and Or-opt moves, typically 15–20 % shorter than nearest neighbour alone.
+route, improved by 2-opt and Or-opt moves, typically 13–18 % shorter than nearest neighbour alone.
 
 ## Compared with the Fiji version
 

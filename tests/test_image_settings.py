@@ -57,7 +57,7 @@ def test_run_uses_own_settings_of_one_image(two_images):
     assert (r1.events.stimulation, r1.events.calibration, r1.events.detected) == (12, 33, False)
     assert json.loads((out / "settings_used.json").read_text())["image"] == s.image
     log = (out / "run_log.txt").read_text(encoding="utf-8")
-    assert "Own settings of this image: stimulation_frame 12, calibration_frame 33" in log
+    assert "Own settings of this image: stimulation frame 12, calibration frame 33" in log
     # shown in the overview and its table
     html = (out / "index.html").read_text(encoding="utf-8")
     data = json.loads(html[html.index('type="application/json">') + 24:html.index("</script>", html.index('type="application/json">'))].replace("<\\/", "</"))
@@ -164,3 +164,16 @@ def test_input_checks_use_the_frames_of_each_image(two_images):
     problems = check_inputs(t)
     assert not any("img1" in p for p in problems)  # ...but img1 uses its own valid frames
     assert any("own settings of img0" in p and "must come after" in p for p in problems)
+
+
+def test_what_a_dashboard_applied_is_remembered_by_the_window(two_images, monkeypatch, tmp_path):
+    s, _, out = two_images
+    last = tmp_path / "last.toml"
+    monkeypatch.setattr(gui, "LAST_SETTINGS", last)
+    last.write_text(gui.to_toml(s.to_dict()), encoding="utf-8")
+    job = FakeJob()
+    gui.apply_from_dashboard(job, str(out / "img0" / "dashboard.html"), '[screening]\nlogic = "AND"\nresponse_window = 5\n',
+                             image="img0", scope="all")
+    remembered = gui.load_toml(last)
+    assert remembered["screening"]["logic"] == "AND" and remembered["screening"]["response_window"] == 5
+    assert remembered["input"]["files"] == [str(f) for f in s.input.files]  # the rest of the window stays

@@ -34,6 +34,7 @@ def check_inputs(settings: Settings) -> list[str]:
     positions_file = settings.screening.stage_positions_file
     lif = Path(positions_file) if positions_file and Path(positions_file).suffix.lower() == ".lif" else None
     folders: dict[str, str] = {}  # result folder (lower case) -> the image that gets it
+    n_images = 0
     for f in s_in.files:
         path = Path(f)
         if not path.exists():
@@ -55,6 +56,7 @@ def check_inputs(settings: Settings) -> list[str]:
                 problems.append(f"{label} and {folders[key]} would share the result folder '{safe_name(name)}': rename one "
                                 "of them (Images).")
             folders.setdefault(key, label)
+            n_images += 1
             problems += _check_image(label, info, settings.for_image(name), own="events" in settings.image.get(name, {}))
     if seg.method == "labelmap" and (seg.labelmap is None or not Path(seg.labelmap).exists()):
         problems.append(f"Label image not found: {seg.labelmap} (Cell segmentation)." if seg.labelmap
@@ -64,6 +66,17 @@ def check_inputs(settings: Settings) -> list[str]:
     sc = settings.screening
     if sc.enabled and sc.stage_positions_file is not None and not Path(sc.stage_positions_file).exists():
         problems.append(f"Stage positions file not found: {sc.stage_positions_file} (Screening).")
+    if (sc.enabled and sc.stage_positions_file is not None and Path(sc.stage_positions_file).exists()
+            and Path(sc.stage_positions_file).suffix.lower() != ".lif"):
+        from .stage import read_positions_file
+
+        try:
+            n_pos = len(read_positions_file(Path(sc.stage_positions_file)))
+            if n_images and n_pos < n_images:
+                problems.append(f"The stage positions file has {n_pos} position{'s' if n_pos != 1 else ''} for "
+                                f"{n_images} images: give X and Y for every image (Screening, advanced).")
+        except ValueError as e:
+            problems.append(f"Stage positions file: {e} (Screening, advanced).")
     if sc.enabled and sc.manual_hits is not None and not Path(sc.manual_hits).exists():
         problems.append(f"Hand-picked hits file not found: {sc.manual_hits} (Screening, advanced).")
     if s_in.modality == Modality.FD_FLIM and (settings.fdflim.reference is None or not Path(settings.fdflim.reference).exists()):

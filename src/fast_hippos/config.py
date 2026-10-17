@@ -25,6 +25,11 @@ class Modality(StrEnum):
     INTENSITY = "intensity"
 
 
+# image types whose value per cell is a lifetime (ns); ratio and intensity are in their own units
+LIFETIME_MODALITIES = (Modality.TCSPC, Modality.FAST_FLIM, Modality.TAU_CONTRAST, Modality.FD_FLIM)
+GATES = ("baseline_calibration_diff", "max_baseline_deviation")
+
+
 @dataclass
 class InputSettings:
     files: list[Path] = field(default_factory=list)
@@ -118,9 +123,10 @@ class DisplaySettings:
 
 @dataclass
 class EventSettings:
-    stimulation_frame: int | None = None  # manual; None = automatic detection
+    stimulation_frame: int | None = None  # manual; None = automatic detection (also when the other frame is set)
     calibration_frame: int | None = None
     baseline_only: bool = False
+    no_calibration: bool = False  # the experiment has no calibration: only the stimulation is looked for
     sensitivity: float = 5.0  # detection threshold: min. peak prominence in noise sigmas of the 2nd derivative; lower = more sensitive
     margin: int = 1  # frames excluded before each transition (end of baseline, end of response)
 
@@ -145,8 +151,10 @@ class ScreeningSettings:
     response_window_anchor: str = "before_calibration"  # or "after_stimulation"
     response_window_margin: int = 0
     # validity gates (None = off)
+    # quality gates, in the unit of the measured value; these defaults are lifetimes (ns): for ratio and intensity
+    # data they are off unless set (see _gates_for_image_type)
     baseline_calibration_diff: tuple[float, float] | None = (0.5, 1.0)
-    max_baseline_deviation: float | None = 0.2  # |cell baseline - population baseline|, ns
+    max_baseline_deviation: float | None = 0.2  # |cell baseline - population baseline|
     rise_time_fraction: float = 0.75
     additional_channel_metric: str = "mean"  # "mean" or "first"
     classify_additional_channel: bool = False  # Otsu on log10 intensity -> 'class_additional'
@@ -207,7 +215,7 @@ class Settings:
             if manual and not Path(manual).is_absolute():
                 extra["screening"]["manual_hits"] = str((Path(override).parent / manual).resolve())
             data = _merge(data, extra)
-        settings = _from_dict(cls, data)
+        settings = _gates_for_image_type(_from_dict(cls, data), data)
         # relative paths in the config are relative to the config file
         base = path.parent
         settings.input.files = [_resolve(base, f) for f in settings.input.files]
@@ -229,7 +237,7 @@ class Settings:
 
     @classmethod
     def from_dict(cls, data: dict) -> Settings:
-        return _from_dict(cls, data)
+        return _gates_for_image_type(_from_dict(cls, data), data)
 
     def to_dict(self) -> dict[str, Any]:
         return _to_plain(asdict(self))
@@ -247,19 +255,31 @@ def _resolve(base: Path, p: Path) -> Path:
     return p if p.is_absolute() else (base / p).resolve()
 
 
+def _gates_for_image_type(settings: Settings, data: dict) -> Settings:
+    """The default quality gates are lifetimes in ns: for ratio and intensity data they are off unless the settings
+    give them."""
+    if settings.input.modality not in LIFETIME_MODALITIES:
+        given = data.get("screening", {}) if isinstance(data.get("screening"), dict) else {}
+        for k in GATES:
+            if k not in given:
+                setattr(settings.screening, k, None)
+    return settings
+
+
 def _from_dict(cls, data: dict[str, Any]):
     hints = get_type_hints(cls)
     known = {f.name for f in fields(cls)}
     unknown = set(data) - known
     if unknown:
-        raise ValueError(f"Unknown setting(s) in [{cls.__name__}]: {', '.join(sorted(unknown))}")
+        section = {get_type_hints(Settings).get(f.name): f.name for f in fields(Settings)}.get(cls, cls.__name__)
+        raise ValueError(f"Unknown setting(s) in [{section}]: {', '.join(sorted(unknown))}")
     kwargs = {name: _convert(hints[name], value) for name, value in data.items()}
     return cls(**kwargs)
 
 
 # the settings that may differ per image (Settings.image), by section
 IMAGE_SETTINGS = {
-    "events": ("stimulation_frame", "calibration_frame", "baseline_only", "sensitivity", "margin"),
+    "events": ("stimulation_frame", "calibration_frame", "baseline_only", "no_calibration", "sensitivity", "margin"),
     "screening": ("response_window", "response_window_anchor", "response_window_margin"),
 }
 
@@ -338,8 +358,10 @@ METRICS = {
         "The usual measure of how strongly a cell responds.",
     "response_max_diff_pop": "Largest lifetime after the stimulation minus the average baseline of all cells (instead "
         "of the cell's own baseline).",
-    "rise_time_frames": "Frames after the stimulation until the cell reaches the rise fraction (e.g. 75 %) of its "
-        "maximal response. Small = fast responder.",
+    "rise_time_frames": "Number of frames of the response up to and including the first frame in which the cell "
+        "reaches the rise fraction (e.g. 75 %) of its maximal response (1 = already in the first frame after the "
+        "stimulation). Small = fast responder. Only meaningful for cells that respond: combine it with an AND "
+        "criterion on the response.",
     "rapid_response_ratio": "Average response in the second half of the response period divided by that in the first "
         "half. Above 1 = still rising, below 1 = fading.",
     "calibration_mean": "Average lifetime of the cell during the calibration (maximal stimulation).",

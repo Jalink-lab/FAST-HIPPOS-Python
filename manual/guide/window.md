@@ -58,7 +58,9 @@ How the cells are found, in a projection of the time-lapse:
 - **Cellpose** with a model: `cyto3` or `nuclei` (Cellpose 3), `cpsam` (Cellpose 4, Cellpose-SAM), or a model of your
   own. A label shows the Cellpose version and whether the GPU is used, or what is wrong.
 - **Existing label image**: a segmentation made elsewhere, e.g. in Fiji, with one number per cell.
-- **Threshold + watershed**: a classical segmentation, without Cellpose.
+- **Threshold + watershed**: a classical segmentation, without Cellpose. It uses an automatic (Otsu) threshold on
+  the projection and the *Cell diameter* to split touching cells (0 = 20 px). Dim cells next to bright ones can be
+  missed: then set *Gamma before segmentation* (advanced) to e.g. 0.5.
 
 *Cell diameter* 0 lets Cellpose estimate it. Small objects can be removed with *Minimum cell size*; the advanced
 settings also filter on circularity and intensity, and choose which frames are projected.
@@ -66,8 +68,14 @@ settings also filter on circularity and intensity, and choose which frames are p
 ### Stimulation and calibration
 
 When the stimulus and the calibration happened. Leave the frames empty and FAST-HIPPOS detects them in the average
-trace of all cells; or fill in the first frame with the stimulus (counting from 0). Tick *Baseline only* for movies
-without stimulation.
+trace of all cells; or fill in the first frame with the stimulus (counting from 0). When you set only one of them,
+the other is still detected (the calibration after the stimulation, or the stimulation before the calibration).
+
+- **No calibration**: for experiments without a calibration, e.g. a transient response. Only the stimulation is
+  looked for (or set), and the response lasts until the end of the movie. Without it, the decay of a transient can
+  be taken for a calibration.
+- **Baseline only**: for movies without stimulation. When no stimulation is found in a movie, it is analysed as
+  baseline only as well (the log says so, and the overview flags it).
 
 Below the frames, the card lists the images that have [settings of their own](own-settings.md), for instance another
 stimulation frame.
@@ -112,7 +120,8 @@ image, and the output folder.
 
 ## Settings files
 
-FAST-HIPPOS remembers the last settings, and starts with them next time. Every run also saves its settings in the
+FAST-HIPPOS remembers the settings of the window (after every change, and the settings applied from a
+dashboard), and starts with them next time. Every run also saves its settings in the
 output folder (`fast_hippos_settings.toml`). **Open settings…** loads such a file, **Save settings…** saves the current
 settings, and **Defaults** goes back to the default settings (the images and the output folder stay). Both keep
 the Cellpose environments you set, since they belong to the computer rather than to an experiment (unless the loaded
