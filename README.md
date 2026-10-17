@@ -210,9 +210,11 @@ pipeline (checked by the test suite). In the **Screening** pane:
 
 When the hits look right:
 
-- **↻ Apply to run** (in dashboards opened from the interface) applies the settings to the whole run: all images,
-  the combined hit list, the `.rgn` files with their routes, the overview page and the dashboards. Open
-  dashboards reload with the new results.
+- **↻ Apply to all images** (in dashboards opened from the interface) uses the settings for all images of the output
+  folder: their screening, the combined hit list, the `.rgn` files with their routes, the overview page and the
+  dashboards. Open dashboards reload with the new results.
+- **↻ Apply to this image only** gives this image its own stimulation frames and response window, for instance when
+  its stimulation was missed; the other images keep their settings.
 - Or export directly with *Hits → .rgn* and *Hits → TSV*.
 - Or download the settings with *Settings → TOML* and apply them on the command line:
   `fast-hippos-cli reapply settings.toml --override screening_<image>.toml`.

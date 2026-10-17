@@ -33,12 +33,20 @@ function drawMap(c, k, e, span) {
   mapGeo.set(k, { X, Y });
   ctx.strokeStyle = css("--line"); ctx.lineWidth = 1;
   for (const [tx, ty, tw, th] of im.tiles) ctx.strokeRect(X(tx), Y(ty), tw * s, th * s);
-  // the visiting order of the run's .rgn files: consecutive stops within one file are connected
+  // the visiting order of the run's .rgn files: the stops of this image within one file are connected; where the
+  // route visits other images in between (neighbouring images of a scan), the line is dashed
   const route = im.hits.filter(h => h.chunk !== null && h.x !== null).sort((a, b) => a.chunk - b.chunk || a.visit - b.visit);
   const fade = S.hover >= 0 && S.hover !== k ? 0.4 : 1;
-  ctx.strokeStyle = withAlpha(imgColor(k), 0.85 * fade); ctx.lineWidth = 1.2; ctx.beginPath();
-  for (let i = 0; i < route.length; i++) { const p = route[i], q = route[i - 1]; const joined = q && q.chunk === p.chunk && p.visit === q.visit + 1; joined ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)); }
-  ctx.stroke();
+  ctx.strokeStyle = withAlpha(imgColor(k), 0.85 * fade); ctx.lineWidth = 1.2;
+  for (const direct of [true, false]) {
+    ctx.setLineDash(direct ? [] : [3, 3]); ctx.beginPath();
+    for (let i = 1; i < route.length; i++) {
+      const p = route[i], q = route[i - 1];
+      if (q.chunk === p.chunk && (p.visit === q.visit + 1) === direct) { ctx.moveTo(X(q.x), Y(q.y)); ctx.lineTo(X(p.x), Y(p.y)); }
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
   if (route.length) { ctx.fillStyle = imgColor(k); ctx.beginPath(); ctx.arc(X(route[0].x), Y(route[0].y), 3.5, 0, 7); ctx.fill(); }
   ctx.fillStyle = withAlpha(css("--hit"), fade);
   for (const p of im.hits) { if (p.x === null) continue; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 1.8, 0, 7); ctx.fill(); }

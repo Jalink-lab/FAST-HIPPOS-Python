@@ -665,7 +665,7 @@ function imageSettingsHTML() {
   const entries = Object.entries(S.image || {});
   const tip = "Images that use other stimulation settings or another response window than the settings above. Set them in the dashboard of "
     + "the image with 'Apply to this image only'; they are used by runs and re-applies until you remove them here.";
-  if (!entries.length) return `<div class="imgsets muted" title="${esc(tip)}">All images use these settings. To give one image its own stimulation frames or response window, use <i>Apply to this image only</i> in its dashboard.</div>`;
+  if (!entries.length) return `<div class="imgsets muted" title="${esc(tip)}"><span>All images use these settings. To give one image its own stimulation frames or response window, use <i>Apply to this image only</i> in its dashboard.</span></div>`;
   return `<div class="imgsets" title="${esc(tip)}"><div class="imgsets-h">Own settings of single images</div>` + entries.map(([name, own]) =>
     `<div class="imgset"><b>${esc(name)}</b><span class="muted">${esc(ownText(own))}</span><button class="small" data-rmimg="${esc(name)}" title="Remove the own settings of this image: it then uses the settings above (at the next run or re-apply)">✕</button></div>`).join("") + "</div>";
 }

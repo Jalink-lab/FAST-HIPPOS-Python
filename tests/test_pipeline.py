@@ -158,6 +158,32 @@ def test_full_run(tmp_path, synthetic):
     assert not stale.exists()  # chunk files of an earlier run are removed
 
 
+def test_hits_without_stage_position_are_not_sent_to_the_microscope(tmp_path, synthetic):
+    from fast_hippos.pipeline import write_screening_outputs
+
+    image, _ = synthetic
+    settings = Settings()
+    settings.input.files = [save_tiff(image, tmp_path / f"img{k}.tif") for k in range(2)]  # no stage positions
+    settings.input.output = out = tmp_path / "out"
+    settings.segmentation.method = "threshold"
+    settings.segmentation.diameter = 18
+    settings.screening.enabled = True
+    settings.screening.criteria = [Criterion("response_max_diff", ">", 0.2)]
+    results = run(settings)
+    assert not any(r.stage_known for r in results)
+    n = [int(r.cells["hit"].sum()) for r in results]
+    assert min(n) > 0 and not list(out.glob("*.rgn"))  # (0, 0) stands in for the positions: no .rgn files
+    assert len(pd.read_csv(out / "hits.tsv", sep="\t")) == sum(n)  # but all hits are listed
+    # one image with a real position: only its hits are in the .rgn files and their routes
+    results[0].stage_known = True
+    hits = write_screening_outputs(results, settings, out)
+    assert len(hits) == sum(n)
+    chunks = sorted(out.glob("hits_*-*.tsv"))
+    routed = pd.concat(pd.read_csv(c, sep="\t") for c in chunks)
+    assert set(routed["image"]) == {results[0].name} and len(routed) == n[0]
+    assert list(out.glob("HITS_*.rgn"))
+
+
 def test_new_run_replaces_the_previous_one(tmp_path, synthetic):
     """One output folder holds one run: a new run moves the results of the previous one away (also of images that are
     not in the new run) and removes them when it is complete; other files stay. run.json lists images and inputs."""

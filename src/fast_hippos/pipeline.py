@@ -637,7 +637,18 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
     hits = screening.sort_hits(all_cells[all_cells["hit"]].copy(), sc)
     hits.insert(0, "rank", np.arange(1, len(hits) + 1))
     hits.to_csv(out / "hits.tsv", sep="\t", index=False, float_format="%.10g")
+    all_hits = hits
     run_name = _safe(results[0].name if len(results) == 1 else out.name)
+    # only hits at real stage positions go to the microscope: (0, 0) stands in for a missing position
+    unknown = [r.name for r in results if not r.stage_known]
+    if unknown and len(hits):
+        left_out = hits["image"].astype(str).isin(unknown)
+        for name in unknown:
+            n = int((hits["image"].astype(str) == name).sum())
+            if n:
+                log.warning("No stage position for %s: its %d hit%s are not in the .rgn files", name, n, "s" if n > 1 else "")
+        hits = hits[~left_out]
+    known = [r for r in results if r.stage_known] or results
     have_positions = hits[["abs_x_m", "abs_y_m"]].notna().all(axis=None) if len(hits) else False
     chunks: list[pd.DataFrame] = []
     if len(hits) and have_positions:
@@ -645,7 +656,7 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
         size = max(1, sc.max_hits_per_rgn)
         # the routes are chained: the first starts near the first tile of the scan, every next one near the end
         # of the previous one
-        first_tile = results[0].tiles[0] if results[0].tiles else None
+        first_tile = known[0].tiles[0] if known[0].tiles else None
         start = np.array([first_tile[0] + first_tile[2] / 2, first_tile[1] + first_tile[3] / 2]) if first_tile else None
         for k in range(math.ceil(len(hits) / size)):
             chunk = hits.iloc[k * size : (k + 1) * size]
@@ -662,13 +673,13 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
             log.info("HITS_%s_%d-%d.rgn: %d positions, route %.1f mm%s", run_name, a, b, len(chunk),
                      1e3 * stage.path_length(xy, np.arange(len(xy))), " (optimized)" if sc.optimize_path and len(chunk) > 2 else "")
             chunks.append(chunk)
-        tiles = [t for r in results for t in r.tiles]
+        tiles = [t for r in known for t in r.tiles]
         tiles = list(dict.fromkeys(tiles))
         plots.hit_positions(out / "hit_positions.png", chunks, tiles)
     elif len(hits):
         log.warning("Hits found but no stage positions: no .rgn files written")
-    log.info("Screening total: %d hits in %d cells", len(hits), len(all_cells))
+    log.info("Screening total: %d hits in %d cells", len(all_hits), len(all_cells))
     (out / "hit_chunks.json").write_text(
         json.dumps([{"image": c["image"].tolist(), "cell": c["cell"].tolist()} for c in chunks])
     )
-    return hits
+    return all_hits
