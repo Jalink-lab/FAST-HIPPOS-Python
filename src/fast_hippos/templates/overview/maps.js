@@ -39,9 +39,9 @@ function drawMap(c, k, e, span) {
   ctx.strokeStyle = withAlpha(imgColor(k), 0.85 * fade); ctx.lineWidth = 1.2; ctx.beginPath();
   for (let i = 0; i < route.length; i++) { const p = route[i], q = route[i - 1]; const joined = q && q.chunk === p.chunk && p.visit === q.visit + 1; joined ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)); }
   ctx.stroke();
-  if (route.length) { ctx.fillStyle = imgColor(k); ctx.beginPath(); ctx.arc(X(route[0].x), Y(route[0].y), 4.5, 0, 7); ctx.fill(); }
+  if (route.length) { ctx.fillStyle = imgColor(k); ctx.beginPath(); ctx.arc(X(route[0].x), Y(route[0].y), 3.5, 0, 7); ctx.fill(); }
   ctx.fillStyle = withAlpha(css("--hit"), fade);
-  for (const p of im.hits) { if (p.x === null) continue; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 2.6, 0, 7); ctx.fill(); }
+  for (const p of im.hits) { if (p.x === null) continue; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 1.8, 0, 7); ctx.fill(); }
   // scale bar
   const target = 70 / s, mag = Math.pow(10, Math.floor(Math.log10(target))), len = [1, 2, 5, 10].map(m => m * mag).filter(v => v <= target).pop() || mag;
   ctx.fillStyle = css("--muted"); ctx.fillRect(8, h - 10, len * s, 3); ctx.font = "10px system-ui"; ctx.textBaseline = "bottom";
