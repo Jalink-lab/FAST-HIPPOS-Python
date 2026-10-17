@@ -44,7 +44,7 @@ views. This has its own page: [Choosing the hits](choosing-hits.md). Fold the pa
 The lifetime image of the current frame: colour shows the lifetime, brightness the intensity. Outlines show all
 cells, the hits, the selection, or none.
 
-- ++ctrl++ + scroll zooms, dragging pans, double-click zooms in on a cell, ++f++ (or *Fit*) shows the whole image.
+- ++ctrl++ + scroll zooms, dragging pans, double-click zooms in on a cell, ++f++ (or *Fit*) shows the whole image; zooming out stops there.
   *Zoom to selection* (++z++) zooms to the selected cells, or to the hits.
 - *Cells* colours the cells by a value instead, for instance their response, so that you see where the responders
   are. *Intensity* plays the intensity as a movie, or shows its projection.

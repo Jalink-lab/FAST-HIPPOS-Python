@@ -255,9 +255,11 @@ function outlinesChanged() { outlineVersion++; invalidate("viewerSel", "viewerHo
 function imageChanged() { renderVersion++; lastComp.clear(); invalidate("viewer", "cell"); }
 
 // ---- navigation
+// the scale at which the whole image fits in the panel: zooming out stops there
+function fitScale() { const r = vwrap.getBoundingClientRect(); return r.width ? Math.min(r.width / W0, r.height / H0) : 0; }
 function fitView(redraw = true, smooth = false) {  // smooth: glide there (the Fit button); else at once (start, resizing)
   const r = vwrap.getBoundingClientRect(); if (!r.width) return;
-  const s = Math.min(r.width / W0, r.height / H0), tx = (r.width - W0 * s) / 2, ty = (r.height - H0 * s) / 2;
+  const s = fitScale(), tx = (r.width - W0 * s) / 2, ty = (r.height - H0 * s) / 2;
   view.fitted = true; view.auto = true;
   if (smooth) { glideTo(s, tx, ty); return; }
   glide = null; view.s = s; view.tx = tx; view.ty = ty;
@@ -289,7 +291,9 @@ function glideTo(s, tx, ty) {
   requestAnimationFrame(step);
 }
 function zoomAt(mx, my, f) {
-  view.auto = false; const t = viewTarget(), s = Math.max(0.01, Math.min(32, t.s * f));
+  const t = viewTarget(), fit = fitScale();
+  if (fit && t.s * f <= fit * 1.0001) { fitView(true, true); return; }  // not smaller than Fit: the whole image, centred
+  view.auto = false; const s = Math.min(32, t.s * f);
   glideTo(s, mx - (mx - t.tx) * s / t.s, my - (my - t.ty) * s / t.s);
 }
 function cellBox(i) {
