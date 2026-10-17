@@ -84,6 +84,9 @@ main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-con
 .field.off input, .field.off select, .field.off button { cursor: not-allowed; }
 #stopped { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 20; align-items: center; justify-content: center; flex-direction: column; gap: 10px; }
 #stopped.on { display: flex; }
+.spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+#stopped:not(.busy) .spinner { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .field.changed > label::after { content: "●"; color: var(--changed); font-size: 9px; }
 .field .help { color: var(--muted); font-size: 11.5px; }
 .field.check { flex-direction: row; align-items: center; gap: 7px; } .field.check > label { color: var(--text); font-size: 13px; }
@@ -127,7 +130,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
   <button id="bQuit" title="Stop FAST-HIPPOS (a running analysis is stopped too)">Quit</button>
 </header>
 <div id="stopped"><img class="logo" src="__FH_LOGO__" alt="" style="width:96px;height:96px;border-radius:14px;background:#fff">
-  <h2 style="margin:0">FAST-HIPPOS has stopped</h2><div class="muted">You can close this tab. Start FAST-HIPPOS again to continue.</div></div>
+  <h2 style="margin:0" id="stopTitle">FAST-HIPPOS has stopped</h2><div class="spinner"></div><div class="muted" id="stopText">You can close this tab. Start FAST-HIPPOS again to continue.</div></div>
 <main>
   <section>
     <div class="tabs"><label class="switch" title="Open the advanced settings of all sections at once"><input type="checkbox" id="advAll"> Show all advanced settings</label><span class="note" id="advNote"></span>
@@ -535,8 +538,16 @@ $("bTheme").onclick = () => {
 $("bQuit").onclick = async () => {
   if (!confirm(JOB.state === "running" ? "An analysis is running. Stop it and quit FAST-HIPPOS?"
     : "Are you sure you want to quit FAST-HIPPOS?\n\nThe settings are kept for the next start.")) return;
+  // say at once that it is stopping (this can take a few seconds), and when it has
+  const stopped = (title, text, busy) => { $("stopTitle").textContent = title; $("stopText").textContent = text; $("stopped").classList.toggle("busy", busy); $("stopped").classList.add("on"); };
+  stopped("Stopping FAST-HIPPOS…", JOB.state === "running" ? "Stopping the analysis and closing the program; this can take a few seconds."
+    : "Closing the program; this can take a few seconds.", true);
   try { await api("quit"); } catch { /* already gone */ }
-  $("stopped").classList.add("on");
+  for (let i = 0; i < 30; i++) {  // until the program no longer answers (at most ~10 s)
+    try { await fetch("/", { cache: "no-store" }); } catch { break; }
+    await new Promise(r => setTimeout(r, 330));
+  }
+  stopped("FAST-HIPPOS has stopped", "You can close this tab. Start FAST-HIPPOS again to continue.", false);
 };
 $("advAll").onchange = () => { ADV_ALL = $("advAll").checked; render(); };
 $("bOpen").onclick = async () => {
