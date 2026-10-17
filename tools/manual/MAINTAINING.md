@@ -69,6 +69,7 @@ print([len(x) for x in d], [int(x.hit.sum()) for x in d], sum(int((x.hit & (x.cl
 | `gui.png` | the whole window: toolbar (Open/Save settings, Defaults, ◐, Quit), the advanced-settings line, Fold all, the Images and Cell segmentation cards and the Run card with log and results |
 | `gui_images`, `gui_segmentation`, `gui_stimulation`, `gui_screening`, `gui_display`, `gui_run` | one card each (cropped) |
 | `gui_advanced` | Cell segmentation with its advanced settings open |
+| `gui_rgn` | Screening, advanced: stage positions file, .rgn files and route, stage axes, tiles (cropped) |
 | `dashboard.png`, `dashboard_views.png` | the whole dashboard: top bar, Screening pane open / folded, Image, Traces, Kymograph |
 | `dash_screening`, `dash_timing`, `dash_gates`, `dash_output`, `dash_criteria` | the Screening pane and its parts |
 | `dash_image`, `dash_traces`, `dash_kymograph`, `dash_cells` | one panel each |

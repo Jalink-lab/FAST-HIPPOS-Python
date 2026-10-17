@@ -59,6 +59,19 @@ def gui_shots(page: Page, url: str, want) -> Path:
         page.wait_for_timeout(400)
         save(c, "gui_advanced")
         c.locator("text=Advanced settings").first.click()
+    if want("gui_rgn"):  # Screening, advanced: from 'Stage positions and .rgn files' to the tiles
+        c = card(page, "Screening")
+        c.locator("text=Advanced settings").first.click()
+        page.wait_for_timeout(400)
+        box = page.evaluate("""() => {
+          const hs = [...document.querySelectorAll('h3')];
+          const a = hs.find(h => h.textContent.startsWith('Stage positions')), b = hs.find(h => h.textContent.startsWith('Tiles'));
+          a.scrollIntoView(); const r0 = a.getBoundingClientRect(), r1 = b.nextElementSibling.getBoundingClientRect();
+          const card = a.closest('.card').getBoundingClientRect();
+          return {x: card.left, y: r0.top - 4, width: card.width, height: r1.bottom - r0.top + 8};
+        }""")
+        save(page, "gui_rgn", clip=box)
+        c.locator("text=Advanced settings").first.click()
     return Path(page.evaluate("document.querySelector('#results [data-open]').dataset.open")).parent
 
 

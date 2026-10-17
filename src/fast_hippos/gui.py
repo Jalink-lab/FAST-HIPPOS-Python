@@ -54,6 +54,9 @@ SETTINGS_NAME = "fast_hippos_settings.toml"
 TCSPC = {"input.modality": ["tcspc"]}
 CELLPOSE = {"segmentation.method": ["cellpose"]}
 SCREEN = {"screening.enabled": [True]}
+# settings that the Python version never uses (kept for settings files of the Fiji version): always greyed out
+UNUSED_TILES = ("not used by the Python version: the tile layout and overlap come from the stitched image (kept for "
+                "settings files of the Fiji version)")
 # what the scatter plot of the dashboard can show on an axis
 SCATTER_AXES = {"value_at_frame": "lifetime (or ratio) at the current frame",
                 "additional_at_frame": "additional channel at the current frame",
@@ -183,13 +186,14 @@ FIELDS: dict[str, dict] = {
         "choices": {"mean": "mean over time", "first": "first frame"}},
     "screening.classification_threshold": {"label": "Classification threshold", "enable": SCREEN, "help": "Empty = Otsu"},
     "screening.sort_by": {"label": "Sort hits by", "enable": SCREEN, "widget": "metric", "help": "Empty = cell order"},
-    "screening.sort_descending": {"label": "Highest first", "enable": SCREEN},
+    "screening.sort_descending": {"label": "Order", "widget": "boolselect", "enable": SCREEN,
+        "choices": {"true": "highest first", "false": "lowest first"}},
     "screening.manual_hits": {"label": "Hand-picked hits (TSV)", "widget": "file", "enable": SCREEN,
         "help": "Replaces the criteria (export from a dashboard selection)"},
     "screening.random_hits": {"label": "Random hits (testing)", "enable": SCREEN},
     "screening.random_seed": {"label": "Random seed", "enable": SCREEN},
-    "screening.n_tiles": {"label": "Tiles (nx, ny)", "widget": "pair", "enable": SCREEN, "help": "Overruled by stitched metadata"},
-    "screening.tile_overlap": {"label": "Tile overlap (%)", "enable": SCREEN},
+    "screening.n_tiles": {"label": "Tiles (nx, ny)", "widget": "pair", "unused": UNUSED_TILES},
+    "screening.tile_overlap": {"label": "Tile overlap (%)", "unused": UNUSED_TILES},
     "screening.max_hits_per_rgn": {"label": "Hits per .rgn file", "enable": SCREEN},
     "screening.optimize_path": {"label": "Optimize the route", "enable": SCREEN},
     "screening.max_optimization_time": {"label": "Route optimization time (s per file)", "enable": SCREEN},
@@ -375,7 +379,8 @@ TIPS: dict[str, str] = {
         "Empty = chosen automatically (Otsu).",
     "screening.sort_by": "Order of the hits in the hit list and .rgn files before the route is optimized. Empty = "
         "cell order.",
-    "screening.sort_descending": "Sort the hits from the highest to the lowest value.",
+    "screening.sort_descending": "Sort the hits from the highest to the lowest value of 'Sort hits by', or the "
+        "other way round.",
     "screening.manual_hits": "Use cells you picked yourself (a TSV exported from a dashboard selection) as hits, "
         "instead of the criteria.",
     "screening.random_hits": "Testing only: take this many random cells as hits. Empty = off.",
@@ -442,9 +447,11 @@ LAYOUT = [
          ("Quality gates", ["screening.baseline_calibration_diff", "screening.max_baseline_deviation"]),
          ("Additional channel", ["screening.additional_channel_metric", "screening.classification_threshold"]),
          ("Hit list", ["screening.sort_by", "screening.sort_descending", "screening.manual_hits"]),
-         ("Stage positions and .rgn files", ["screening.stage_positions_file", "screening.n_tiles", "screening.tile_overlap", "screening.max_hits_per_rgn",
-                                             "screening.optimize_path", "screening.max_optimization_time",
-                                             "screening.rgn_swap_xy", "screening.rgn_invert_x", "screening.rgn_invert_y"]),
+         ("Stage positions and .rgn files", ["screening.stage_positions_file", "screening.max_hits_per_rgn",
+                                             "screening.optimize_path", "screening.max_optimization_time"]),
+         ("Stage axes in the .rgn files (LAS X Navigator)", ["screening.rgn_swap_xy", "screening.rgn_invert_x",
+                                                             "screening.rgn_invert_y"], None, "column"),
+         ("Tiles (only for settings files of the Fiji version)", ["screening.n_tiles", "screening.tile_overlap"]),
          ("Testing", ["screening.random_hits", "screening.random_seed"]),
      ]},
     {"title": "Display and output", "basic": [],
@@ -578,7 +585,8 @@ def schema() -> dict:
         for f in sec["fields"]:
             f["level"] = "basic" if f["key"] in basic else "advanced"
     layout = [{"title": c["title"], "basic": c["basic"], "note": c.get("note"),
-               "advanced": [{"title": a[0], "keys": a[1], "show": a[2] if len(a) > 2 else None} for a in c["advanced"]]}
+               "advanced": [{"title": a[0], "keys": a[1], "show": a[2] if len(a) > 2 else None,
+                             "column": len(a) > 3 and a[3] == "column"} for a in c["advanced"]]}
               for c in LAYOUT]
     return {"version": __version__, "sections": sections, "layout": layout, "metrics": METRICS, "reasons": REASONS}
 

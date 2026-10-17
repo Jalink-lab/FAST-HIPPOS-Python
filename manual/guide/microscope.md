@@ -61,7 +61,14 @@ negative.
 
 Microscopes, even of the same type, can differ in this. **Check it once on your microscope**: load a `.rgn` file in
 the Navigator and see whether the positions land on the cells. If they don't, change the settings under *Screening →
-Advanced settings → Stage positions and .rgn files*:
+Advanced settings → Stage axes in the .rgn files*:
+
+<figure markdown>
+![Stage positions and .rgn files](../images/gui_rgn.png){ .shot width="560" }
+<figcaption>Screening, advanced settings: the stage positions file, the .rgn files and their route, and the stage
+axes. The tile settings at the bottom are greyed out: they are only kept for settings files of the Fiji
+version.</figcaption>
+</figure>
 
 | Setting | Change it when the positions in the Navigator are |
 |---|---|
