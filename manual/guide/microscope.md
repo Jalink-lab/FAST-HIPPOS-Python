@@ -41,6 +41,7 @@ Usually these are read from the images:
 - **Leica `.lif` files**: every image has its position in the file. A tile scan in a `.lif` is stitched, with the
   position of every tile.
 - **TIFFs exported from LAS X**: from the `MetaData` folder that LAS X writes next to them. Keep it with the images.
+  An image stitched by LAS X has one stage position, that of its centre (see [Tile scans](#tile-scans)).
 - **Images stitched by FAST-HIPPOS, or by *Stitch tiles* in Fiji**: from their metadata.
 
 The *Images* card shows for every image whether it has stage positions. For other images, choose a **Stage positions
@@ -85,8 +86,16 @@ version.</figcaption>
 
 ## Tile scans
 
-A large area is usually imaged as a tile scan. LAS X can stitch it, but then the image keeps only one stage position,
-while the screening needs the position of every tile. Instead:
+A large area is usually imaged as a tile scan. There are two ways to analyze it.
+
+**Stitched by LAS X.** Export the stitched image (with its `MetaData` folder) and add it with *Add images…*, like
+any other image. It has one stage position, that of its centre, and FAST-HIPPOS computes the position of every cell
+from its distance to that centre. This is exact as long as the stitching only puts the tiles side by side at their
+nominal places: it must not shift or warp tiles, for instance to align overlapping tiles on their content. Check
+this once with a `.rgn` file in the Navigator, preferably with hits near the edges of the scan.
+
+**Tiles exported, stitched by FAST-HIPPOS.** When the stitching does shift tiles, or to be independent of how LAS X
+stitches:
 
 1. In LAS X, **export the tiles**: one TIFF per tile (`name_s0.tif`, `name_s1.tif`, …), with the `MetaData` folder.
 2. In the *Images* card, click **Add tile folder…** and choose the folder.
