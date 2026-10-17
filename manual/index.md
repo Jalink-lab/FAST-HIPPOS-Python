@@ -17,10 +17,12 @@ high-resolution imaging, FRAP or anything else.
 Outside screening, it is a fast way to get single-cell traces out of a FLIM, ratio or intensity time-lapse, and to
 look at them.
 
-!!! warning "Test version"
-    The Python version of FAST-HIPPOS is still being tested and has not yet been validated for production
-    screening. For experiments, use the [Fiji version](https://imagej.net/plugins/fast-hippos), or compare the
-    results with it.
+!!! note "Beta"
+    The analysis has been checked against the [Fiji version](https://imagej.net/plugins/fast-hippos) and on test
+    data, but one step has not been tried on the microscope yet: the `.rgn` files that this version writes. Before
+    you rely on them, load one in the LAS X Navigator and check that the positions land on the cells (see
+    [Back to the microscope](guide/microscope.md#stage-coordinates-and-the-rgn-frame)). Settings and file formats
+    may still change.
 
 <figure markdown>
 ![The dashboard of an image](images/dashboard_views.png){ .shot }

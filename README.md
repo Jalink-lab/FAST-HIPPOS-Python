@@ -10,13 +10,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-unverified%20test%20version-orange" alt="Status: unverified test version">
+  <img src="https://img.shields.io/badge/status-beta-yellow" alt="Status: beta">
 </p>
 
-> [!WARNING]
-> **Unverified test version.** This Python version is under development and has not yet been validated for
-> production screening. Results, settings and file formats may change. For experiments, use the
-> [FAST-HIPPOS Fiji plugin](https://imagej.net/plugins/fast-hippos), or check the results carefully against it.
+> [!NOTE]
+> **Beta.** The analysis has been checked against the [Fiji version](https://imagej.net/plugins/fast-hippos) and on
+> test data, but one step has not been tried on the microscope yet: the `.rgn` files that this version writes. Before
+> you rely on them, load one in the LAS X Navigator and check that the positions land on the cells (see
+> [Back to the microscope](https://jalink-lab.github.io/FAST-HIPPOS-Python/guide/microscope/)). Settings and file
+> formats may still change.
 
 **User manual: <https://jalink-lab.github.io/FAST-HIPPOS-Python/>**, with a walk-through on example data and a live
 demo of the dashboard.
