@@ -101,8 +101,10 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
         log.info("Re-applying stimulation detection, screening and dashboards to the %d image(s) of the run of %s "
                  "in this folder (segmentation and traces are kept): %s", len(info["images"]), info.get("started", "?"),
                  ", ".join(i["name"] for i in info["images"]))
-        for meta in (d / "meta.json" for d, _ in _result_folders(out)):
-            result = load_result(meta.parent)
+        folders = _result_folders(out)
+        for n, (folder, meta) in enumerate(folders, start=1):
+            log.info("--- %s (%d of %d)", meta["name"], n, len(folders))
+            result = load_result(folder)
             analyze(result, settings)
             save_tables(result, settings)
             results.append(result)
@@ -117,13 +119,14 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
         p = settings.preprocess
         bidirectional = p.bidirectional_axis if p.correct_bidirectional else None
         index = 0
-        for path in settings.input.files:
+        n_files = len(settings.input.files)
+        for f, path in enumerate(settings.input.files, start=1):
             if Path(path).is_dir():
                 images = [_stitch(Path(path), settings, out)]
             else:
                 images = iter_images(Path(path), settings.input.series, bidirectional, _reg_channels(settings))
             for image in images:
-                log.info("--- %s", image.name)
+                log.info("--- %s (file %d of %d: %s)", image.name, f, n_files, Path(path).name)
                 if image.extra.get("tiles") and not Path(path).is_dir():  # a tile scan in a .lif, stitched
                     image.extra["stitched_file"] = _save_stitched(image, out)
                 if "stitched_file" in image.extra:
@@ -634,7 +637,10 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
             chunk = chunk.copy()
             chunk.insert(1, "visit_order", np.arange(1, len(chunk) + 1))
             chunk.to_csv(out / f"hits_{a}-{b}.tsv", sep="\t", index=False, float_format="%.10g")
-            stage.write_rgn(out / f"HITS_{run_name}_{a}-{b}.rgn", chunk[["abs_x_m", "abs_y_m"]].to_numpy())
+            xy = chunk[["abs_x_m", "abs_y_m"]].to_numpy()
+            stage.write_rgn(out / f"HITS_{run_name}_{a}-{b}.rgn", xy)
+            log.info("HITS_%s_%d-%d.rgn: %d positions, route %.1f mm%s", run_name, a, b, len(chunk),
+                     1e3 * stage.path_length(xy, np.arange(len(xy))), " (optimized)" if sc.optimize_path and len(chunk) > 2 else "")
             chunks.append(chunk)
         tiles = [t for r in results for t in r.tiles]
         tiles = list(dict.fromkeys(tiles))

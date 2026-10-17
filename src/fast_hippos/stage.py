@@ -364,7 +364,6 @@ def optimize_path(points: np.ndarray, max_time: float = 5.0, start: np.ndarray |
     origin), then alternately 2-opt and Or-opt while they improve the route (within max_time); the route keeps
     starting there."""
     order = nearest_neighbour_path(points, start)
-    length_nn = path_length(points, order)
     deadline = time.perf_counter() + max_time
     order = two_opt(points, order, max_time, neighbours=25)
     while (left := deadline - time.perf_counter()) > 0:
@@ -373,11 +372,6 @@ def optimize_path(points: np.ndarray, max_time: float = 5.0, start: np.ndarray |
         order = two_opt(points, order, max(0.0, deadline - time.perf_counter()), neighbours=25)
         if path_length(points, order) > before - 1e-12 * max(1.0, before):
             break
-    if length_nn > 0:
-        log.info(
-            "Path optimization: %d points, %.1f mm (%.1f %% shorter than nearest neighbour)",
-            len(points), 1e3 * path_length(points, order), 100 * (1 - path_length(points, order) / length_nn),
-        )
     return order
 
 
