@@ -3,7 +3,7 @@
 // selection, scroll position) only across a reload of the tab, e.g. after 'Apply to run' (sessionStorage).
 const PERSIST_KEY = "fast-hippos:" + location.pathname;
 const DISPLAY_KEYS = ["lut", "dmin", "dmax", "bright", "isrc", "outl", "tsrc", "show", "tcol", "tmode", "ksort", "kdesc", "rows",
-  "sortCol", "sortDir", "sx", "sy", "slogx", "slogy", "sclass", "tool", "showRoute", "fillMetric"];
+  "sortCol", "sortDir", "sx", "sy", "slogx", "slogy", "sclass", "hlog", "tool", "showRoute", "fillMetric"];
 function readStore(store) { try { return JSON.parse(store.getItem(PERSIST_KEY) || "null"); } catch { return null; } }
 function writeStore(store, value) { try { store.setItem(PERSIST_KEY, JSON.stringify(value)); } catch { /* storage unavailable */ } }
 
@@ -35,7 +35,7 @@ function restoreSession() {
     if (![...$(id).options].some(o => o.value === S[id])) S[id] = id === "sx" ? "mean_intensity" : "@value";
     $(id).value = S[id];
   }
-  setIf("slogx", "checked", S.slogx); setIf("slogy", "checked", S.slogy); setIf("sclass", "checked", !!S.sclass);
+  setIf("slogx", "checked", S.slogx); setIf("slogy", "checked", S.slogy); setIf("sclass", "checked", !!S.sclass); setIf("hlog", "checked", S.hlog);
   setIf("isrc", "value", S.isrc); setIf("bright", "value", Math.log10(S.bright)); setIf("vfill", "value", S.fillMetric);
   if (![...$("ksort").options].some(o => o.value === S.ksort)) S.ksort = "@response";  // a value that no longer exists
   setIf("ksort", "value", S.ksort); setIf("kdir", "value", S.kdesc ? "1" : "0");

@@ -111,7 +111,8 @@
       <input type="range" id="kzoom" min="0" max="100" value="0" style="flex:1"><span class="muted" id="kinfo"></span></div>
   </section>
   <section class="panel dist">
-    <div class="panel-h"><h2 title="Histogram of the lifetimes of the cells chosen under 'Show', in the current frame">Distribution</h2><span id="distinfo" class="muted"></span></div>
+    <div class="panel-h"><h2 title="Histogram of the lifetimes of the cells chosen under 'Show', in the current frame">Distribution</h2><span id="distinfo" class="muted"></span><span class="sp"></span>
+      <label class="muted" title="Logarithmic count axis: also shows the few cells in the tails next to a high peak (e.g. low responders)"><input type="checkbox" id="hlog"> log</label></div>
     <div class="stack"><canvas id="hib"></canvas></div>
   </section>
   <section class="panel scatter">

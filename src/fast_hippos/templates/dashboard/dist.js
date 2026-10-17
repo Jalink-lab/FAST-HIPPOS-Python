@@ -10,13 +10,16 @@ function drawHist() {
   const hits = HIT.some(Boolean) ? histogram(S.frame, i => visible(i) && HIT[i]) : null;
   const sel = S.sel.size ? histogram(S.frame, i => S.sel.has(i)) : null;
   let max = 1; all.h.forEach(v => max = Math.max(max, v));
-  HP.range(S.dmin, S.dmax, 0, max * 1.08);
+  // log: the count axis starts just below 1 cell, so that a single cell is a visible bar and empty bins stay empty
+  HP.logy = S.hlog; const base = S.hlog ? 0.7 : 0;
+  HP.range(S.dmin, S.dmax, base, S.hlog ? max * 1.6 : max * 1.08);
   const ctx = HP.clear(0); HP.axes(ctx, D.is_lifetime ? "lifetime (ns)" : D.unit, "cells"); ctx.save(); HP.clip(ctx);
-  const bw = (S.dmax - S.dmin) / nb, rgb = [0, 0, 0];
-  for (let b = 0; b < nb; b++) { lutRGB(S.dmin + (b + 0.5) * bw, rgb); ctx.fillStyle = `rgb(${rgb})`; const x0 = HP.X(S.dmin + b * bw), x1 = HP.X(S.dmin + (b + 1) * bw); ctx.fillRect(x0 + 0.5, HP.Y(all.h[b]), Math.max(1, x1 - x0 - 1), HP.Y(0) - HP.Y(all.h[b])); }
-  const outline = (H, col) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); for (let b = 0; b < nb; b++) { const x0 = HP.X(S.dmin + b * bw), x1 = HP.X(S.dmin + (b + 1) * bw), y = HP.Y(H.h[b]); b ? ctx.lineTo(x0, y) : ctx.moveTo(x0, y); ctx.lineTo(x1, y); } ctx.stroke(); };
+  const bw = (S.dmax - S.dmin) / nb, rgb = [0, 0, 0], Yc = (v) => HP.Y(Math.max(v, base));
+  for (let b = 0; b < nb; b++) { if (!all.h[b]) continue; lutRGB(S.dmin + (b + 0.5) * bw, rgb); ctx.fillStyle = `rgb(${rgb})`; const x0 = HP.X(S.dmin + b * bw), x1 = HP.X(S.dmin + (b + 1) * bw); ctx.fillRect(x0 + 0.5, Yc(all.h[b]), Math.max(1, x1 - x0 - 1), Yc(base) - Yc(all.h[b])); }
+  const outline = (H, col) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); for (let b = 0; b < nb; b++) { const x0 = HP.X(S.dmin + b * bw), x1 = HP.X(S.dmin + (b + 1) * bw), y = Yc(H.h[b]); b ? ctx.lineTo(x0, y) : ctx.moveTo(x0, y); ctx.lineTo(x1, y); } ctx.stroke(); };
   if (hits && hits.n) outline(hits, css("--hit")); if (sel && sel.n) outline(sel, css("--sel"));
   ctx.restore();
   $("distinfo").textContent = `t = ${(S.frame * FI).toFixed(1)} s · mean ± sd ${fmt(all.mean)} ± ${fmt(all.sd)} (n=${all.n})` + (hits && hits.n ? ` · hits ${fmt(hits.mean)}` : "") + (sel && sel.n ? ` · selection ${fmt(sel.mean)}` : "");
 }
 layer("hist", drawHist);
+$("hlog").onchange = () => { S.hlog = $("hlog").checked; invalidate("hist"); };

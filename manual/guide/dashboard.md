@@ -83,7 +83,9 @@ response, lowest first: the weak responders are then on the left. The pink ticks
 
 </div>
 
-The **distribution** of a value over all cells, with the hits and the selection outlined. The **scatter plot** shows
+The **distribution** of the lifetimes in the current frame, with the hits and the selection outlined. *log*
+makes the count axis logarithmic, so that a few cells in a tail stay visible next to a high peak, for instance the
+low responders of a screen. The **scatter plot** shows
 any two values against each other, optionally on log axes, with the cells that are positive for the additional
 channel outlined. A lasso in the scatter plot (++shift++ + drag) selects a population, for instance all cells with
 a low baseline and a high response.

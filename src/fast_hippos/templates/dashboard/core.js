@@ -23,7 +23,7 @@ const S = {
   lut: D.display.lut, dmin: D.display.min, dmax: D.display.max, bright: Math.pow(10, 0.2),
   isrc: "movie", outl: "all", tsrc: SCR.params.smooth_traces > 0 ? "smoothed" : "raw",
   show: "all", tcol: D.screening.enabled ? "hit" : "cell", tmode: N > 300 ? "bands" : "lines",
-  ksort: "@response", kdesc: false, kzoom: 1, kstart: 0, rows: "all", sortCol: null, sortDir: 1, sx: "mean_intensity", sy: "@value", slogx: false, slogy: false, sclass: false,
+  ksort: "@response", kdesc: false, kzoom: 1, kstart: 0, rows: "all", sortCol: null, sortDir: 1, sx: "mean_intensity", sy: "@value", slogx: false, slogy: false, sclass: false, hlog: false,
   tool: "rect", showRoute: false, fillMetric: "",
 };
 const K = () => (S.tsrc === "smoothed" ? KS : KR);
