@@ -1,11 +1,8 @@
 // ---------------------------------------------------------------- data and shared state
 const D = JSON.parse(document.getElementById("fh-data").textContent);
-const $ = (id) => document.getElementById(id);
 const N = D.n_cells, T = D.n_frames, FI = D.frame_interval;
 const C = D.cells;
 
-function b64bytes(s) { const b = atob(s); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
-function b64f32(s) { return s ? new Float32Array(b64bytes(s).buffer) : null; }
 const KR = b64f32(D.kymo), KA = b64f32(D.additional);
 const LUTS = {}; for (const [k, v] of Object.entries(D.luts)) LUTS[k] = b64bytes(v);
 Object.keys(C).filter(k => k.startsWith("pass_")).forEach(k => delete C[k]);  // recomputed live
@@ -31,31 +28,10 @@ const S = {
 };
 const K = () => (S.tsrc === "smoothed" ? KS : KR);
 const val = (t, i) => K()[t * N + i];
-function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 function cellColor(i, alpha = 1) { const h = (i * 137.508) % 360; return `hsla(${h.toFixed(1)},72%,58%,${alpha})`; }
 function visible(i) { return S.show === "all" || (S.show === "hits" ? HIT[i] : S.sel.has(i)); }
-const fmt = (v, d = 3) => {
-  if (v === null || v === undefined || Number.isNaN(v)) return "–";
-  const a = Math.abs(v);
-  if (!Number.isFinite(v)) return v > 0 ? "∞" : "−∞";
-  if (a >= 1e7 || (a < 1e-4 && v !== 0)) return v.toExponential(2);
-  return a >= 1000 ? v.toFixed(Math.min(d, 1)) : (+v).toFixed(d);
-};
 const nHits = () => HIT.reduce((s, h) => s + (h ? 1 : 0), 0);
 
-// ---------------------------------------------------------------- redraw scheduling
-// Each panel registers named layers; invalidate() marks them, one animation frame redraws them in order. A layer
-// that marks a later layer (the image marks its outlines) gets it drawn in the same frame, so that they move together.
-const LAYERS = [];  // [name, fn]
-function layer(name, fn) { LAYERS.push([name, fn]); }
-const dirty = new Set();
-let rafPending = false;
-function invalidate(...names) { names.forEach(n => dirty.add(n)); if (!rafPending) { rafPending = true; requestAnimationFrame(flush); } }
-function flush() {
-  rafPending = false;
-  for (const [name, fn] of LAYERS) if (dirty.delete(name)) { try { fn(); } catch (e) { console.error(name, e); } }
-}
-const ALL = () => LAYERS.map(l => l[0]);
 // groups of layers per kind of change
 const ON = {
   frame: ["viewer", "tracesHov", "kymoOvl", "hist", "tableRows", "cell"],
@@ -109,7 +85,6 @@ function lutRGB(v, out = [0, 0, 0]) {
   const L = LUTS[S.lut]; let x = (v - S.dmin) / (S.dmax - S.dmin); x = x < 0 ? 0 : x > 1 ? 1 : x;
   const j = Math.round(x * 255) * 3; out[0] = L[j]; out[1] = L[j + 1]; out[2] = L[j + 2]; return out;
 }
-function hexToRgb(h) { const c = document.createElement("canvas").getContext("2d"); c.fillStyle = h; const s = c.fillStyle; return s.startsWith("#") ? [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)] : [255, 255, 255]; }
 // baseline / response / timed window / calibration as in the Timing panel: frame f covers (f - 1/2 .. f + 1/2) x interval
 function shadeWindows(ctx, P) {
   const ev = EV, block = (w, col) => {
@@ -123,7 +98,6 @@ function shadeWindows(ctx, P) {
   block(ev.calibration_window, css("--cal-win"));
 }
 const eventX = (f) => (f - 0.5) * FI;  // time of the transition into frame f (the S / C markers of the Timing panel)
-function withAlpha(color, a) { const [r, g, b] = hexToRgb(color); return `rgba(${r},${g},${b},${a})`; }
 
 // ---------------------------------------------------------------- shift-drag selection shapes (rectangle or lasso)
 // attachSelector(element, onDone(polygon in element px, additive)); draws the shape in an SVG overlay
@@ -165,19 +139,3 @@ function inPolygon(x, y, poly) {
   }
   return inside;
 }
-
-// Hover texts (title attributes) are drawn by the browser, which makes them very wide; break them into lines of
-// about 60 characters when the mouse comes over them (works for titles set later too; already short lines stay).
-function wrapTitle(t, n = 60) {
-  return t.split("\n").map(line => {
-    if (line.length <= n) return line;
-    const out = []; let cur = "";
-    for (const w of line.split(" ")) { if (cur && cur.length + 1 + w.length > n) { out.push(cur); cur = w; } else cur = cur ? cur + " " + w : w; }
-    return out.concat(cur ? [cur] : []).join("\n");
-  }).join("\n");
-}
-document.addEventListener("mouseover", (e) => {
-  for (let el = e.target; el && el.nodeType === 1; el = el.parentNode) {
-    if (el.title) { const w = wrapTitle(el.title); if (w !== el.title) el.title = w; return; }
-  }
-}, true);

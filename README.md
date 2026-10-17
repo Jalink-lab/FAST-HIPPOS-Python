@@ -61,7 +61,7 @@ tables. In the dashboard you can change the hit criteria after the analysis and 
 | **Stimulation and calibration** | Detected automatically in the population trace, or set by hand, or 'baseline only'. Traces are split into baseline, response and calibration. |
 | **Screening** | Per-cell metrics, quality gates, classification on the additional channel, and any number of hit criteria that must all pass (AND) or of which one must pass (OR). Alternatively hand-picked hits. |
 | **Hit positions** | Stage coordinates of the hits, optionally refined on the nuclei with a pixel classifier, in `.rgn` files of up to 1000 positions, each with an optimized visiting route. |
-| **Results** | An interactive dashboard per image, an overview page of the run with a map of all hit positions, tables and TIFF images. |
+| **Results** | An interactive dashboard per image, an interactive overview of the run (compare the images, QC flags, hit maps per image, exports), tables and TIFF images. |
 
 ## Installation
 
@@ -333,7 +333,8 @@ Per run, in the output folder:
 
 | File | |
 |---|---|
-| `index.html` | overview of the run: images, hit counts, and a map of all hit positions with the routes |
+| `index.html` | interactive overview of the run: a table of the images with QC flags; for the selected images their response over time, distributions of cell values, hit maps and hits; .rgn and TSV exports |
+| `run_summary.tsv` | the images table of the overview |
 | `hits.tsv`, `hits_<a>-<b>.tsv` | the hit list, and per `.rgn` file in visiting order |
 | `HITS_<name>.rgn`, `HITS_<name>_<a>-<b>.rgn` | stage positions for LAS X: all hits, and per file of up to 1000 positions |
 | `cell_coordinates.tsv` | positions of all cells |
@@ -350,10 +351,17 @@ Per image, in its own folder:
 | `kymograph*.tif`, `traces.png` | kymographs and a trace plot |
 | `tiles/` | full-resolution image tiles of large images; keep them next to `dashboard.html` when copying |
 
-<p align="center">
-  <img src="docs/images/index.png" alt="Run overview" width="80%">
-  <br><sub>The run overview with the hit positions on the stage and the route per <code>.rgn</code> file.</sub>
-</p>
+### The run overview
+
+`index.html` compares the images of a run, which are usually different samples. The table lists every image with
+its cells, valid fraction, hits, median baseline and response, calibration response, frames and events, and QC
+flags (few cells, low valid fraction, a missing stimulation or calibration while most images have one, a
+stimulation at another frame, no calibration response, no stage positions; warnings only, every threshold in its
+hover text). Select images in the table (click, Ctrl+click, Shift+click) to compare them, each in its own colour:
+their response over time (median and 25-75 % band, aligned on the stimulation, each curve switchable), the
+distribution of any cell value per image or a scatter plot of two values, a hit map per image with the tiles and the
+visiting order of the `.rgn` files, and their hits. Exports: `.rgn` per image or for the selected images together,
+and TSV tables. Without screening, the hit columns, maps and exports are left out.
 
 ## Speed and large images
 

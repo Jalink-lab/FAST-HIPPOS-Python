@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAST-HIPPOS overview</title>
+<link rel="icon" type="image/png" href="__FH_ICON__">
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" src="__FH_LOGO__" alt="FAST-HIPPOS" title="FAST-HIPPOS">
+  <div class="htext"><h1 id="title" title="The run in this output folder">Overview</h1><div class="chips" id="chips"></div></div>
+  <span class="sp"></span>
+  <div class="menu"><button id="filesBtn" title="Tables, .rgn files, plots and logs that the run wrote in this folder">Run files ▾</button><div class="pop" id="filesMenu"></div></div>
+  <div class="menu"><button id="exportBtn" title="Download tables and .rgn files for the selected images">Export ▾</button><div class="pop" id="exportMenu">
+    <button data-x="rgnImages" title="One .rgn file per selected image with its hits, in the visiting order of the run (split into files of at most the run's maximum number of positions)">Hits → .rgn per image</button>
+    <button data-x="rgnSelection" title="One route through the hits of all selected images together (optimized when the run optimized its routes), split into files of at most the run's maximum number of positions">Hits → .rgn, selected images together</button>
+    <button data-x="hitsTsv" title="The hits of the selected images as a table (TSV, opens in Excel)">Hits → TSV</button>
+    <button data-x="imagesTsv" title="The images table as shown (sorting and columns), with the QC flags">Images table → TSV</button>
+    <button data-x="cellsTsv" title="The values of the cells of the selected images that this page holds (all hits; for large images a sample of the other cells)">Cells → TSV</button>
+  </div></div>
+  <button id="theme" title="Switch between light and dark">◐</button>
+</header>
+<main>
+  <section class="panel images">
+    <div class="panel-h"><h2 title="One row per image of the run. Click a row to select it, Ctrl+click to add or remove one, Shift+click for a range; the panels below show the selected images, each in its own colour. Click a column header to sort.">Images</h2>
+      <span class="muted" id="selinfo"></span><span class="sp"></span>
+      <button id="selAll" class="small" title="Select all images">all</button><button id="selNone" class="small" title="Deselect all images (Esc)">none</button></div>
+    <div id="tblwrap"><table id="imgtbl"></table></div>
+    <div class="qcstrip" id="qc"></div>
+  </section>
+  <section class="panel resp">
+    <div class="panel-h"><h2 title="The response over time of each selected image: the median of its valid cells as a line, the middle half of the cells (25-75 %) as a band; with one image also the 10-90 % band. Click a name to hide or show its curve.">Response over time</h2>
+      <span class="sp"></span>
+      <label title="Put time 0 at the stimulation of each image, so that images with the stimulation at different frames line up (images without a stimulation start at 0)"><input type="checkbox" id="align"> align on stimulation</label>
+      <label id="hitsOnlyL" title="Show the hits of each image instead of all its valid cells"><input type="checkbox" id="hitsOnly"> hits only</label></div>
+    <div class="legend" id="legend"></div>
+    <div class="stack" id="rstack"><canvas id="rpb"></canvas><canvas id="rph"></canvas></div>
+    <div class="note muted" id="rnote"></div>
+  </section>
+  <section class="panel metric">
+    <div class="panel-h"><h2 title="One value per cell, compared between the selected images: as a distribution per image (one row each, on a common axis), or as a scatter plot of two values">Cells</h2>
+      <span class="seg" id="cmode"><button data-v="dist" title="One histogram per image on a common axis, with its median and middle half (box); hits as ticks; dashed lines are the thresholds of the hit criteria">distribution</button><button data-v="scatter" title="Every cell as a point, for two values; hits ringed">scatter</button></span>
+      <span class="sp"></span>
+      <label title="The value on the horizontal axis"><span id="mxl">value</span> <select id="metric"></select></label>
+      <label id="myl" title="The value on the vertical axis (scatter)">y <select id="metricY"></select></label>
+      <label title="Logarithmic horizontal axis"><input type="checkbox" id="logx"> log</label>
+      <label id="logyl" title="Logarithmic vertical axis"><input type="checkbox" id="logy"> log y</label></div>
+    <div class="stack" id="mstack"><canvas id="mpb"></canvas><canvas id="mph"></canvas></div>
+    <div class="note muted" id="mnote"></div>
+  </section>
+  <section class="panel maps" id="mapsPanel">
+    <div class="panel-h"><h2 title="The hits of each selected image at their stage positions (in mm, oriented as the image), with the tiles of the scan and the visiting order of the run's .rgn files. Hover a hit for its details, click it to open it in the image's dashboard.">Hit positions</h2>
+      <span class="sp"></span>
+      <label title="Draw all maps at the same scale (mm per pixel), so that scan areas can be compared"><input type="checkbox" id="sameScale"> same scale</label></div>
+    <div id="maps"></div>
+  </section>
+  <section class="panel hitsp" id="hitsPanel">
+    <div class="panel-h"><button id="hitsToggle" class="icon" title="Show or hide the hits table">▸</button><h2 title="The hits of the selected images, with their rank in the run and their place in the .rgn files. Click a row to open the cell in its image's dashboard.">Hits</h2><span class="muted" id="hitsinfo"></span></div>
+    <div id="hitstbl" class="closed"></div>
+  </section>
+</main>
+<p class="help">Click a row to select an image, <kbd>Ctrl</kbd>+click to add or remove one, <kbd>Shift</kbd>+click for a range, <kbd>Esc</kbd> to deselect. Click a name in <i>Response over time</i> to hide or show its curve. <span id="ver"></span></p>
+<div id="tip"></div>
+<script id="fh-data" type="application/json">__FH_DATA__</script>
+<script>
+"use strict";
+/*__JS__*/
+</script>
+</body>
+</html>

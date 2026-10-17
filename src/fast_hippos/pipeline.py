@@ -50,6 +50,7 @@ class ImageResult:
     cells: pd.DataFrame | None = None
     classification_threshold: float | None = None
     source: str = ""  # the input file (or tile folder) the image came from
+    stage_known: bool = True  # False: no stage position was found and (0, 0) stands in for it
 
     @property
     def n_cells(self) -> int:
@@ -135,15 +136,19 @@ def run(settings: Settings, reapply: bool = False) -> list[ImageResult]:
         log.warning("No images with cells were analyzed%s", "" if reapply else
                     f"; the previous run (if any) is kept in {PREVIOUS_RUN}{os.sep}")
         return results
-    if settings.screening.enabled:
-        write_screening_outputs(results, settings, out)
+    hits = write_screening_outputs(results, settings, out) if settings.screening.enabled else None
     # dashboards last, so that they can show the route of the .rgn files
     routes = _routes(results, out) if settings.screening.enabled else {}
-    for result in results:
-        _write_dashboard(result, ViewerData.load(result.out_dir / "viewer.npz"), settings, routes.get(result.name))
-    from .dashboard import write_index
+    from .overview import thumbnail, write_overview
 
-    write_index(results, settings, out)
+    thumbs = {}
+    for result in results:
+        viewer = ViewerData.load(result.out_dir / "viewer.npz")
+        _write_dashboard(result, viewer, settings, routes.get(result.name))
+        thumbs[result.name] = thumbnail(viewer.projection8)
+    started = info["started"] if reapply else _read_run_file(out).get("started")
+    write_overview(results, settings, out, hits, thumbs, {"started": started,
+                                                          "reapplied": time.strftime("%Y-%m-%d %H:%M") if reapply else None})
     _write_run_file(out, results, reapply, info["started"] if reapply else None)
     log.info("Done. Output in %s", out)
     return results
@@ -160,7 +165,7 @@ RUN_TIME_ONLY = {"display": ("overlay_smooth_xy", "overlay_smooth_t", "dashboard
                              "dashboard_tiles"), "screening": ("stage_positions_file",)}
 # files that a run writes in the output folder itself (they go with the run)
 _RUN_OUTPUTS = re.compile(r"(index\.html|cell_coordinates\.tsv|hits\.tsv|hits_\d+-\d+\.tsv|HITS_.*\.rgn|hit_positions\.png|"
-                          r"hit_chunks\.json|screening_from_dashboard\.toml|settings_used\.json|run\.json|run_log\.txt)")
+                          r"hit_chunks\.json|screening_from_dashboard\.toml|settings_used\.json|run\.json|run_log\.txt|run_summary\.tsv)")
 _QUIET = ("settings_used.json", "run.json", "run_log.txt")  # moved along, but not worth listing to the user
 
 
@@ -466,6 +471,7 @@ def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.nda
         else:
             log.warning("No stage position for %s: using (0, 0)", image.name)
             position = (0.0, 0.0)
+            result.stage_known = False
         positions = np.array([position], dtype=float)
         origin_xy = tuple(positions[0])
     result.stage_xy = tuple(float(v) for v in origin_xy)
@@ -521,6 +527,7 @@ def save_image_outputs(result: ImageResult, labels, projection, lifetime, settin
         "shape": list(result.shape), "n_cells": result.n_cells, "unit": result.unit,
         "stage_xy_m": result.stage_xy, "tile_size_m": result.tile_size, "tiles": result.tiles,
         "stage_info_block": result.stage_info_block, "version": __version__, "source": result.source,
+        "stage_known": result.stage_known,
     }
     (d / "meta.json").write_text(json.dumps(meta, indent=2))
     result.base.to_csv(d / "cells_base.tsv", sep="\t", index=False)
@@ -563,7 +570,7 @@ def load_result(d: Path) -> ImageResult:
         stage_xy=tuple(meta["stage_xy_m"]) if meta["stage_xy_m"] else None,
         tile_size=tuple(meta["tile_size_m"]) if meta["tile_size_m"] else None,
         tiles=[tuple(t) for t in meta["tiles"]], stage_info_block=meta["stage_info_block"],
-        source=meta.get("source", ""),
+        source=meta.get("source", ""), stage_known=meta.get("stage_known", True),
     )
 
 

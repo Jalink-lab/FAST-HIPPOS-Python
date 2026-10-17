@@ -337,8 +337,12 @@ Cellpose 3 (cyto3) and Cellpose 4 (cpsam) run from their own separate Python env
 | `stage` | stitched metadata, tile geometry, positions, path optimization, `.rgn` | `register_hit`, `optimizePath`, `generate_rgn_file` |
 | `stitch` | tile positions (LAS X MetaData / `.lif` header → `tile_positions.tsv`), stitching by stage position | `Stitch_tiles.ijm` |
 | `pipeline` | per-image processing, re-apply, run-level screening output | main macro body |
-| `dashboard`, `viewer_data`, `templates/` | self-contained HTML dashboards + run index | all image/plot windows, Inspect_and_select_traces |
+| `dashboard`, `viewer_data`, `templates/` | self-contained HTML dashboards (per image) | all image/plot windows, Inspect_and_select_traces |
+| `overview`, `templates/overview/` | interactive run overview (index.html): images table with QC flags, response bands, per-image distributions / scatter, per-image hit maps, exports; run_summary.tsv | (new) |
 | `cli` | `fast-hippos-cli run / reapply / stitch / init-config / train-classifier / demo` | - |
+
+Shared by the dashboard and the overview: `templates/common/` (`base.css` colour tokens light/dark and generic
+elements, `base.js` helpers, redraw scheduler, downloads and `.rgn` writer, `plot.js` chart geometry).
 
 Dashboard (`templates/dashboard/*`, assembled into one self-contained HTML by `dashboard.py`):
 `core.js` (state, layered redraw scheduling, selection), `plot.js`, `viewer.js` (overview + lazily loaded

@@ -1,6 +1,4 @@
 // ---------------------------------------------------------------- downloads
-function download(name, text, type) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
-function uuid() { return crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); }); }
 const cellText = (k, i) => { const v = C[k][i]; return v === null || v === undefined || (typeof v === "number" && Number.isNaN(v)) ? "" : v; };
 const columnKeys = () => Object.keys(C).filter(k => C[k] && C[k].length === N);
 function exportCSV() {
@@ -12,13 +10,6 @@ function exportHitsTSV() {
   const keys = columnKeys(), lines = [["rank", ...keys].join("\t")];
   sortedHits().forEach((i, r) => lines.push([r + 1, ...keys.map(k => cellText(k, i))].join("\t")));
   download(`${D.name}_hits.tsv`, lines.join("\n"), "text/tab-separated-values");
-}
-function rgnXml(items, name) {
-  let body = "", stack = "";
-  items.forEach(([x, y, tag], n) => { const id = uuid();
-    body += `<Item${n}>\n<Number>${n + 1}</Number>\n<Tag>${tag}</Tag>\n<Identifier>${id}</Identifier>\n<Type>Point</Type>\n<Fill>R:1,G:0,B:0,A:0</Fill>\n<Font />\n<Verticies>\n<Items>\n<Item0>\n<X>${x.toFixed(10)}</X>\n<Y>${y.toFixed(10)}</Y>\n</Item0>\n</Items>\n</Verticies>\n<DecoratorColors>\n<Items />\n</DecoratorColors>\n<ExtendedProperties>\n<Items />\n</ExtendedProperties>\n</Item${n}>\n`;
-    stack += `<Entry Identifier="${id}" Begin="0.0000000000" End="0.0000000000" SectionCount="0" ReferenceX="0.0000000000" ReferenceY="0.0000000000" FocusStabilizerOffset="0.0000000000" FocusStabilizerOffsetFixed="false" StackValid="false" Marked="false" />\n`; });
-  return `<StageOverviewRegions>\n<Regions>\n<ShapeList>\n<Items>\n<Item0>\n<Name>${name}</Name>\n<Identifier>${uuid()}</Identifier>\n<Type>CompoundShape</Type>\n<Font />\n<Verticies>\n<Items />\n</Verticies>\n<DecoratorColors>\n<Items />\n</DecoratorColors>\n<ExtendedProperties>\n<Items />\n</ExtendedProperties>\n<Children>\n<Items>\n${body}</Items>\n</Children>\n</Item0>\n</Items>\n<FillMaskMode>None</FillMaskMode>\n<VertexUnitMode>Pixels</VertexUnitMode>\n</ShapeList>\n</Regions>\n<StackList>\n${stack}</StackList>\n</StageOverviewRegions>\n`;
 }
 function exportRGN() {
   const ids = [...S.sel].filter(i => C.abs_x_m[i] !== null); if (!ids.length) { alert("Select cells first (with stage positions)."); return; }

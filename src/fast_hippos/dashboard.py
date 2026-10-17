@@ -5,7 +5,6 @@ from __future__ import annotations
 import base64
 import json
 import math
-import os
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -101,17 +100,26 @@ def _embed(template: str, data: dict) -> str:
     return page.replace("__FH_DATA__", payload)
 
 
-# dashboard modules, in load order (templates/dashboard); screening.js is shared with the tests
-DASHBOARD_JS = ["core.js", "persist.js", "plot.js", "viewer.js", "traces.js", "kymo.js", "dist.js", "scatter.js", "cellcard.js",
+# page modules, in load order; screening.js is shared with the tests, templates/common by the dashboard and the Overview
+COMMON_JS = ["base.js", "plot.js"]
+DASHBOARD_JS = ["core.js", "persist.js", "viewer.js", "traces.js", "kymo.js", "dist.js", "scatter.js", "cellcard.js",
                 "table.js", "screenui.js", "export.js", "main.js"]
 
 
+def _bundle(folder: str, css: list[str], js: list[str]) -> str:
+    """templates/<folder>/page.html with the shared files of templates/common and its own CSS and scripts inlined."""
+    t = resources.files("fast_hippos").joinpath("templates")
+
+    def read(*parts: str) -> str:
+        return t.joinpath(*parts).read_text(encoding="utf-8")
+
+    styles = "\n".join([read("common", "base.css")] + [read(folder, f) for f in css])
+    scripts = "\n".join([read("screening.js")] + [read("common", f) for f in COMMON_JS] + [read(folder, f) for f in js])
+    return read(folder, "page.html").replace("/*__CSS__*/", styles).replace("/*__JS__*/", scripts)
+
+
 def _dashboard_template() -> str:
-    base = resources.files("fast_hippos").joinpath("templates", "dashboard")
-    page = base.joinpath("page.html").read_text(encoding="utf-8")
-    css = base.joinpath("style.css").read_text(encoding="utf-8")
-    js = "\n".join([_template("screening.js")] + [base.joinpath(f).read_text(encoding="utf-8") for f in DASHBOARD_JS])
-    return page.replace("/*__CSS__*/", css).replace("/*__JS__*/", js)
+    return _bundle("dashboard", ["style.css"], DASHBOARD_JS)
 
 
 def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> dict:
@@ -200,43 +208,4 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
 def write_image_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> Path:
     path = result.out_dir / "dashboard.html"
     path.write_text(_embed(_dashboard_template(), build_image_data(result, viewer, settings, route)), encoding="utf-8")
-    return path
-
-
-def write_index(results: list[ImageResult], settings: Settings, out: Path) -> Path:
-    images = []
-    for r in results:
-        cells = r.cells
-        images.append({
-            "name": r.name,
-            "href": Path(os.path.relpath(r.out_dir / "dashboard.html", out)).as_posix(),
-            "folder": Path(os.path.relpath(r.out_dir, out)).as_posix(),
-            "n_cells": r.n_cells,
-            "n_hits": int(cells["hit"].sum()),
-            "n_frames": r.shape[0],
-            "stimulation": r.events.stimulation,
-            "calibration": r.events.calibration,
-            "frame_interval": r.frame_interval,
-            "median_baseline": float(np.nanmedian(cells["baseline_mean"])) if len(cells) else None,
-            "tiles": r.tiles,
-            "hits": {
-                "cell": cells.loc[cells["hit"], "cell"].tolist(),
-                "x": cells.loc[cells["hit"], "abs_x_m"].tolist(),
-                "y": cells.loc[cells["hit"], "abs_y_m"].tolist(),
-            },
-        })
-    chunks_file = out / "hit_chunks.json"
-    chunks = json.loads(chunks_file.read_text()) if chunks_file.exists() and settings.screening.enabled else []
-    files = sorted(p.name for p in out.iterdir() if p.is_file() and p.suffix in (".tsv", ".rgn", ".png", ".txt", ".json"))
-    data = {
-        "version": __version__,
-        "title": out.name,
-        "screening": settings.screening.enabled,
-        "unit": results[0].unit if results else "",
-        "images": images,
-        "chunks": chunks,
-        "files": files,
-    }
-    path = out / "index.html"
-    path.write_text(_embed(_template("index.html"), data), encoding="utf-8")
     return path
