@@ -1,10 +1,10 @@
 """Settings of single images (Settings.image): stimulation settings and response window that differ per image."""
 
 import json
+import tomllib
 
 import pandas as pd
 import pytest
-import tomllib
 
 from fast_hippos import gui, overview
 from fast_hippos.config import Settings
