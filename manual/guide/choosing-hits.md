@@ -37,7 +37,7 @@ The plot shows the average trace of all cells, with the baseline (blue), the res
   `response_mean_abs`). *full* uses the whole response (in the window and in settings files: an empty *Response
   window*); *frames* uses a number of frames, counted *after S* (the early response) or *before C* (the late
   response), with an optional margin.
-- **smoothing** smooths the traces over time, for noisy data. **rise** is the fraction of the maximal response that
+- **smoothing** smooths the traces over time, for noisy data (and the image, see [the dashboard](dashboard.md#image)). **rise** is the fraction of the maximal response that
   defines the rise time (`rise_time_frames`).
 
 ## Quality gates

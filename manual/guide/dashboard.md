@@ -48,7 +48,10 @@ the image without any outlines.
 - ++ctrl++ + scroll zooms, dragging pans, double-click zooms in on a cell, ++f++ (or *Fit*) shows the whole image;
   zooming out stops there. *Zoom to selection* (++z++) zooms to the selected cells, or to the hits.
 - The percentage above the image is the current zoom; *1:1* (++1++) shows the image at 100 %, one image pixel per
-  screen pixel.
+  screen pixel. When zoomed in, a small frame at the top left shows where you are in the image.
+- *Smoothing* averages the lifetime colours over 3 × 3 pixels (or 5 × 5, 7 × 7, or off), which makes them less
+  noisy; the brightness stays sharp. Over time the image is smoothed as the traces are (*smoothing* under *Timing*,
+  while the traces show the smoothed values). Neither changes the values of the cells.
 - *Cells* colours the cells by a value instead, for instance their response, so that you see where the responders
   are. *Intensity* plays the intensity as a movie, or shows its projection.
 - *route* shows the visiting order of the hits in the `.rgn` files.

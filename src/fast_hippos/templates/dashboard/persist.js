@@ -3,7 +3,7 @@
 // selection, scroll position) only across a reload of the tab, e.g. after 'Apply to run' (sessionStorage).
 const PERSIST_KEY = "fast-hippos:" + location.pathname;
 const DISPLAY_KEYS = ["lut", "dmin", "dmax", "bright", "isrc", "outl", "tsrc", "show", "tcol", "tmode", "ksort", "kdesc", "rows",
-  "sortCol", "sortDir", "sx", "sy", "slogx", "slogy", "sclass", "hlog", "tool", "showRoute", "fillMetric", "showOutl"];
+  "sortCol", "sortDir", "sx", "sy", "slogx", "slogy", "sclass", "hlog", "tool", "showRoute", "fillMetric", "showOutl", "smoothxy"];
 function readStore(store) { try { return JSON.parse(store.getItem(PERSIST_KEY) || "null"); } catch { return null; } }
 function writeStore(store, value) { try { store.setItem(PERSIST_KEY, JSON.stringify(value)); } catch { /* storage unavailable */ } }
 
@@ -40,6 +40,7 @@ function restoreSession() {
   if (![...$("ksort").options].some(o => o.value === S.ksort)) S.ksort = "@response";  // a value that no longer exists
   setIf("ksort", "value", S.ksort); setIf("kdir", "value", S.kdesc ? "1" : "0");
   setIf("vroute", "checked", S.showRoute); setIf("vroute2", "checked", S.showRoute);
+  setIf("vsmooth", "value", String(S.smoothxy));
   setIf("voutl", "checked", S.showOutl); setIf("outl", "disabled", !S.showOutl);
   setIf("dmin", "value", +(+S.dmin).toPrecision(4)); setIf("dmax", "value", +(+S.dmax).toPrecision(4));
   hitRGB = hexToRgb(css("--hit"));

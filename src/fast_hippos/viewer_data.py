@@ -55,10 +55,13 @@ class ViewerData:
     lo: float
     hi: float
     tiles: dict = field(default_factory=dict)  # pyramid levels below the overview (see write_tiles)
+    # smoothing already in lifetime8 and the tiles: 0 since the dashboard smooths when drawing; None = written by an
+    # older version, with the run's overlay smoothing (xy and t) in the data, which then cannot be changed
+    smoothed_xy: float | None = None
 
     def save(self, path) -> None:
         arrays = {k: getattr(self, k) for k in ("lifetime8", "intensity8", "projection8", "labels", "frames")}
-        meta = {"factor": self.factor, "lo": self.lo, "hi": self.hi, "tiles": self.tiles}
+        meta = {"factor": self.factor, "lo": self.lo, "hi": self.hi, "tiles": self.tiles, "smoothed_xy": self.smoothed_xy}
         np.savez_compressed(path, meta=np.array(json.dumps(meta)), **arrays)
 
     @classmethod
@@ -162,14 +165,13 @@ def prepare(
     projection: np.ndarray,
     labels: np.ndarray,
     display_range: tuple[float, float],
-    smooth_xy: float,
-    smooth_t: float,
     max_size: int = 1024,
     max_megapixels: float = 200.0,
     tiles_dir: Path | None = None,
 ) -> ViewerData:
     """Encode the image data. If the image is larger than ``max_size`` and ``tiles_dir`` is given, the levels
-    between full resolution and the overview are written there as tiles."""
+    between full resolution and the overview are written there as tiles. The lifetime is not smoothed: the dashboard
+    does that when drawing, in xy (display.overlay_smooth_xy) and over time (as the traces), both changeable there."""
     t, h, w = intensity.shape
     n_levels = max(0, math.ceil(math.log2(max(h, w) / max_size))) if max(h, w) > max_size else 0
     f = 2**n_levels
@@ -185,7 +187,6 @@ def prepare(
         inten[i] = intensity[frames[i]]
 
     _map(copy, range(len(frames)))
-    tau = _nan_box(tau, smooth_xy, smooth_t / stride)
     proj = projection.astype(np.float32)
     step = max(1, int(math.sqrt(h * w / 1e6)))
     dmin, dmax = display_range
@@ -215,6 +216,7 @@ def prepare(
         lo=float(lo),
         hi=float(hi),
         tiles=tiles,
+        smoothed_xy=0.0,
     )
 
 

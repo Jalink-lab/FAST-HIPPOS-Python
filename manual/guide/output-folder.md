@@ -60,6 +60,6 @@ window warns when they differ.
 
 What a re-apply can change: the stimulation and calibration, the screening, the hit lists and `.rgn` files, and the
 display settings. What only a new run changes: the images, the segmentation, the traces, and a few settings that are
-needed while measuring (smoothing of the lifetime overlay, the size of the dashboards, the stage positions file).
+needed while measuring (the size of the dashboards, the stage positions file).
 
 The *Apply* buttons in the dashboards do a re-apply too; see [Choosing the hits](choosing-hits.md#apply-the-settings).

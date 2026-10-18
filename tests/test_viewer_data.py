@@ -8,7 +8,7 @@ def test_pyramid_tiles(tmp_path):
     intensity = rng.random((3, 1100, 1100), dtype=np.float32) * 100
     lifetime = (2.5 + rng.random((3, 1100, 1100), dtype=np.float32)).astype(np.float32)
     labels = (np.arange(1100)[:, None] // 50 * 30 + np.arange(1100)[None, :] // 50).astype(np.int32)
-    v = prepare(intensity, lifetime, intensity.sum(0), labels, (2.0, 3.4), 1, 0, max_size=300, tiles_dir=tmp_path / "tiles")
+    v = prepare(intensity, lifetime, intensity.sum(0), labels, (2.0, 3.4), max_size=300, tiles_dir=tmp_path / "tiles")
     # 1100 px -> overview at factor 4 (275 px); levels 0 and 1 are tiled
     assert v.factor == 4 and v.lifetime8.shape == (3, 275, 275)
     assert [lv["level"] for lv in v.tiles["levels"]] == [0, 1]
@@ -21,4 +21,4 @@ def test_pyramid_tiles(tmp_path):
     # round trip of the metadata
     v.save(tmp_path / "viewer.npz")
     w = ViewerData.load(tmp_path / "viewer.npz")
-    assert w.tiles == v.tiles and w.factor == 4 and np.array_equal(w.labels, v.labels)
+    assert w.tiles == v.tiles and w.factor == 4 and np.array_equal(w.labels, v.labels) and w.smoothed_xy == 0

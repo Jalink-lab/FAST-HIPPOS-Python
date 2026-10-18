@@ -528,7 +528,7 @@ function renderChecks() {
   $("bReapply").textContent = imgs.length ? `↻ Re-apply screening (${plural(imgs.length, "image")})` : "↻ Re-apply screening";
   $("bReapply").title = imgs.length ? `Redo stimulation detection, screening and dashboards for the ${plural(imgs.length, "image")} of the run in the `
     + `output folder (${imgs.map(i => i.name).join(", ")}), with the stimulation, screening and display settings of this window. `
-    + "Segmentation and traces of that run are kept (seconds instead of minutes). Overlay smoothing, dashboard size and tiles "
+    + "Segmentation and traces of that run are kept (seconds instead of minutes). Dashboard size and tiles "
     + "and the stage positions file only change with a new run."
     : "Needs the results of a run in the output folder";
   if (wait) $("bReapply").title = "Wait: the output folder is being read";
@@ -696,7 +696,7 @@ async function start(reapply) {
     + (reapply && dropped.length ? `\n\nThe own settings of the run are removed for: ${dropped.join(", ")} (they then use the settings of this window).` : "");
   if (reapply && !confirm(`Re-apply screening to the ${plural(imgs.length, "image")} of the run of ${o.run.started} in\n${folder}:\n\n`
       + bulletList(names) + "\n\nSegmentation and traces of that run are kept. The stimulation, screening and display settings of this "
-      + "window are used (except overlay smoothing, dashboard size and tiles and the stage positions file, which only change "
+      + "window are used (except the dashboard size and tiles and the stage positions file, which only change "
       + "with a new run); all other settings (images, segmentation, …) stay those of the run." + ownNote + "\n\nContinue?")) return;
   if (!reapply && plan.blocked.length) { alert("Not started:\n\n" + plan.blocked.join("\n\n")); return; }
   if (!reapply && (plan.folders.length || plan.files.length) && !confirm(`The output folder\n${folder}\nholds the results of `
@@ -721,7 +721,7 @@ $("bReapplyAll").onclick = async () => {
   if (!x.samples.length) { toast("No samples (runs) in the experiment folder", 5000); return; }
   if (!confirm(`Re-apply to all ${plural(x.samples.length, "sample")} of the experiment in\n${S.input.experiment}:\n\n`
       + bulletList(x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")), 20) + "\n\nThe stimulation, screening and display settings "
-      + "of this window are used for every sample (except overlay smoothing, dashboard size and tiles and the stage positions file, "
+      + "of this window are used for every sample (except the dashboard size and tiles and the stage positions file, "
       + "which only change with a new run). Each sample keeps its own images, segmentation and traces, its sample label and the "
       + "own settings of its single images. Then the experiment overview is updated.\n\nContinue?")) return;
   let r; try { r = await api("run", { settings: S, experiment: true }); } catch (e) { toast(e.message, 6000); return; }

@@ -20,6 +20,8 @@ function hitSignature() { let s = ""; for (let i = 0; i < N; i++) if (HIT[i]) s 
 function recompute() {
   const p = SCR.params, ev = SCR.events;
   SCR.version++;
+  if (recompute.smooth !== undefined && recompute.smooth !== p.smooth_traces) imageChanged();  // the image follows the smoothing
+  recompute.smooth = p.smooth_traces;
   KS = FHScreen.smooth(KR, T, N, p.smooth_traces);
   const m = FHScreen.metrics(KS, T, N, ev, p, KA);
   Object.assign(C, m.cols);

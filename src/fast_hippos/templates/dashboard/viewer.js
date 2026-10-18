@@ -102,12 +102,47 @@ function luts() {
   return { tauIdx, gain, L: LUTS[S.lut] };
 }
 let LT = null;
-function composite(fr, pr) {
-  const c = document.createElement("canvas"); c.width = fr.w; c.height = fr.h;
-  const x = c.getContext("2d"), img = x.createImageData(fr.w, fr.h), out = img.data, f = fr.data, { tauIdx, gain, L } = LT;
-  const useProj = !!pr;
+// the lifetime codes (R; 0 = no value) as the NaN-aware mean over a (2r+1)² square of pixels and over the frames
+// `frs` (the frame itself and its neighbours), as viewer_data._nan_box did: no value where less than 20 % of the
+// box has one (or 50 % at a pixel without a value of its own; `own` = the index of the frame itself in frs)
+function smoothCodes(frs, r, own = 0) {
+  const { w, h } = frs[0], n = w * h, data = frs[own].data, sum = new Float32Array(n), cnt = new Float32Array(n);
+  const hs = new Float32Array(n), hc = new Float32Array(n), out = new Uint8Array(n);
+  for (const fr of frs) { const d = fr.data; for (let p = 0; p < n; p++) { const v = d[4 * p]; if (v) { sum[p] += v; cnt[p]++; } } }
+  for (let y = 0; y < h; y++) {  // running sums along x, then y (edges: the nearest pixel, as mode="nearest")
+    const o = y * w; let s = 0, c = 0;
+    for (let i = -r - 1; i < r; i++) { const p = o + Math.min(w - 1, Math.max(0, i)); s += sum[p]; c += cnt[p]; }
+    for (let x = 0; x < w; x++) {
+      const a = o + Math.min(w - 1, x + r), b = o + Math.max(0, x - r - 1);
+      s += sum[a] - sum[b]; c += cnt[a] - cnt[b]; hs[o + x] = s; hc[o + x] = c;
+    }
+  }
+  const area = (2 * r + 1) * (2 * r + 1) * frs.length;
+  for (let x = 0; x < w; x++) {
+    let s = 0, c = 0;
+    for (let i = -r - 1; i < r; i++) { const p = Math.min(h - 1, Math.max(0, i)) * w + x; s += hs[p]; c += hc[p]; }
+    for (let y = 0; y < h; y++) {
+      const a = Math.min(h - 1, y + r) * w + x, b = Math.max(0, y - r - 1) * w + x;
+      s += hs[a] - hs[b]; c += hc[a] - hc[b];
+      const p = y * w + x, frac = c / area;
+      out[p] = frac <= 0.2 || (!data[4 * p] && frac <= 0.5) ? 0 : Math.round(s / c);
+    }
+  }
+  return out;
+}
+// radius in pixels of a level with this down-sampling factor (a coarser level is already averaged over f × f)
+const smoothRadius = (f) => (V.smoothed_xy === null || V.smoothed_xy === undefined ? 0 : Math.floor(S.smoothxy / f + 0.25));
+// time smoothing of the image: the smoothing of the traces (Timing in the screening pane), when the traces show it;
+// as a radius in viewer frames (a long movie may keep every k-th frame only)
+const VSTRIDE = NVF > 1 ? V.frames[1] - V.frames[0] : 1;
+const timeRadius = () => (V.smoothed_xy === null || V.smoothed_xy === undefined || S.tsrc !== "smoothed" ? 0
+  : Math.round(Math.floor(SCR.params.smooth_traces || 0) / VSTRIDE));
+function composite(frs, pr, f = 1, own = 0) {
+  const fr = frs[own], c = document.createElement("canvas"); c.width = fr.w; c.height = fr.h;
+  const x = c.getContext("2d"), img = x.createImageData(fr.w, fr.h), out = img.data, d = fr.data, { tauIdx, gain, L } = LT;
+  const useProj = !!pr, r = smoothRadius(f), sm = r > 0 || frs.length > 1 ? smoothCodes(frs, r, own) : null;
   for (let q = 0; q < out.length; q += 4) {
-    const k = tauIdx[f[q]], g = gain[useProj ? pr.data[q] : f[q + 1]];
+    const k = tauIdx[sm ? sm[q >> 2] : d[q]], g = gain[useProj ? pr.data[q] : d[q + 1]];
     if (k < 0) { const v = g * 140; out[q] = out[q + 1] = out[q + 2] = v; }
     else { out[q] = L[k] * g; out[q + 1] = L[k + 1] * g; out[q + 2] = L[k + 2] * g; }
     out[q + 3] = 255;
@@ -117,9 +152,11 @@ function composite(fr, pr) {
 function tileImage(t, vf, then) {
   const fk = frameKey(t, vf), key = `${fk}|${S.isrc}|${renderVersion}`;
   let c = compCache.get(key); if (c) return c;
-  const fr = request(fk, then), pr = S.isrc === "projection" ? request(projKey(t), then) : null;
-  if (!fr || (S.isrc === "projection" && !pr)) return null;
-  c = composite(fr, pr); compCache.set(key, c); return c;
+  const rt = timeRadius(), frs = [];  // the frame and its neighbours (the edge frame repeated, as for the traces)
+  for (let k = -rt; k <= rt; k++) frs.push(request(frameKey(t, Math.min(NVF - 1, Math.max(0, vf + k))), then));
+  const pr = S.isrc === "projection" ? request(projKey(t), then) : null;
+  if (frs.some(fr => !fr) || (S.isrc === "projection" && !pr)) return null;
+  c = composite(frs, pr, t.L ? t.L.factor : F0, rt); compCache.set(key, c); return c;
 }
 let hitRGB = [255, 79, 176], selRGB = [255, 255, 255];
 const cellRGBCache = new Map();
@@ -233,6 +270,19 @@ function drawViewerHov() {
   if (S.hover >= 0) { x.fillStyle = css("--hover"); for (const [px, py, sz] of cellBoundary(S.hover, w, h, view)) x.fillRect(px, py, Math.max(1, sz), Math.max(1, sz)); }
   if (S.showRoute && SCR.route) drawRoute(x);
   if (D.pixel_size) drawScaleBar(x, w, h);  // always
+  drawLocator(x, w, h);
+}
+// where the view is in the image, when zoomed in: the whole image as a small frame, the visible part inside it
+function drawLocator(x, w, h) {
+  const iw = W0 * view.s, ih = H0 * view.s;
+  const x0 = Math.max(0, -view.tx), y0 = Math.max(0, -view.ty), x1 = Math.min(iw, w - view.tx), y1 = Math.min(ih, h - view.ty);
+  if (x1 <= x0 || y1 <= y0 || ((x1 - x0) * (y1 - y0)) / (iw * ih) > 0.97) return;  // (almost) all of the image is visible
+  const k = Math.min(110 / W0, 110 / H0), mw = W0 * k, mh = H0 * k, mx = 12, my = 12, f = k / view.s;
+  x.fillStyle = "rgba(0,0,0,.35)"; x.fillRect(mx, my, mw, mh);
+  x.strokeStyle = "rgba(255,255,255,.55)"; x.lineWidth = 1; x.strokeRect(mx + 0.5, my + 0.5, mw - 1, mh - 1);
+  const rx = mx + x0 * f, ry = my + y0 * f, rw = Math.max(3, (x1 - x0) * f), rh = Math.max(3, (y1 - y0) * f);
+  x.fillStyle = "rgba(255,255,255,.22)"; x.fillRect(rx, ry, rw, rh);
+  x.strokeStyle = "rgba(255,255,255,.9)"; x.lineWidth = 1.5; x.strokeRect(rx, ry, rw, rh);
 }
 function drawRoute(x) {
   const colors = ["#4da3ff", "#ffb347", "#7bd389", "#c792ea", "#ff6b6b", "#5ad1d1"];
@@ -351,6 +401,12 @@ function initViewer() {
   $("voutl").checked = S.showOutl; $("outl").disabled = !S.showOutl;
   $("voutl").onchange = () => { S.showOutl = $("voutl").checked; $("outl").disabled = !S.showOutl; invalidate("viewerSel"); };
   $("isrc").onchange = () => { S.isrc = $("isrc").value; imageChanged(); };
+  $("vsmooth").value = String(S.smoothxy);
+  $("vsmooth").onchange = () => { S.smoothxy = +$("vsmooth").value; imageChanged(); };
+  if (V.smoothed_xy === null || V.smoothed_xy === undefined) {  // an older run: the smoothing is in the data
+    $("vsmooth").disabled = true; $("vsmooth").closest("label").title = "This dashboard was made by an older version, with the smoothing of the run "
+      + "(Overlay smoothing xy) in the image itself. Run the analysis again to choose the smoothing here.";
+  }
   $("bright").oninput = () => { S.bright = Math.pow(10, +$("bright").value); imageChanged(); };
   $("vroute").checked = S.showRoute; $("vroute").onchange = () => { S.showRoute = $("vroute").checked; invalidate("viewerHov"); };
   const fm = $("vfill"); fm.add(new Option("lifetime image", "")); METRIC_KEYS.forEach(k => fm.add(new Option(k, k)));

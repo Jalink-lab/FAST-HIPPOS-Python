@@ -183,3 +183,32 @@ def test_window_and_overview_javascript_compile():
     assert len(sources) > 6
     for src in sources:
         py_mini_racer.MiniRacer().eval(f"new Function({json.dumps(src)}); 0")
+
+
+@pytest.mark.parametrize("r, nt", [(1, 1), (2, 1), (3, 1), (0, 3), (1, 5)])
+def test_image_smoothing_matches_python(r, nt):
+    """The dashboard smooths the lifetime colours itself (viewer.js smoothCodes) over a square of pixels and over
+    neighbouring frames, NaN-aware, as viewer_data._nan_box did in the run."""
+    import re
+
+    from fast_hippos.viewer_data import _nan_box
+
+    src = resources.files("fast_hippos").joinpath("templates", "dashboard", "viewer.js").read_text(encoding="utf-8")
+    fn = re.search(r"^function smoothCodes\(.*?^}$", src, re.DOTALL | re.MULTILINE).group(0)
+    ctx = py_mini_racer.MiniRacer()
+    ctx.eval(fn)
+    rng = np.random.default_rng(r + 10 * nt)
+    h, w = 37, 53
+    codes = rng.integers(1, 256, (nt, h, w))
+    codes[rng.random((nt, h, w)) < 0.3] = 0  # no value
+    codes[:, 5:15, 10:25] = 0  # a hole
+    frames = []
+    for c in codes:
+        rgba = np.zeros((h, w, 4), int)
+        rgba[..., 0] = c
+        frames.append({"w": w, "h": h, "data": rgba.ravel().tolist()})
+    own = nt // 2
+    got = np.array(ctx.eval(f"Array.from(smoothCodes({json.dumps(frames)}, {r}, {own}))")).reshape(h, w)
+    ref = _nan_box(np.where(codes > 0, codes, np.nan).astype(np.float32), r, nt // 2)[own]
+    assert np.array_equal(got == 0, ~np.isfinite(ref))
+    assert np.abs(got - np.nan_to_num(ref))[got > 0].max() <= 0.5 + 1e-3  # rounded (ties may go either way)

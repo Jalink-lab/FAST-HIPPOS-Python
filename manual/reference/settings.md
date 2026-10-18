@@ -201,8 +201,7 @@ Every setting of the FAST-HIPPOS window, in the order of the window: first the s
 
 <h3 class="fh-group">Advanced: Lifetime overlay</h3>
 <table class="fh-settings"><thead><tr><th>Setting</th><th>What it does</th><th>Default</th></tr></thead><tbody>
-<tr data-search="overlay smoothing xy (px) display.overlay_smooth_xy spatial smoothing (pixels) of the lifetime colour overlay in the dashboard. only for display."><td><b>Overlay smoothing xy (px)</b><br><code class="fh-key">display.overlay_smooth_xy</code></td><td>Spatial smoothing (pixels) of the lifetime colour overlay in the dashboard. Only for display.</td><td>1.0</td></tr>
-<tr data-search="overlay smoothing t (frames) display.overlay_smooth_t temporal smoothing (frames) of the lifetime colour overlay in the dashboard. only for display."><td><b>Overlay smoothing t (frames)</b><br><code class="fh-key">display.overlay_smooth_t</code></td><td>Temporal smoothing (frames) of the lifetime colour overlay in the dashboard. Only for display.</td><td>1.0</td></tr>
+<tr data-search="image smoothing (px) display.overlay_smooth_xy spatial smoothing (radius in pixels; 1 = the mean of 3 × 3 pixels) of the lifetime colours of the image in the dashboard: how it starts, changeable there (smoothing, under the image). over time the image is smoothed as the traces are (smooth traces). only for display. 0 = none."><td><b>Image smoothing (px)</b><br><code class="fh-key">display.overlay_smooth_xy</code></td><td>Spatial smoothing (radius in pixels; 1 = the mean of 3 × 3 pixels) of the lifetime colours of the image in the dashboard: how it starts, changeable there (Smoothing, under the image). Over time the image is smoothed as the traces are (Smooth traces). Only for display. 0 = none.</td><td>1.0</td></tr>
 </tbody></table>
 
 <h3 class="fh-group">Advanced: Dashboard</h3>

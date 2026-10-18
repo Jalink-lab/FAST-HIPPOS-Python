@@ -220,7 +220,7 @@ PREVIOUS_RUN = "_previous_run"  # where the last complete run waits while a new 
 REAPPLY_SECTIONS = ("events", "screening", "display")  # what a re-apply may change
 # settings in those sections that only take effect in a full run (overlay, dashboard image, stage positions): a re-apply
 # keeps the values of the run, so that the record of the run stays true
-RUN_TIME_ONLY = {"display": ("overlay_smooth_xy", "overlay_smooth_t", "dashboard_max_size", "dashboard_max_megapixels",
+RUN_TIME_ONLY = {"display": ("dashboard_max_size", "dashboard_max_megapixels",
                              "dashboard_tiles"), "screening": ("stage_positions_file",)}
 # files that a run writes in the output folder itself (they go with the run)
 _RUN_OUTPUTS = re.compile(r"(index\.html|cell_coordinates\.tsv|hits\.tsv|hits_\d+-\d+\.tsv|HITS_.*\.rgn|hit_positions\.png|"
@@ -526,7 +526,7 @@ def process_image(
     big = max(height, width) > s_disp.dashboard_max_size
     viewer = prepare(
         intensity, lifetime, proj, labels, display_range(result, settings),
-        s_disp.overlay_smooth_xy, s_disp.overlay_smooth_t, s_disp.dashboard_max_size, s_disp.dashboard_max_megapixels,
+        s_disp.dashboard_max_size, s_disp.dashboard_max_megapixels,
         tiles_dir if (big and s_disp.dashboard and s_disp.dashboard_tiles) else None,
     )
     viewer.save(out_dir / "viewer.npz")  # the dashboard is written at the end of the run

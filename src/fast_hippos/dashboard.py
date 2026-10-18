@@ -157,7 +157,8 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
                     # how the views start: the trace view, the axes of the scatter plot
                     "traces": settings.display.traces_view,
                     "sx": _axis(settings.display.scatter_x), "sy": _axis(settings.display.scatter_y),
-                    "slogx": settings.display.scatter_log_x, "slogy": settings.display.scatter_log_y},
+                    "slogx": settings.display.scatter_log_x, "slogy": settings.display.scatter_log_y,
+                    "smooth_xy": settings.display.overlay_smooth_xy},
         "smooth_traces": settings.display.smooth_traces,
         "viewer": {
             "factor": viewer.factor,
@@ -169,6 +170,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
             "labels": labels_url(viewer.labels),
             "size": [int(viewer.labels.shape[1]), int(viewer.labels.shape[0])],
             "tiles": viewer.tiles,
+            "smoothed_xy": viewer.smoothed_xy,  # None: smoothing already in the data (an older run)
         },
         "kymo": float_b64(result.kymo),
         "additional": float_b64(result.additional) if result.additional is not None else None,

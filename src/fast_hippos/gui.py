@@ -144,8 +144,7 @@ FIELDS: dict[str, dict] = {
     "display.lut": {"label": "Lookup table", "choices": {k: k for k in
         ["turbo", "viridis", "plasma", "magma", "inferno", "cividis", "gray"]}},
     "display.smooth_traces": {"label": "Smooth traces (frames)", "help": "Temporal box radius, also used for hit detection"},
-    "display.overlay_smooth_xy": {"label": "Overlay smoothing xy (px)"},
-    "display.overlay_smooth_t": {"label": "Overlay smoothing t (frames)"},
+    "display.overlay_smooth_xy": {"label": "Image smoothing (px)"},
     "display.dashboard_max_size": {"label": "Dashboard overview size (px)"},
     "display.dashboard_tiles": {"label": "Full-resolution tiles for large images"},
     "display.save_png_plots": {"label": "Save PNG plots"},
@@ -321,10 +320,10 @@ TIPS: dict[str, str] = {
     "display.lut": "Colour scale for lifetime images and plots.",
     "display.smooth_traces": "Average each trace over neighbouring frames to reduce noise: radius in frames (1 = "
         "average of 3 frames). Also used for the hit criteria. 0 = no smoothing.",
-    "display.overlay_smooth_xy": "Spatial smoothing (pixels) of the lifetime colour overlay in the dashboard. Only "
-        "for display.",
-    "display.overlay_smooth_t": "Temporal smoothing (frames) of the lifetime colour overlay in the dashboard. Only "
-        "for display.",
+    "display.overlay_smooth_xy": "Spatial smoothing (radius in pixels; 1 = the mean of 3 × 3 pixels) of the lifetime "
+        "colours of the image in the dashboard: how it starts, changeable there (Smoothing, under the image). Over "
+        "time the image is smoothed as the traces are (Smooth traces). Only for display. 0 = none.",
+
     "display.histogram_bins": "Number of bars in the histograms of the dashboard.",
     "display.dashboard": "Make an interactive dashboard (HTML page) per image, to explore cells, traces and hits.",
     "display.dashboard_max_size": "Images larger than this (pixels, longest side) are shown downsized in the "
@@ -475,7 +474,7 @@ LAYOUT = [
      "note": "The defaults suit most runs; colours and ranges can also be changed in the dashboard.",
      "advanced": [
          ("Colour scale", ["display.lut", "|", "display.min_lifetime", "display.max_lifetime"]),
-         ("Lifetime overlay", ["display.overlay_smooth_xy", "display.overlay_smooth_t"]),
+         ("Lifetime overlay", ["display.overlay_smooth_xy"]),
          ("Dashboard", ["display.dashboard", "|", "display.dashboard_max_size", "display.dashboard_max_megapixels",
                         "|", "display.dashboard_tiles", "display.histogram_bins"]),
          ("Dashboard views", ["display.traces_view", "|", "display.scatter_x", "display.scatter_log_x", "|",

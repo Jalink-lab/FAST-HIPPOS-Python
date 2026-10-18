@@ -108,8 +108,9 @@ class DisplaySettings:
     min_lifetime: float | None = None
     max_lifetime: float | None = None
     smooth_traces: float = 0.0  # temporal box radius (frames) for traces and hit detection
-    overlay_smooth_xy: float = 1.0  # radius (pixels) for the lifetime overlay
-    overlay_smooth_t: float = 1.0  # radius (frames) for the lifetime overlay
+    # radius (pixels) of the smoothing of the lifetime colours in the dashboard image, where it can be changed; the
+    # image is smoothed over time as the traces are (smooth_traces)
+    overlay_smooth_xy: float = 1.0
     histogram_bins: int = 50
     dashboard: bool = True
     dashboard_max_size: int = 1024  # longest image side in the dashboard (downsampled if larger)
@@ -282,9 +283,14 @@ def _gates_for_image_type(settings: Settings, data: dict) -> Settings:
     return settings
 
 
+# settings of older versions that no longer do anything: accepted in settings files, and ignored
+RETIRED = {"overlay_smooth_t"}  # the dashboard image follows the smoothing of the traces since 0.3
+
+
 def _from_dict(cls, data: dict[str, Any]):
     hints = get_type_hints(cls)
     known = {f.name for f in fields(cls)}
+    data = {k: v for k, v in data.items() if k not in RETIRED}
     unknown = set(data) - known
     if unknown:
         section = {get_type_hints(Settings).get(f.name): f.name for f in fields(Settings)}.get(cls, cls.__name__)

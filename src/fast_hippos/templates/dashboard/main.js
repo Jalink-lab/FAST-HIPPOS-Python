@@ -38,7 +38,7 @@ function initControls() {
   for (const id of ["dmin", "dmax"]) { $(id).step = step; $(id).value = +S[id].toPrecision(4); $(id).oninput = () => {
     const v = parseFloat($(id).value); if (!Number.isFinite(v)) return; S[id] = v; if (S.dmax <= S.dmin) return;
     imageChanged(); invalidate(...ON.display); drawColorbar(); }; }
-  $("tsrc").value = S.tsrc; $("tsrc").onchange = () => { S.tsrc = $("tsrc").value; invalidate(...ON.display, "table"); };
+  $("tsrc").value = S.tsrc; $("tsrc").onchange = () => { S.tsrc = $("tsrc").value; invalidate(...ON.display, "table"); imageChanged(); };
   $("show").value = S.show; $("show").onchange = () => { S.show = $("show").value; invalidate("traces", "tracesSel", "kymo", "kymoOvl", "hist", "scatter", "scatterSel", "cell"); };
   const setTool = seg($("tool"), S.tool, (v) => { S.tool = v; });
   $("theme").onclick = () => {

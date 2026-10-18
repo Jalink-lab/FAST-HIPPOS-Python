@@ -25,6 +25,7 @@ const S = {
   show: "all", tcol: D.screening.enabled ? "hit" : "cell", tmode: ["lines", "bands", "density"].includes(D.display.traces) ? D.display.traces : N > 300 ? "bands" : "lines",
   ksort: "@response", kdesc: false, kzoom: 1, kstart: 0, rows: "all", sortCol: null, sortDir: 1, sx: D.display.sx || "mean_intensity", sy: D.display.sy || "@value", slogx: !!D.display.slogx, slogy: !!D.display.slogy, sclass: false, hlog: false,
   tool: "rect", showRoute: false, fillMetric: "", showOutl: true,
+  smoothxy: Math.max(0, Math.min(3, Math.round(D.display.smooth_xy ?? 1))),  // spatial smoothing of the lifetime colours
 };
 const K = () => (S.tsrc === "smoothed" ? KS : KR);
 const val = (t, i) => K()[t * N + i];
