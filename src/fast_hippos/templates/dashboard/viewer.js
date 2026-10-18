@@ -131,7 +131,8 @@ function smoothCodes(frs, r, own = 0) {
   return out;
 }
 // radius in pixels of a level with this down-sampling factor (a coarser level is already averaged over f × f)
-const smoothRadius = (f) => (V.smoothed_xy === null || V.smoothed_xy === undefined ? 0 : Math.floor(S.smoothxy / f + 0.25));
+const INTENSITY_ONLY = !D.is_lifetime && !String(D.unit).startsWith("Ratio");  // the colour is the intensity itself
+const smoothRadius = (f) => (V.smoothed_xy === null || V.smoothed_xy === undefined || INTENSITY_ONLY ? 0 : Math.floor(S.smoothxy / f + 0.25));
 // time smoothing of the image: the smoothing of the traces (Timing in the screening pane), when the traces show it;
 // as a radius in viewer frames (a long movie may keep every k-th frame only)
 const VSTRIDE = NVF > 1 ? V.frames[1] - V.frames[0] : 1;
@@ -414,7 +415,10 @@ function initViewer() {
   $("vsmooth").value = String(S.smoothxy);
   $("vsmoothl").textContent = D.is_lifetime ? "Lifetime" : String(D.unit).startsWith("Ratio") ? "Ratio" : "Intensity";
   $("vsmooth").onchange = () => { S.smoothxy = +$("vsmooth").value; imageChanged(); };
-  if (V.smoothed_xy === null || V.smoothed_xy === undefined) {  // an older run: the smoothing is in the data
+  if (INTENSITY_ONLY) {
+    $("vsmooth").disabled = true; $("vsmooth").closest("label").title = "Not for intensity images: their colours are the intensity "
+      + "itself, so there is nothing of its own to smooth (the time smoothing under Timing still applies).";
+  } else if (V.smoothed_xy === null || V.smoothed_xy === undefined) {  // an older run: the smoothing is in the data
     $("vsmooth").disabled = true; $("vsmooth").closest("label").title = "This dashboard was made by an older version, with the smoothing of the run "
       + "(Overlay smoothing xy) in the image itself. Run the analysis again to choose the smoothing here.";
   }

@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import get_args, get_origin, get_type_hints
 
 from . import __version__
-from .config import METRICS, Criterion, Settings, _from_dict
+from .config import METRICS, Criterion, Modality, Settings, _from_dict
 
 log = logging.getLogger(__name__)
 
@@ -514,6 +514,8 @@ ENABLE = {
     **{f"display.{k}": {"display.dashboard": [True]} for k in ("traces_view", "scatter_x", "scatter_log_x", "scatter_y",
                                                               "scatter_log_y")},
     "display.histogram_bins": {"display.dashboard": [True]},
+    # intensity images: the colour is the intensity itself, so there is nothing of its own to smooth
+    "display.overlay_smooth_xy": {"input.modality": [m.value for m in Modality if m != Modality.INTENSITY]},
 }
 REASONS = {  # why a condition on this field disables others
     "events.baseline_only": "'Baseline only' is on",
@@ -530,6 +532,7 @@ REASONS = {  # why a condition on this field disables others
     "screening.optimize_path": "route optimization is off",
     "segmentation.classifier": "needs a nuclei classifier",
     "display.dashboard": "no dashboard",
+    "input.modality": "not for intensity images: their colours are the intensity itself",
 }
 
 SECTIONS = {"input": "Input", "fdflim": "Frequency-domain FLIM", "preprocess": "Pre-processing",
