@@ -155,7 +155,7 @@ function fillParams() {
   if (full) p.response_window = null;
   setWinMode(full ? "full" : "n"); $("rw").value = full ? 3 : p.response_window; $("rw").disabled = full;
   setAnchor(p.response_window_anchor); $("rm").value = p.response_window_margin;
-  $("sm").value = p.smooth_traces; $("smv").textContent = p.smooth_traces ? `r = ${p.smooth_traces}` : "off";
+  $("sm").value = p.smooth_traces; $("smv").textContent = p.smooth_traces ? `± ${p.smooth_traces}` : "off";
   $("rf").value = p.rise_time_fraction; $("rfv").textContent = `${Math.round(p.rise_time_fraction * 100)} %`;
   document.querySelectorAll(".gunit").forEach(e => { e.textContent = D.is_lifetime ? "ns" : ""; });
   const seed = gateSeed();
@@ -179,7 +179,7 @@ function initScreening() {
   $("evauto").onclick = () => { Object.assign(e, structuredClone(D.screen.events)); eventsTouched = false; fillEventInputs(); recompute(); };
   $("rw").oninput = () => { if (p.response_window > 0) { p.response_window = Math.max(1, numOrNull($("rw")) ?? 3); scheduleRecompute(); } };
   $("rm").oninput = () => { p.response_window_margin = Math.max(0, numOrNull($("rm")) ?? 0); scheduleRecompute(); };
-  $("sm").oninput = () => { p.smooth_traces = +$("sm").value; $("smv").textContent = p.smooth_traces ? `r = ${p.smooth_traces}` : "off"; if (p.smooth_traces > 0) { S.tsrc = "smoothed"; $("tsrc").value = "smoothed"; } scheduleRecompute(); };
+  $("sm").oninput = () => { p.smooth_traces = +$("sm").value; $("smv").textContent = p.smooth_traces ? `± ${p.smooth_traces}` : "off"; if (p.smooth_traces > 0) { S.tsrc = "smoothed"; $("tsrc").value = "smoothed"; } scheduleRecompute(); };
   $("rf").oninput = () => { p.rise_time_fraction = +$("rf").value; $("rfv").textContent = `${Math.round(p.rise_time_fraction * 100)} %`; scheduleRecompute(); };
   const readGates = () => {
     const seed = gateSeed();

@@ -85,7 +85,7 @@ this in two places:
 </figure>
 
 Not compared are the settings that do not change the results: the images and folders, the sample label, the
-display settings (except *Smooth traces*), the `.rgn` settings (file size, route, axes), the Cellpose environments,
+display settings (except *Time smoothing*), the `.rgn` settings (file size, route, axes), the Cellpose environments,
 hand-picked hits, and the [settings of single images](own-settings.md), which are deliberate differences. When the
 hit criteria differ, the *Cells* panel draws no threshold lines.
 
@@ -93,7 +93,7 @@ hit criteria differ, the *Cells* panel draws no threshold lines.
 display settings of the window to every sample, one after the other, and then updates the experiment overview once.
 Each sample keeps its own segmentation and traces, its sample label, its hand-picked hits and the settings of its
 single images; a sample of another image type (e.g. ratio data among lifetime samples) also keeps its quality
-gates. It takes seconds per sample. A sample that cannot be re-applied keeps its earlier results and settings; the
+gates, hit criteria and colour range, which are in the units of its values. It takes seconds per sample. A sample that cannot be re-applied keeps its earlier results and settings; the
 experiment overview names it, and `experiment_log.txt` says why. Settings that only a new run changes (segmentation, traces, image type, …) can only be
 made the same by running the sample again.
 

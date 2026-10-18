@@ -49,7 +49,7 @@
           <label title="Frames skipped between the stimulation or calibration and the window">margin <input id="rm" type="number" min="0" step="1" class="w3"></label>
         </div>
         <div class="row">
-          <label class="slider" title="Average each trace over neighbouring frames to reduce noise: radius in frames (1 = average of 3 frames). Used for the metrics and the smoothed traces">smoothing <input id="sm" type="range" min="0" max="10" step="1"><span id="smv" class="val"></span></label>
+          <label class="slider" title="Average over neighbouring frames to reduce noise: ± this number of frames (1 = the mean of 3 frames). Used for the metrics, the smoothed traces and the colours of the image (while the traces show the smoothed values)">time smoothing <input id="sm" type="range" min="0" max="10" step="1"><span id="smv" class="val"></span></label>
           <label class="slider" title="Rise time = number of frames until a cell reaches this fraction of its maximal response (used by the rise_time_frames metric)">rise <input id="rf" type="range" min="0.5" max="0.95" step="0.05"><span id="rfv" class="val"></span></label>
         </div>
       </div>
@@ -90,9 +90,9 @@
       <div id="loading"></div></div>
     <div class="panel-f">
       <label title="Show or hide the cell outlines (O)"><input type="checkbox" id="voutl" checked> Outlines</label><select id="outl" title="Which cell outlines are drawn: only the selected cells, the hits, or all cells"><option value="none">selection only</option><option value="hits">hits</option><option value="all">all cells</option></select>
-      <label title="Fill every cell with a colour for one of its values (e.g. its response), to see spatial patterns. Off = the lifetime image itself">Cells <select id="vfill"></select></label>
+      <label title="Fill every cell with a colour for one of its values (e.g. its response), to see spatial patterns. The first choice = the image itself">Cells <select id="vfill"></select></label>
       <label title="Brightness from the current frame (movie) or from the average over all frames (projection, less noisy)">Intensity <select id="isrc"><option value="movie">movie</option><option value="projection">projection</option></select></label>
-      <label title="Spatial smoothing of the lifetime colours (the brightness stays sharp): the mean over a square of pixels around each pixel, which makes the colours less noisy. Over time the image is smoothed as the traces are (Smooth traces under Timing, while the traces show the smoothed values). Only for display: the cell values do not change.">Smoothing <select id="vsmooth"><option value="0">off</option><option value="1">3 × 3 px</option><option value="2">5 × 5 px</option><option value="3">7 × 7 px</option></select></label>
+      <label title="Spatial smoothing of the lifetime colours (the brightness stays sharp): the mean over a square of pixels around each pixel, which makes the colours less noisy. Over time the image is smoothed as the traces are (Smooth traces under Timing, while the traces show the smoothed values). Only for display: the cell values do not change."><span id="vsmoothl">Lifetime</span> spatial smoothing <select id="vsmooth"><option value="0">off</option><option value="1">3 × 3 px</option><option value="2">5 × 5 px</option><option value="3">7 × 7 px</option></select></label>
       <label class="slider" title="Brightness of the image">Brightness <input id="bright" type="range" min="-1" max="1.2" step="0.01" value="0.2"></label>
       <label title="Draw the stage route of the .rgn files over the image"><input id="vroute" type="checkbox"> route</label>
     </div>

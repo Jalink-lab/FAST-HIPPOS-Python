@@ -24,7 +24,7 @@ main { display: grid; gap: 12px; padding: 12px 16px 24px;
 #vbar { position: absolute; right: 10px; top: 10px; background: rgba(0,0,0,.55); padding: 6px 8px; border-radius: 6px; color: #eee; font-size: 11px; pointer-events: none; }
 #vbar canvas { position: static; display: block; width: 150px; height: 10px; margin: 3px 0; }
 #vbar .ends { display: flex; justify-content: space-between; }
-#loading { position: absolute; right: 10px; bottom: 10px; color: #ddd; font-size: 11px; background: rgba(0,0,0,.55); padding: 2px 7px; border-radius: 5px; }
+#loading { position: absolute; right: 10px; bottom: 32px; color: #ddd; font-size: 11px; background: rgba(0,0,0,.55); padding: 2px 7px; border-radius: 5px; }
 #loading:empty { display: none; }
 .traces .stack { height: 300px; flex: none; } .kymo .stack { height: 260px; flex: none; }
 .dist .stack { height: 300px; flex: none; } .scatter .stack { height: 260px; flex: none; }

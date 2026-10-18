@@ -143,8 +143,9 @@ FIELDS: dict[str, dict] = {
     "display.max_lifetime": {"label": "Maximum", "help": "Empty = from the data"},
     "display.lut": {"label": "Lookup table", "choices": {k: k for k in
         ["turbo", "viridis", "plasma", "magma", "inferno", "cividis", "gray"]}},
-    "display.smooth_traces": {"label": "Smooth traces (frames)", "help": "Temporal box radius, also used for hit detection"},
-    "display.overlay_smooth_xy": {"label": "Image smoothing (px)"},
+    "display.smooth_traces": {"label": "Time smoothing (± frames)", "help": "Traces, hit detection and the dashboard image"},
+    "display.overlay_smooth_xy": {"label": "Lifetime spatial smoothing", "num": True,
+        "choices": {"0": "off", "1": "3 × 3 px", "2": "5 × 5 px", "3": "7 × 7 px"}},
     "display.dashboard_max_size": {"label": "Dashboard overview size (px)"},
     "display.dashboard_tiles": {"label": "Full-resolution tiles for large images"},
     "display.save_png_plots": {"label": "Save PNG plots"},
@@ -318,11 +319,12 @@ TIPS: dict[str, str] = {
     "display.max_lifetime": "Upper end of the colour scale and lifetime axes. Empty = from the data (99th "
         "percentile).",
     "display.lut": "Colour scale for lifetime images and plots.",
-    "display.smooth_traces": "Average each trace over neighbouring frames to reduce noise: radius in frames (1 = "
-        "average of 3 frames). Also used for the hit criteria. 0 = no smoothing.",
-    "display.overlay_smooth_xy": "Spatial smoothing (radius in pixels; 1 = the mean of 3 × 3 pixels) of the lifetime "
-        "colours of the image in the dashboard: how it starts, changeable there (Smoothing, under the image). Over "
-        "time the image is smoothed as the traces are (Smooth traces). Only for display. 0 = none.",
+    "display.smooth_traces": "Average over neighbouring frames to reduce noise: ± this number of frames (1 = the "
+        "mean of 3 frames). Used for the traces, the hit criteria and the lifetime colours of the dashboard image. "
+        "Changeable in the dashboard (time smoothing, under Timing). 0 = no smoothing.",
+    "display.overlay_smooth_xy": "The mean over a square of pixels around each pixel, for the lifetime (or ratio) "
+        "colours of the image in the dashboard: less noisy colours, while the brightness stays sharp. Only for "
+        "display. How the dashboard starts; changeable there (under the image).",
 
     "display.histogram_bins": "Number of bars in the histograms of the dashboard.",
     "display.dashboard": "Make an interactive dashboard (HTML page) per image, to explore cells, traces and hits.",
@@ -453,7 +455,6 @@ LAYOUT = [
                                                        "events.baseline_only", "events.no_calibration"],
      "advanced": [
          ("Automatic detection", ["events.sensitivity", "events.margin"]),
-         ("Traces", ["display.smooth_traces"]),
      ]},
     {"title": "Screening", "basic": ["screening.enabled", "screening.criteria", "screening.classify_additional_channel"],
      "advanced": [
@@ -474,7 +475,7 @@ LAYOUT = [
      "note": "The defaults suit most runs; colours and ranges can also be changed in the dashboard.",
      "advanced": [
          ("Colour scale", ["display.lut", "|", "display.min_lifetime", "display.max_lifetime"]),
-         ("Lifetime overlay", ["display.overlay_smooth_xy"]),
+         ("Smoothing", ["display.smooth_traces", "display.overlay_smooth_xy"]),
          ("Dashboard", ["display.dashboard", "|", "display.dashboard_max_size", "display.dashboard_max_megapixels",
                         "|", "display.dashboard_tiles", "display.histogram_bins"]),
          ("Dashboard views", ["display.traces_view", "|", "display.scatter_x", "display.scatter_log_x", "|",

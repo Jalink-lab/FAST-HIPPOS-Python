@@ -146,7 +146,9 @@ def test_reapply_keeps_the_gates_of_another_image_type(experiment, tmp_path):
     s.screening.criteria = [Criterion("response_max_diff", ">", 0.4)]
     merged = reapply_settings(ratio, s.to_dict())
     assert merged["screening"]["baseline_calibration_diff"] is None and merged["screening"]["max_baseline_deviation"] is None
-    assert merged["screening"]["criteria"][0]["value"] == 0.4
+    assert merged["screening"]["criteria"] == used["screening"]["criteria"]  # in the units of the ratio sample
+    s.display.min_lifetime, s.display.max_lifetime = 2.0, 3.6
+    assert reapply_settings(ratio, s.to_dict())["display"]["min_lifetime"] == used["display"]["min_lifetime"]
     # the experiment folder was copied: the sample now belongs to the folder it is in, when that is an experiment
     assert merged["input"]["experiment"] == str(experiment)  # tmp_path/exp has no experiment overview
     shutil.copy(experiment / "index.html", tmp_path / "exp" / "index.html")

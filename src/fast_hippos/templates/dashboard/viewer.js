@@ -271,6 +271,16 @@ function drawViewerHov() {
   if (S.showRoute && SCR.route) drawRoute(x);
   if (D.pixel_size) drawScaleBar(x, w, h);  // always
   drawLocator(x, w, h);
+  drawTimeNote(x, w, h);
+}
+// the image is smoothed over time with the traces (Timing, far from the image): say so in the image
+function drawTimeNote(x, w, h) {
+  const r = Math.floor(SCR.params.smooth_traces || 0);
+  if (!(r > 0) || S.tsrc !== "smoothed" || V.smoothed_xy === null || V.smoothed_xy === undefined) return;
+  const t = `time smoothing ± ${r} frame${r === 1 ? "" : "s"}`;
+  x.font = "11px system-ui"; const tw = x.measureText(t).width;
+  x.fillStyle = "rgba(0,0,0,.45)"; x.fillRect(w - tw - 18, h - 24, tw + 10, 17);
+  x.fillStyle = "rgba(255,255,255,.8)"; x.textAlign = "right"; x.fillText(t, w - 13, h - 12); x.textAlign = "start";
 }
 // where the view is in the image, when zoomed in: the whole image as a small frame, the visible part inside it
 function drawLocator(x, w, h) {
@@ -402,6 +412,7 @@ function initViewer() {
   $("voutl").onchange = () => { S.showOutl = $("voutl").checked; $("outl").disabled = !S.showOutl; invalidate("viewerSel"); };
   $("isrc").onchange = () => { S.isrc = $("isrc").value; imageChanged(); };
   $("vsmooth").value = String(S.smoothxy);
+  $("vsmoothl").textContent = D.is_lifetime ? "Lifetime" : String(D.unit).startsWith("Ratio") ? "Ratio" : "Intensity";
   $("vsmooth").onchange = () => { S.smoothxy = +$("vsmooth").value; imageChanged(); };
   if (V.smoothed_xy === null || V.smoothed_xy === undefined) {  // an older run: the smoothing is in the data
     $("vsmooth").disabled = true; $("vsmooth").closest("label").title = "This dashboard was made by an older version, with the smoothing of the run "
@@ -409,7 +420,7 @@ function initViewer() {
   }
   $("bright").oninput = () => { S.bright = Math.pow(10, +$("bright").value); imageChanged(); };
   $("vroute").checked = S.showRoute; $("vroute").onchange = () => { S.showRoute = $("vroute").checked; invalidate("viewerHov"); };
-  const fm = $("vfill"); fm.add(new Option("lifetime image", "")); METRIC_KEYS.forEach(k => fm.add(new Option(k, k)));
+  const fm = $("vfill"); fm.add(new Option(`${$("vsmoothl").textContent.toLowerCase()} image`, "")); METRIC_KEYS.forEach(k => fm.add(new Option(k, k)));
   fm.onchange = () => { S.fillMetric = fm.value; fillsChanged(); };
   $("v100").onclick = () => { const r = vwrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1 / viewTarget().s); };
   hitRGB = hexToRgb(css("--hit"));

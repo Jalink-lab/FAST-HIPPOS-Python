@@ -117,11 +117,6 @@ Every setting of the FAST-HIPPOS window, in the order of the window: first the s
 <tr data-search="margin (frames) events.margin frames left out just before each transition (end of the baseline and end of the response), because the change may already start there."><td><b>Margin (frames)</b><br><code class="fh-key">events.margin</code></td><td>Frames left out just before each transition (end of the baseline and end of the response), because the change may already start there.</td><td>1</td></tr>
 </tbody></table>
 
-<h3 class="fh-group">Advanced: Traces</h3>
-<table class="fh-settings"><thead><tr><th>Setting</th><th>What it does</th><th>Default</th></tr></thead><tbody>
-<tr data-search="smooth traces (frames) display.smooth_traces average each trace over neighbouring frames to reduce noise: radius in frames (1 = average of 3 frames). also used for the hit criteria. 0 = no smoothing."><td><b>Smooth traces (frames)</b><br><code class="fh-key">display.smooth_traces</code></td><td>Average each trace over neighbouring frames to reduce noise: radius in frames (1 = average of 3 frames). Also used for the hit criteria. 0 = no smoothing.</td><td>0.0</td></tr>
-</tbody></table>
-
 ## Screening
 
 <h3 class="fh-group">Always shown</h3>
@@ -199,9 +194,10 @@ Every setting of the FAST-HIPPOS window, in the order of the window: first the s
 <tr data-search="maximum display.max_lifetime upper end of the colour scale and lifetime axes. empty = from the data (99th percentile)."><td><b>Maximum</b><br><code class="fh-key">display.max_lifetime</code></td><td>Upper end of the colour scale and lifetime axes. Empty = from the data (99th percentile).</td><td>empty</td></tr>
 </tbody></table>
 
-<h3 class="fh-group">Advanced: Lifetime overlay</h3>
+<h3 class="fh-group">Advanced: Smoothing</h3>
 <table class="fh-settings"><thead><tr><th>Setting</th><th>What it does</th><th>Default</th></tr></thead><tbody>
-<tr data-search="image smoothing (px) display.overlay_smooth_xy spatial smoothing (radius in pixels; 1 = the mean of 3 × 3 pixels) of the lifetime colours of the image in the dashboard: how it starts, changeable there (smoothing, under the image). over time the image is smoothed as the traces are (smooth traces). only for display. 0 = none."><td><b>Image smoothing (px)</b><br><code class="fh-key">display.overlay_smooth_xy</code></td><td>Spatial smoothing (radius in pixels; 1 = the mean of 3 × 3 pixels) of the lifetime colours of the image in the dashboard: how it starts, changeable there (Smoothing, under the image). Over time the image is smoothed as the traces are (Smooth traces). Only for display. 0 = none.</td><td>1.0</td></tr>
+<tr data-search="time smoothing (± frames) display.smooth_traces average over neighbouring frames to reduce noise: ± this number of frames (1 = the mean of 3 frames). used for the traces, the hit criteria and the lifetime colours of the dashboard image. changeable in the dashboard (time smoothing, under timing). 0 = no smoothing."><td><b>Time smoothing (± frames)</b><br><code class="fh-key">display.smooth_traces</code></td><td>Average over neighbouring frames to reduce noise: ± this number of frames (1 = the mean of 3 frames). Used for the traces, the hit criteria and the lifetime colours of the dashboard image. Changeable in the dashboard (time smoothing, under Timing). 0 = no smoothing.</td><td>0.0</td></tr>
+<tr data-search="lifetime spatial smoothing display.overlay_smooth_xy the mean over a square of pixels around each pixel, for the lifetime (or ratio) colours of the image in the dashboard: less noisy colours, while the brightness stays sharp. only for display. how the dashboard starts; changeable there (under the image)."><td><b>Lifetime spatial smoothing</b><br><code class="fh-key">display.overlay_smooth_xy</code></td><td>The mean over a square of pixels around each pixel, for the lifetime (or ratio) colours of the image in the dashboard: less noisy colours, while the brightness stays sharp. Only for display. How the dashboard starts; changeable there (under the image).<br><span class="fh-choices"><code>0</code> off · <code>1</code> 3 × 3 px · <code>2</code> 5 × 5 px · <code>3</code> 7 × 7 px</span></td><td>1.0</td></tr>
 </tbody></table>
 
 <h3 class="fh-group">Advanced: Dashboard</h3>

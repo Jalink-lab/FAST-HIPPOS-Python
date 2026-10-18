@@ -64,7 +64,7 @@ function drawTraces() {
   for (const [f, name] of [[ev.stimulation, "stim"], [ev.calibration, "cal"]]) if (f !== null && f !== undefined && !ev.baseline_only) { const x = TP.X(eventX(f)); ctx.beginPath(); ctx.moveTo(x, TP.m.t); ctx.lineTo(x, TP.m.t + TP.ph); ctx.stroke(); ctx.fillText(name, x + 3, TP.m.t + 10); }
   ctx.restore();
   const what = S.tmode === "bands" ? "median, 50/80 %" : S.tmode === "density" ? "density, median" : "median";
-  $("trinfo").textContent = `${nvis} cells · ${what}` + (S.tsrc === "smoothed" ? ` · smoothed r=${SCR.params.smooth_traces}` : "");
+  $("trinfo").textContent = `${nvis} cells · ${what}` + (S.tsrc === "smoothed" ? ` · time smoothing ± ${SCR.params.smooth_traces} frames` : "");
 }
 function traceLine(ctx, i, col, w) {
   const k = K(); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); let pen = false;

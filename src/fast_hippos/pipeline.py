@@ -228,6 +228,8 @@ def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
 RUN_FILE = "run.json"  # the images of the run in an output folder, its input files and the files it wrote next to them
 PREVIOUS_RUN = "_previous_run"  # where the last complete run waits while a new run is running (removed when it is done)
 REAPPLY_SECTIONS = ("events", "screening", "display")  # what a re-apply may change
+# settings in the units of the values (ns, a ratio, an intensity): not taken over from settings of another image type
+UNIT_SETTINGS = {"screening": (*GATES, "criteria"), "display": ("min_lifetime", "max_lifetime")}
 # settings in those sections that only take effect in a full run (overlay, dashboard image, stage positions): a re-apply
 # keeps the values of the run, so that the record of the run stays true
 RUN_TIME_ONLY = {"display": ("dashboard_max_size", "dashboard_max_megapixels",
@@ -390,7 +392,7 @@ def reapply_settings(out: Path, changes: dict) -> dict:
     if not used.exists() or not run_info(out):
         raise ValueError(f"No analysis results in {out}: run the analysis first")
     base = json.loads(used.read_text())
-    run_gates = {k: base.get("screening", {}).get(k) for k in GATES if k in base.get("screening", {})}
+    own_units = {sec: {k: base[sec][k] for k in keys if k in base.get(sec, {})} for sec, keys in UNIT_SETTINGS.items()}
     for section in REAPPLY_SECTIONS:
         if isinstance(changes.get(section), dict):
             kept = {k: base.get(section, {})[k] for k in RUN_TIME_ONLY.get(section, ()) if k in base.get(section, {})}
@@ -400,10 +402,12 @@ def reapply_settings(out: Path, changes: dict) -> dict:
     for key in ("experiment", "sample_label"):  # labels, not analysis settings: a re-apply may set them (an empty
         if (changes.get("input") or {}).get(key):  # one, e.g. from a settings file without them, keeps the run's)
             base["input"][key] = changes["input"][key]
-    # settings of another image type (e.g. of a lifetime sample, for a ratio sample): the run keeps its quality gates
+    # settings of another image type (e.g. of a lifetime sample, for a ratio sample): the run keeps the settings that
+    # are in the units of its values (quality gates, hit criteria, colour range)
     src = (changes.get("input") or {}).get("modality")
     if src and src != base["input"].get("modality"):
-        base.setdefault("screening", {}).update(run_gates)
+        for sec, values in own_units.items():
+            base.setdefault(sec, {}).update(values)
     # an experiment folder that was moved or copied: the folder the sample is in now
     exp = base["input"].get("experiment")
     if exp and Path(exp).resolve() != out.parent and _is_experiment(out.parent):

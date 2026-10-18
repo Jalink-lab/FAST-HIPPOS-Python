@@ -275,7 +275,7 @@ function widget(f) {
     case "int": return num("1");
     case "float": return num("any");
     case "boolselect": return `<select id="${id}">${Object.entries(f.choices).map(([k, l]) => `<option value="${k}" ${String(!!v) === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
-    case "select": return `<select id="${id}">${Object.entries(f.choices).map(([k, l]) => `<option value="${esc(k)}" ${same(k, v) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+    case "select": return `<select id="${id}">${Object.entries(f.choices).map(([k, l]) => `<option value="${esc(k)}" ${same(k, v) || (f.num && +k === +v) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
     case "frame": {
       const ff = fileFacts(), max = Number.isFinite(ff.frames) ? ff.frames - 1 : "";
       return `<div class="row"><input id="${id}" type="number" step="1" min="0" max="${max}" value="${v ?? ""}" placeholder="automatic" data-num="int"><span class="muted">${max !== "" ? "0–" + max : ""}</span></div>`;
@@ -558,6 +558,7 @@ function readInput(el) {
     v = a === "" && b === "" ? null : [a === "" ? null : +a, b === "" ? null : +b];
   } else if (f.kind === "intlist") v = el.value.trim() ? el.value.split(/[,\s]+/).filter(Boolean).map(Number) : null;
   else if (f.kind === "model") v = el.tagName === "SELECT" ? (el.value === "__custom" ? "" : el.value) : el.value;
+  else if (f.num && f.kind === "select") v = +el.value;
   else if (el.dataset.num) v = el.value === "" ? (f.optional ? null : f.default) : (el.dataset.num === "int" ? parseInt(el.value, 10) : parseFloat(el.value));
   else v = el.value === "" && f.optional ? null : el.value;
   set(f.key, v);
@@ -726,11 +727,14 @@ $("bNewSample").onclick = () => {
 $("bReapplyAll").onclick = async () => {
   let x; try { x = await api("experiment", { path: S.input.experiment, settings: S }); } catch (e) { toast(e.message, 6000); return; }
   if (!x.samples.length) { toast("No samples (runs) in the experiment folder", 5000); return; }
+  const otherType = Object.entries(x.differs || {}).filter(([, ks]) => ks.includes("input.modality")).map(([n]) => n);
   if (!confirm(`Re-apply to all ${plural(x.samples.length, "sample")} of the experiment in\n${S.input.experiment}:\n\n`
       + bulletList(x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")), 20) + "\n\nThe stimulation, screening and display settings "
       + "of this window are used for every sample (except the dashboard size and tiles and the stage positions file, "
       + "which only change with a new run). Each sample keeps its own images, segmentation and traces, its sample label and the "
-      + "own settings of its single images. Then the experiment overview is updated.\n\nContinue?")) return;
+      + "own settings of its single images. Then the experiment overview is updated."
+      + (otherType.length ? `\n\nOf another image type than this window: ${otherType.join(", ")}. They keep their quality gates, hit criteria and colour range (in the units of their values).` : "")
+      + "\n\nContinue?")) return;
   let r; try { r = await api("run", { settings: S, experiment: true }); } catch (e) { toast(e.message, 6000); return; }
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 };
