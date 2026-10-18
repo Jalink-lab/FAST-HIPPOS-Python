@@ -38,14 +38,15 @@ ADRB2 screen\                  ← the experiment folder
         ...
 ```
 
-A sample is a folder directly inside the experiment folder that holds a complete run. Other folders, and folders whose
+A sample is a folder directly inside the experiment folder that holds a complete run; the samples are listed by
+name, with numbers in order (*plate 2* before *plate 10*). Other folders, and folders whose
 name starts with `_`, are left out. To leave out a sample, move its folder out of the experiment folder; the overview
 changes at the next run, or at once with `fast-hippos-cli experiment <folder>` (see
 [the command line](../reference/command-line.md)).
 
 !!! warning "Give every sample its own output folder"
-    The output folder must be a folder *inside* the experiment folder. The window refuses to run into the experiment
-    folder itself, and warns when the output folder is somewhere else: such a run is not part of the experiment.
+    The output folder must be a folder *inside* the experiment folder. FAST-HIPPOS refuses to run into the
+    experiment folder itself, and warns when the output folder is somewhere else: such a run is not part of the experiment.
 
 ## The experiment overview
 
@@ -91,7 +92,9 @@ hit criteria differ, the *Cells* panel draws no threshold lines.
 **↻ Re-apply to all samples** (in the Run card) makes them the same: it re-applies the stimulation, screening and
 display settings of the window to every sample, one after the other, and then updates the experiment overview once.
 Each sample keeps its own segmentation and traces, its sample label, its hand-picked hits and the settings of its
-single images. It takes seconds per sample. Settings that only a new run changes (segmentation, traces, image type, …) can only be
+single images; a sample of another image type (e.g. ratio data among lifetime samples) also keeps its quality
+gates. It takes seconds per sample. A sample that cannot be re-applied keeps its earlier results and settings; the
+experiment overview names it, and `experiment_log.txt` says why. Settings that only a new run changes (segmentation, traces, image type, …) can only be
 made the same by running the sample again.
 
 <figure markdown>

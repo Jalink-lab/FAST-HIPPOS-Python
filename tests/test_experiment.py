@@ -127,3 +127,53 @@ def test_reapply_keeps_the_label_of_a_sample(experiment):
     assert reapply_settings(experiment / "sample_A", s.to_dict())["input"]["sample_label"] == "condition A"
     s.input.sample_label = "renamed"
     assert reapply_settings(experiment / "sample_A", s.to_dict())["input"]["sample_label"] == "renamed"
+
+
+def test_reapply_keeps_the_gates_of_another_image_type(experiment, tmp_path):
+    """Settings of a lifetime sample re-applied to a ratio sample: the ratio sample keeps its own quality gates."""
+    import shutil
+
+    from fast_hippos.pipeline import reapply_settings
+
+    ratio = tmp_path / "exp" / "ratio_sample"
+    shutil.copytree(experiment / "sample_A", ratio)
+    used = json.loads((ratio / "settings_used.json").read_text())
+    used["input"]["modality"] = "ratio"
+    used["screening"]["baseline_calibration_diff"] = None
+    used["screening"]["max_baseline_deviation"] = None
+    (ratio / "settings_used.json").write_text(json.dumps(used))
+    s = Settings()  # tcspc, with the default lifetime gates
+    s.screening.criteria = [Criterion("response_max_diff", ">", 0.4)]
+    merged = reapply_settings(ratio, s.to_dict())
+    assert merged["screening"]["baseline_calibration_diff"] is None and merged["screening"]["max_baseline_deviation"] is None
+    assert merged["screening"]["criteria"][0]["value"] == 0.4
+    # the experiment folder was copied: the sample now belongs to the folder it is in, when that is an experiment
+    assert merged["input"]["experiment"] == str(experiment)  # tmp_path/exp has no experiment overview
+    shutil.copy(experiment / "index.html", tmp_path / "exp" / "index.html")
+    assert reapply_settings(ratio, s.to_dict())["input"]["experiment"] == str((tmp_path / "exp").resolve())
+
+
+def test_output_folder_must_not_be_the_experiment_folder(tmp_path):
+    from fast_hippos.checks import check_inputs
+
+    s = Settings()
+    s.input.experiment = tmp_path
+    s.input.output = tmp_path
+    assert any("is the experiment folder" in p for p in check_inputs(s))
+
+
+def test_samples_in_natural_order_and_tables_with_the_image_names(experiment, tmp_path):
+    import shutil
+
+    exp = tmp_path / "plates"
+    for name in ["plate 10", "plate 2"]:
+        shutil.copytree(experiment / "sample_A", exp / name)
+    assert [f.name for f in run_folders(exp)] == ["plate 2", "plate 10"]
+    from fast_hippos.experiment import write_experiment_overview
+
+    write_experiment_overview(exp, failed=["plate 10"])
+    data = read_overview_data(exp / "index.html")
+    assert len({i["name"] for i in data["images"]}) == 2 and {i["image"] for i in data["images"]} == {data["images"][0]["image"]}
+    summary = (exp / "experiment_summary.tsv").read_text().splitlines()
+    assert len({line.split("\t")[2] for line in summary[1:]}) == 1  # the image column: its own name in both samples
+    assert "Not re-applied" in data["notes"][0] and "plate 10" in data["notes"][0]

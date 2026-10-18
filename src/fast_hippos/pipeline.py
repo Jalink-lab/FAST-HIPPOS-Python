@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from . import __version__, events, kymograph, modalities, plots, preprocess, screening, segmentation, stage
-from .config import Modality, Settings
+from .config import GATES, Modality, Settings
 from .io import ImageData, iter_images, safe_name, write_tiff
 from .viewer_data import ViewerData, prepare
 
@@ -96,11 +96,8 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
     if not reapply and moved:
         log.info("The results of the previous run in this folder were moved to %s%s (removed when this run is complete, "
                  "kept if it is not): %s", PREVIOUS_RUN, os.sep, ", ".join(moved))
-    (out / "settings_used.json").write_text(json.dumps(settings.to_dict(), indent=2))
-    from .gui import SETTINGS_NAME, to_toml
-
-    (out / SETTINGS_NAME).write_text(to_toml(settings.to_dict(), f"# FAST-HIPPOS {__version__}: the settings of the run in "
-                                     f"this folder\n# Run again with: fast-hippos-cli run {SETTINGS_NAME}"), encoding="utf-8")
+    if not reapply:  # (a re-apply writes them when it is done: a failed one leaves the settings of the run)
+        _write_settings(out, settings)
 
     results: list[ImageResult] = []
     if reapply:
@@ -158,11 +155,21 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
     started = info["started"] if reapply else _read_run_file(out).get("started")
     write_overview(results, settings, out, hits, thumbs, {"started": started,
                                                           "reapplied": time.strftime("%Y-%m-%d %H:%M") if reapply else None})
+    if reapply:
+        _write_settings(out, settings)
     _write_run_file(out, results, reapply, info["started"] if reapply else None)
     if experiment_overview:
         update_experiment(out, settings.input.experiment)
     log.info("Done. Output in %s", out)
     return results
+
+
+def _write_settings(out: Path, settings: Settings) -> None:
+    from .gui import SETTINGS_NAME, to_toml
+
+    (out / "settings_used.json").write_text(json.dumps(settings.to_dict(), indent=2))
+    (out / SETTINGS_NAME).write_text(to_toml(settings.to_dict(), f"# FAST-HIPPOS {__version__}: the settings of the run in "
+                                     f"this folder\n# Run again with: fast-hippos-cli run {SETTINGS_NAME}"), encoding="utf-8")
 
 
 def update_experiment(out: Path, experiment: Path | None) -> None:
@@ -173,8 +180,8 @@ def update_experiment(out: Path, experiment: Path | None) -> None:
     if not experiment:
         return
     if not in_experiment(out, experiment):
-        log.warning("The output folder is not inside the experiment folder %s, so this run is not a sample of the "
-                    "experiment (the experiment overview is not updated)", experiment)
+        log.warning("The output folder is not directly inside the experiment folder %s, so this run is not a sample of "
+                    "the experiment (the experiment overview is not updated)", experiment)
         return
     try:
         write_experiment_overview(experiment)
@@ -188,28 +195,29 @@ def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
     samples that failed."""
     from .experiment import LOG_FILE, run_folders, write_experiment_overview
 
-    experiment = Path(experiment)
+    experiment = Path(experiment).resolve()
     folders = run_folders(experiment)
     if not folders:
         raise ValueError(f"No samples (runs) in the experiment folder {experiment}")
     changes = {k: v for k, v in changes.items() if k != "image"}
     if isinstance(changes.get("screening"), dict):  # hand-picked hits belong to one sample
         changes["screening"] = {k: v for k, v in changes["screening"].items() if k != "manual_hits"}
-    changes["input"] = {k: v for k, v in (changes.get("input") or {}).items() if k == "experiment"}
+    # (the image type only tells reapply_settings which quality gates fit: lifetime gates are not for ratio data)
+    changes["input"] = {k: v for k, v in (changes.get("input") or {}).items() if k in ("experiment", "modality")}
     changes["input"]["experiment"] = str(experiment)
-    failed = []
+    failed, reasons = [], []
     for k, folder in enumerate(folders, 1):
         print(f"=== Sample {k} of {len(folders)}: {folder.name}", flush=True)  # the run logs go to their own folders
         try:
             if not run(Settings.from_dict(reapply_settings(folder, changes)), reapply=True, experiment_overview=False):
-                failed.append(folder.name)
+                failed.append(folder.name); reasons.append(f"{folder.name}: no images with cells")
         except Exception as e:  # noqa: BLE001 - the other samples go on
             print(f"Sample {folder.name} failed: {e}", flush=True)
-            failed.append(folder.name)
+            failed.append(folder.name); reasons.append(f"{folder.name}: {e}")
     _setup_logging(experiment / LOG_FILE)  # after the logs of the samples, which are in their folders
-    write_experiment_overview(experiment)
+    write_experiment_overview(experiment, failed)
     if failed:
-        log.error("Not re-applied: %s", ", ".join(failed))
+        log.error("Not re-applied (they keep their earlier settings): %s", "; ".join(reasons))
     log.info("Done. %d of %d samples re-applied; experiment overview in %s", len(folders) - len(failed), len(folders),
              experiment / "index.html")
     return failed
@@ -377,11 +385,12 @@ def reapply_settings(out: Path, changes: dict) -> dict:
     the event, screening and display settings taken from `changes`, key by key (the images, segmentation and traces
     stay those of the run, and so do the RUN_TIME_ONLY settings, which a re-apply cannot change). A per-image part
     ("image") in `changes` replaces that of the run as a whole (the GUI and the dashboard send the complete set)."""
-    out = Path(out)
+    out = Path(out).resolve()
     used = out / "settings_used.json"
     if not used.exists() or not run_info(out):
         raise ValueError(f"No analysis results in {out}: run the analysis first")
     base = json.loads(used.read_text())
+    run_gates = {k: base.get("screening", {}).get(k) for k in GATES if k in base.get("screening", {})}
     for section in REAPPLY_SECTIONS:
         if isinstance(changes.get(section), dict):
             kept = {k: base.get(section, {})[k] for k in RUN_TIME_ONLY.get(section, ()) if k in base.get(section, {})}
@@ -391,8 +400,25 @@ def reapply_settings(out: Path, changes: dict) -> dict:
     for key in ("experiment", "sample_label"):  # labels, not analysis settings: a re-apply may set them (an empty
         if (changes.get("input") or {}).get(key):  # one, e.g. from a settings file without them, keeps the run's)
             base["input"][key] = changes["input"][key]
+    # settings of another image type (e.g. of a lifetime sample, for a ratio sample): the run keeps its quality gates
+    src = (changes.get("input") or {}).get("modality")
+    if src and src != base["input"].get("modality"):
+        base.setdefault("screening", {}).update(run_gates)
+    # an experiment folder that was moved or copied: the folder the sample is in now
+    exp = base["input"].get("experiment")
+    if exp and Path(exp).resolve() != out.parent and _is_experiment(out.parent):
+        base["input"]["experiment"] = str(out.parent)
     base["input"]["output"] = str(out)
     return base
+
+
+def _is_experiment(folder: Path) -> bool:
+    from .experiment import read_overview_data
+
+    try:
+        return read_overview_data(folder / "index.html").get("kind") == "experiment"
+    except (OSError, ValueError):
+        return False
 
 
 def _reg_channels(settings: Settings) -> list[int]:

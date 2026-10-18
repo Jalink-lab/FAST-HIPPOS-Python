@@ -31,6 +31,9 @@ def check_inputs(settings: Settings) -> list[str]:
     problems: list[str] = []
     if not s_in.files:
         problems.append("No images selected (Images).")
+    if s_in.experiment and Path(s_in.output).resolve() == Path(s_in.experiment).resolve():
+        problems.append("The output folder is the experiment folder: give each sample its own output folder inside it "
+                        "(Images).")
     positions_file = settings.screening.stage_positions_file
     lif = Path(positions_file) if positions_file and Path(positions_file).suffix.lower() == ".lif" else None
     folders: dict[str, str] = {}  # result folder (lower case) -> the image that gets it

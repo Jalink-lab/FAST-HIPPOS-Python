@@ -45,7 +45,7 @@ def run_folders(experiment: Path) -> list[Path]:
     if not experiment.is_dir():
         return []
     return sorted((d for d in experiment.iterdir() if d.is_dir() and not d.name.startswith("_") and is_run_folder(d)),
-                  key=lambda d: d.name.lower())
+                  key=lambda d: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", d.name.lower())])
 
 
 def in_experiment(out: Path, experiment: Path | None) -> bool:
@@ -129,7 +129,7 @@ def describe_differences(diffs: list[dict], max_runs: int = 6) -> list[str]:
     return lines
 
 
-def build_experiment_data(experiment: Path) -> dict:
+def build_experiment_data(experiment: Path, failed: list[str] | None = None) -> dict:
     """The overview data of all samples of an experiment folder (the images of all runs, with their sample)."""
     experiment = Path(experiment)
     runs = run_folders(experiment)
@@ -152,6 +152,7 @@ def build_experiment_data(experiment: Path) -> dict:
         y_lo.append(data["y_range"][0]); y_hi.append(data["y_range"][1])
         for im in data["images"]:
             im = dict(im)
+            im["image"] = im["name"]  # its own name (the tables); "name" is unique in the page
             if im["name"] in names:  # the same image name in two samples
                 im["name"] = f"{folder.name}: {im['name']}"
             names.add(im["name"])
@@ -174,9 +175,19 @@ def build_experiment_data(experiment: Path) -> dict:
         im["flags"] = [{"key": f, "level": _level(f, im), "text": QC[f]} for f in _flags(im, stats, screening)]
     diffs = settings_differences(settings_by_run)
     if diffs:
+        from .pipeline import REAPPLY_SECTIONS
+
+        fixable = any(d["setting"].split(".")[0] in REAPPLY_SECTIONS for d in diffs)
+        fixed_only = any(d["setting"].split(".")[0] not in REAPPLY_SECTIONS for d in diffs)
         notes.insert(0, "The samples were not all analyzed with the same settings, so their results are not fully "
-                        "comparable: " + " | ".join(describe_differences(diffs))
-                        + ". 'Re-apply to all samples' in the FAST-HIPPOS window makes them the same.")
+                        "comparable: " + " | ".join(describe_differences(diffs)) + "."
+                        + (" 'Re-apply to all samples' in the FAST-HIPPOS window makes the stimulation, screening and "
+                           "display settings the same." if fixable else "")
+                        + (" Other settings (segmentation, traces, image type, …) only change by running those samples "
+                           "again." if fixed_only else ""))
+    if failed:
+        notes.insert(0, f"Not re-applied (the last 'Re-apply to all samples' failed for them; they keep their earlier "
+                        f"results): {', '.join(failed)}. See experiment_log.txt.")
     units = {i.get("unit") for i in images if i.get("unit")}
     if len(units) > 1:
         notes.append("The samples hold different kinds of values: " + ", ".join(sorted(units)))
@@ -195,19 +206,24 @@ def build_experiment_data(experiment: Path) -> dict:
     }
 
 
-def write_experiment_overview(experiment: Path) -> Path | None:
+def write_experiment_overview(experiment: Path, failed: list[str] | None = None) -> Path | None:
     """index.html (the overview of all samples) and experiment_summary.tsv in the experiment folder; None when the
-    folder holds no runs yet."""
+    folder holds no runs yet. failed: samples whose re-apply failed (noted on the page)."""
     from .dashboard import _bundle, _embed
     from .overview import OVERVIEW_JS
 
     experiment = Path(experiment)
-    data = build_experiment_data(experiment)
-    if not data["runs"]:
+    if not run_folders(experiment):
         return None
+    data = build_experiment_data(experiment, failed)
+    for note in data["notes"]:
+        if "is left out" in note:
+            log.warning(note)
     table = summary_table(data)
-    table.insert(0, "label", [im["label"] for im in data["images"]])
-    table.insert(0, "sample", [im["sample"] for im in data["images"]])
+    if len(table):
+        table["image"] = [im["image"] for im in data["images"]]
+    table.insert(0, "label", [im["label"] for im in data["images"]] if len(table) else [])
+    table.insert(0, "sample", [im["sample"] for im in data["images"]] if len(table) else [])
     table.to_csv(experiment / SUMMARY_FILE, sep="\t", index=False, float_format="%.6g")
     path = experiment / "index.html"
     path.write_text(_embed(_bundle("overview", ["style.css"], OVERVIEW_JS), data), encoding="utf-8")
