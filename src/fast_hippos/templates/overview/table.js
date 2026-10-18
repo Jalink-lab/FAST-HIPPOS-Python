@@ -18,13 +18,13 @@ const shortMetric = (m) => m.replace("response_", "resp. ").replace("_diff", " Î
 const COLS = [
   { key: "index", label: "#", tip: "Number of the image in the run (the order in which they were analyzed)", v: im => im.index, cell: im => im.index + 1 },
   { key: "sample", label: "Sample", l: true, if: EXP, tip: "The sample (run, an output folder in the experiment folder) of the image; click it to open the overview of that run",
-    v: im => im.sample.toLowerCase(), cell: im => `<a href="${esc(encodeURI(im.sample + "/index.html"))}" target="_blank" title="Open the overview of the run ${esc(im.sample)}">${esc(im.sample)}</a>` },
+    v: im => im.sample.toLowerCase(), cell: im => `<a href="${esc(encPath(im.sample + "/index.html"))}" target="_blank" title="Open the overview of the run ${esc(im.sample)}">${esc(im.sample)}</a>` },
   { key: "label", label: "Label", l: true, if: EXP && HAS_LABEL, tip: "The sample label: the 'Sample label' setting of its run (e.g. its condition)",
     v: im => (im.label || "").toLowerCase(), cell: im => esc(im.label || "") },
   { key: "name", label: "Image", l: true, tip: "Name of the image; click it to open its dashboard (cells, traces, kymograph and hits of this image)",
     v: im => im.name.toLowerCase(),
     cell: im => (im.thumb ? `<img class="thumb" src="${im.thumb}" alt="">` : "") +
-      (im.href ? `<a href="${esc(im.href)}" target="_blank" title="Open the dashboard of ${esc(im.name)}">${esc(im.name)}</a>`
+      (im.href ? `<a href="${esc(encPath(im.href))}" target="_blank" title="Open the dashboard of ${esc(im.name)}">${esc(im.name)}</a>`
         : `<span class="nolink" title="No dashboard was written for this image (display.dashboard is off)">${esc(im.name)}</span>`) +
       (im.own ? ` <span class="ownbadge" title="${esc("This image has its own settings: " + ownList(im).join(", ") + ". Set in its dashboard with 'Apply to this image only'; remove them in the FAST-HIPPOS window (Stimulation and calibration).")}">own settings</span>` : "") },
   { key: "qc", label: "QC", tip: "Quality flags of the image (warnings only; nothing is filtered). Hover the dot for the flags and their thresholds; the chips below the table select the images with a flag",

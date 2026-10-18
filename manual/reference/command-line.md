@@ -57,7 +57,7 @@ Run the commands in PowerShell, in the FAST-HIPPOS folder, as `uv run fast-hippo
 | `fast-hippos-cli run settings.toml` | the full analysis |
 | `fast-hippos-cli reapply settings.toml` | redo stimulation detection, screening and dashboards for the run in the output folder, with the `[events]`, `[screening]` and `[display]` settings of the file |
 | `fast-hippos-cli reapply settings.toml --override screening.toml` | the same, with the settings of a second file on top, e.g. one saved with *Settings → TOML* in a dashboard (`run` takes `--override` too) |
-| `fast-hippos-cli experiment folder` | rebuild the overview of all samples in an experiment folder (see [A screen of several samples](../guide/screen.md)); every run of a sample in it does this too |
+| `fast-hippos-cli experiment folder` | rebuild the overview of all samples in an experiment folder (see [A screen of several samples](../guide/screen.md)); every run of a sample in it does this too, when its settings file has `experiment = "<folder>"` under `[input]` |
 | `fast-hippos-cli experiment folder --reapply settings.toml` | re-apply the `[events]`, `[screening]` and `[display]` settings of the file to every sample of the experiment (each keeps the own settings of its single images), then rebuild its overview |
 | `fast-hippos-cli init-config example.toml` | write an annotated example settings file |
 | `fast-hippos-cli stitch tiles_folder [--lif scan.lif] [--bidirectional y]` | only stitch a folder of exported tiles; writes `<prefix>_STITCHED.tif` next to the folder (or `--output`), replacing an existing one |

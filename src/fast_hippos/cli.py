@@ -103,7 +103,6 @@ def main(argv: list[str] | None = None) -> int:
 
         from .experiment import write_experiment_overview
 
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s", datefmt="%H:%M:%S")
         if not args.folder.is_dir():
             p.error(f"no experiment folder {args.folder}")
         if args.reapply:
@@ -119,6 +118,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Error: {e}", file=sys.stderr)
                 return 2
             return 1 if failed else 0
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s", datefmt="%H:%M:%S")
         path = write_experiment_overview(args.folder)
         if path is None:
             print(f"No samples (runs) in {args.folder}", file=sys.stderr)

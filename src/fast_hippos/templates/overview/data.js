@@ -42,5 +42,7 @@ function showTip(html, ev) {
   tipEl.style.top = Math.min(ev.clientY + 14, innerHeight - tipEl.offsetHeight - 8) + "px";
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-function openCell(im, cell) { if (im.href) window.open(`${im.href}#cell=${cell}`, "_blank"); }
+// a relative path as a link (folder names may hold '#', '%' or spaces)
+const encPath = (p) => String(p).split("/").map(encodeURIComponent).join("/");
+function openCell(im, cell) { if (im.href) window.open(`${encPath(im.href)}#cell=${cell}`, "_blank"); }
 function setHover(k) { if (k === S.hover) return; S.hover = k; invalidate("tableHov", "resp", "metric", "maps"); }

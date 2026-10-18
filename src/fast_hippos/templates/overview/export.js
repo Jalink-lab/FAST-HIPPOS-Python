@@ -33,9 +33,9 @@ function exportRgnSelection() {
 }
 function exportHitsTsv() {
   const ks = needSelection(); if (!ks.length) return;
-  const metrics = METRIC_KEYS, lines = [["image", "rank", "rgn_file", "stop", "cell", "x_m", "y_m", ...metrics].join("\t")];
+  const metrics = METRIC_KEYS, lines = [[...(EXP ? ["sample", "label"] : []), "image", "rank", "rgn_file", "stop", "cell", "x_m", "y_m", ...metrics].join("\t")];
   for (const k of ks) { const im = IM[k]; for (const h of im.hits) { const i = im.rowOfCell.get(h.cell);
-    lines.push([im.name, h.rank, h.chunk, h.visit, h.cell, h.x, h.y, ...metrics.map(m => (i !== undefined && im.C[m] ? im.C[m][i] : ""))].map(tsvCell).join("\t")); } }
+    lines.push([...(EXP ? [im.sample, im.label || ""] : []), im.name, h.rank, h.chunk, h.visit, h.cell, h.x, h.y, ...metrics.map(m => (i !== undefined && im.C[m] ? im.C[m][i] : ""))].map(tsvCell).join("\t")); } }
   download(`${runName}_hits_selected_images.tsv`, lines.join("\n"), "text/tab-separated-values");
 }
 function exportImagesTsv() {
@@ -46,8 +46,8 @@ function exportImagesTsv() {
 }
 function exportCellsTsv() {
   const ks = needSelection(); if (!ks.length) return;
-  const keys = [...new Set(ks.flatMap(k => Object.keys(IM[k].C)))], lines = [["image", ...keys].join("\t")];
-  for (const k of ks) { const im = IM[k]; for (let i = 0; i < im.n_shown; i++) lines.push([im.name, ...keys.map(c => (im.C[c] ? im.C[c][i] : ""))].map(tsvCell).join("\t")); }
+  const keys = [...new Set(ks.flatMap(k => Object.keys(IM[k].C)))], lines = [[...(EXP ? ["sample", "label"] : []), "image", ...keys].join("\t")];
+  for (const k of ks) { const im = IM[k]; for (let i = 0; i < im.n_shown; i++) lines.push([...(EXP ? [im.sample, im.label || ""] : []), im.name, ...keys.map(c => (im.C[c] ? im.C[c][i] : ""))].map(tsvCell).join("\t")); }
   download(`${runName}_cells_selected_images.tsv`, lines.join("\n"), "text/tab-separated-values");
 }
 function initExports() {
@@ -63,6 +63,6 @@ function initExports() {
   }
   // the files of the run, grouped
   const groups = [["Tables", /\.tsv$/i], ["Stage positions (.rgn)", /\.rgn$/i], ["Plots", /\.png$/i], ["Stitched images", /\.tif$/i], ["Logs and settings", /\.(txt|json|toml)$/i]];
-  const samples = EXP ? '<div class="grp">Samples</div>' + RUNS.map(r => `<a href="${esc(encodeURI(r.href))}" target="_blank" title="The overview of this run">${esc(r.name)}${r.label ? ` <span class="muted">· ${esc(r.label)}</span>` : ""}</a>`).join("") : "";
+  const samples = EXP ? '<div class="grp">Samples</div>' + RUNS.map(r => `<a href="${esc(encPath(r.href))}" target="_blank" title="The overview of this run">${esc(r.name)}${r.label ? ` <span class="muted">· ${esc(r.label)}</span>` : ""}</a>`).join("") : "";
   $("filesMenu").innerHTML = samples + groups.map(([g, re]) => { const fs = D.files.filter(f => re.test(f)); return fs.length ? `<div class="grp">${g}</div>` + fs.map(f => `<a href="${encodeURIComponent(f)}" target="_blank">${esc(f)}</a>`).join("") : ""; }).join("") || samples || '<div class="grp">No files</div>';
 }

@@ -193,6 +193,8 @@ def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
     if not folders:
         raise ValueError(f"No samples (runs) in the experiment folder {experiment}")
     changes = {k: v for k, v in changes.items() if k != "image"}
+    if isinstance(changes.get("screening"), dict):  # hand-picked hits belong to one sample
+        changes["screening"] = {k: v for k, v in changes["screening"].items() if k != "manual_hits"}
     changes["input"] = {k: v for k, v in (changes.get("input") or {}).items() if k == "experiment"}
     changes["input"]["experiment"] = str(experiment)
     failed = []
@@ -386,8 +388,8 @@ def reapply_settings(out: Path, changes: dict) -> dict:
             base[section] = base.get(section, {}) | changes[section] | kept
     if isinstance(changes.get("image"), dict):
         base["image"] = changes["image"]
-    for key in ("experiment", "sample_label"):  # labels, not analysis settings: a re-apply may set them
-        if key in (changes.get("input") or {}):
+    for key in ("experiment", "sample_label"):  # labels, not analysis settings: a re-apply may set them (an empty
+        if (changes.get("input") or {}).get(key):  # one, e.g. from a settings file without them, keeps the run's)
             base["input"][key] = changes["input"][key]
     base["input"]["output"] = str(out)
     return base

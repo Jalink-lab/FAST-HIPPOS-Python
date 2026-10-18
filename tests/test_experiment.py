@@ -111,3 +111,19 @@ def test_window_lists_the_samples_and_their_differences(experiment):
     used["screening"]["criteria"][0]["value"] = 0.9
     assert experiment_info(str(experiment), used)["differs"] == {"sample_A": ["screening.criteria"], "sample_B": ["screening.criteria"]}
     assert experiment_info(str(experiment / "nothing"))["exists"] is False
+
+
+def test_differences_are_named_as_in_the_window(experiment):
+    from fast_hippos.experiment import describe_differences
+
+    line = describe_differences([{"setting": "screening.criteria", "values": {"a": [], "b": None}}])[0]
+    assert line.startswith("Hit criteria (screening.criteria) — ")
+
+
+def test_reapply_keeps_the_label_of_a_sample(experiment):
+    from fast_hippos.pipeline import reapply_settings
+
+    s = Settings()  # e.g. a settings file without a sample label
+    assert reapply_settings(experiment / "sample_A", s.to_dict())["input"]["sample_label"] == "condition A"
+    s.input.sample_label = "renamed"
+    assert reapply_settings(experiment / "sample_A", s.to_dict())["input"]["sample_label"] == "renamed"

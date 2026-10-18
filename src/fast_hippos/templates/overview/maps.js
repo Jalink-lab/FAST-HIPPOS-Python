@@ -16,7 +16,7 @@ function drawMaps() {
   if (!ks.length) { box.innerHTML = `<div class="mapsmsg">${selected().length ? "The selected images have no hits" : "Select images in the table"}</div>`; return; }
   box.innerHTML = ks.map(k => { const im = IM[k];
     return `<div class="mapcard" data-k="${k}"><div class="mh"><span class="sw" style="background:${imgColor(k)}"></span><span class="n" title="${esc(im.name)}">${esc(im.name)}</span><span class="muted">${im.n_hits} hit${im.n_hits === 1 ? "" : "s"}</span>` +
-      (im.href ? `<a href="${esc(im.href)}" target="_blank" title="Open the dashboard of this image">↗</a>` : "") + "</div>" +
+      (im.href ? `<a href="${esc(encPath(im.href))}" target="_blank" title="Open the dashboard of this image">↗</a>` : "") + "</div>" +
       (im.has_positions ? `<canvas data-k="${k}"></canvas>` : `<div class="empty">No stage positions for this image: its hits cannot be visited</div>`) + "</div>"; }).join("");
   const ext = new Map(ks.map(k => [k, extentOf(IM[k])]));
   const span = S.sameScale ? Math.max(...[...ext.values()].filter(Boolean).map(e => Math.max(e[2] - e[0], e[3] - e[1]))) : null;
@@ -81,7 +81,7 @@ const HIT_SORT = { col: "rank", dir: 1 };
 function hitRows() {
   const rows = [];
   for (const k of selected()) { const im = IM[k]; for (const h of im.hits) { const i = im.rowOfCell.get(h.cell); rows.push({ k, im, h, i }); } }
-  const v = (r) => (HIT_SORT.col === "image" ? r.im.name : HIT_SORT.col in r.h ? r.h[HIT_SORT.col] : r.i !== undefined && r.im.C[HIT_SORT.col] ? r.im.C[HIT_SORT.col][r.i] : NaN);
+  const v = (r) => (HIT_SORT.col === "image" ? r.im.name : HIT_SORT.col === "sample" ? r.im.sample : HIT_SORT.col in r.h ? r.h[HIT_SORT.col] : r.i !== undefined && r.im.C[HIT_SORT.col] ? r.im.C[HIT_SORT.col][r.i] : NaN);
   return rows.sort((a, b) => { const va = v(a), vb = v(b), na = va === null || Number.isNaN(va), nb = vb === null || Number.isNaN(vb);
     if (na || nb) return na - nb; return (va < vb ? -1 : va > vb ? 1 : 0) * HIT_SORT.dir; });
 }
@@ -91,11 +91,12 @@ function drawHits() {
   $("hitsinfo").textContent = `${rows.length} hit${rows.length === 1 ? "" : "s"} in the selected images`;
   $("hitsToggle").textContent = S.hitsOpen ? "▾" : "▸"; $("hitstbl").classList.toggle("closed", !S.hitsOpen);
   if (!S.hitsOpen) return;
-  const cols = [["image", "Image", "The image of the hit"], ["rank", "Rank", "Rank of the hit in the hit list of the run"], ["chunk", ".rgn file", "Number of the .rgn file (chunk) of the run that holds this hit"],
+  const cols = [...(EXP ? [["sample", "Sample", "The sample (run) of the hit"]] : []), ["image", "Image", "The image of the hit"],
+    ["rank", "Rank", EXP ? "Rank of the hit in the hit list of its sample (run)" : "Rank of the hit in the hit list of the run"], ["chunk", ".rgn file", "Number of the .rgn file (chunk) of the run that holds this hit"],
     ["visit", "Stop", "Place in the visiting order of that .rgn file"], ["cell", "Cell", "Cell number in its image"], ["x", "x (mm)", "Stage x"], ["y", "y (mm)", "Stage y"],
     ...metrics.map(m => [m, m, metricTip(m)])];
-  const head = "<tr>" + cols.map(([k, l, t]) => `<th class="${k === "image" ? "l" : ""}" data-k="${k}" title="${esc(t)}">${esc(l)}${HIT_SORT.col === k ? (HIT_SORT.dir > 0 ? " ▴" : " ▾") : ""}</th>`).join("") + "</tr>";
-  const body = rows.slice(0, 5000).map(r => `<tr data-k="${r.k}" data-c="${r.h.cell}"><td class="l"><span class="sw" style="background:${imgColor(r.k)}"></span> ${esc(r.im.name)}</td><td>${r.h.rank ?? "–"}</td><td>${r.h.chunk ?? "–"}</td><td>${r.h.visit ?? "–"}</td><td>${r.h.cell}</td>` +
+  const head = "<tr>" + cols.map(([k, l, t]) => `<th class="${k === "image" || k === "sample" ? "l" : ""}" data-k="${k}" title="${esc(t)}">${esc(l)}${HIT_SORT.col === k ? (HIT_SORT.dir > 0 ? " ▴" : " ▾") : ""}</th>`).join("") + "</tr>";
+  const body = rows.slice(0, 5000).map(r => `<tr data-k="${r.k}" data-c="${r.h.cell}">${EXP ? `<td class="l">${esc(r.im.sample)}</td>` : ""}<td class="l"><span class="sw" style="background:${imgColor(r.k)}"></span> ${esc(r.im.name)}</td><td>${r.h.rank ?? "–"}</td><td>${r.h.chunk ?? "–"}</td><td>${r.h.visit ?? "–"}</td><td>${r.h.cell}</td>` +
     `<td>${r.h.x === null ? "–" : fmt(r.h.x * 1e3, 3)}</td><td>${r.h.y === null ? "–" : fmt(r.h.y * 1e3, 3)}</td>` + metrics.map(m => `<td>${r.i !== undefined && r.im.C[m] ? fmt(r.im.C[m][r.i]) : "–"}</td>`).join("") + "</tr>").join("");
   $("hitstbl").innerHTML = `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
 }

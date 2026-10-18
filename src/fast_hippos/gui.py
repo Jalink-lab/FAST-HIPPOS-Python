@@ -726,6 +726,7 @@ def output_info(path: str, job: Job | None = None, settings: dict | None = None)
         try:
             used = json.loads((out / "settings_used.json").read_text())
             info["stage_positions_file"] = used.get("screening", {}).get("stage_positions_file")
+            info["sample_label"] = used.get("input", {}).get("sample_label")
         except (OSError, ValueError):
             info["stage_positions_file"] = None
     if settings is not None and exists:

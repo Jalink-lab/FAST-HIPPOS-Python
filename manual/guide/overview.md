@@ -1,6 +1,7 @@
 # The run overview
 
-The overview compares the images of a run, which are usually different samples, wells or conditions. Did they all
+The overview compares the images of a run, which are usually different areas, wells or conditions (for several
+samples, each in a run of its own, see [A screen of several samples](screen.md)). Did they all
 respond? Are there images with few cells, or without calibration? Where are the hits? It is `index.html` in the
 output folder; open it with *Open overview* in the FAST-HIPPOS window. Like the dashboards it is a single file that
 works in any browser.

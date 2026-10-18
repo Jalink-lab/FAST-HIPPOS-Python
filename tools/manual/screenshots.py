@@ -153,8 +153,6 @@ def experiment_shots(page: Page, url: str, example: Path, want) -> None:
     page.wait_for_timeout(2000)
     if want("experiment"):
         save(page, "experiment")
-    if want("exp_images"):
-        save(page.locator(".panel.images").first, "exp_images")
 
 
 def main(example: Path, only: list[str]) -> None:
@@ -169,7 +167,7 @@ def main(example: Path, only: list[str]) -> None:
             out = gui_shots(page, url, want)
             dashboard_shots(page, url, out, want)
             overview_shots(page, url, out, want)
-            if any(want(n) for n in ("gui_experiment", "gui_run_experiment", "experiment", "exp_images")):
+            if any(want(n) for n in ("gui_experiment", "gui_run_experiment", "experiment")):
                 if not (example / "experiment" / "index.html").exists():
                     sys.exit("No example experiment: run tools/manual/make_example_experiment.py first")
                 proc2, url2 = start(example, 8768, "sample_3.toml")

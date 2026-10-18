@@ -103,8 +103,18 @@ def _short(value) -> str:
     return json.dumps(value, default=str) if not isinstance(value, str) else value
 
 
+def _label(key: str) -> str:
+    """The name of a setting in the window ('Hit criteria'), or its key."""
+    try:
+        from .gui import FIELDS
+
+        return FIELDS.get(key, {}).get("label") or key
+    except Exception:  # noqa: BLE001 - only a nicer name
+        return key
+
+
 def describe_differences(diffs: list[dict], max_runs: int = 6) -> list[str]:
-    """One readable line per differing setting: 'screening.criteria: A = …; B, C = …'."""
+    """One readable line per differing setting: 'Hit criteria (screening.criteria) — A: …; B, C: …'."""
     lines = []
     for d in diffs:
         groups: dict[str, list[str]] = {}
@@ -114,7 +124,8 @@ def describe_differences(diffs: list[dict], max_runs: int = 6) -> list[str]:
         for v, runs in groups.items():
             names = ", ".join(runs[:max_runs]) + (f" and {len(runs) - max_runs} more" if len(runs) > max_runs else "")
             parts.append(f"{names}: {v}")
-        lines.append(f"{d['setting']} — " + " · ".join(parts))
+        name = _label(d["setting"])
+        lines.append((f"{name} ({d['setting']})" if name != d["setting"] else name) + " — " + " · ".join(parts))
     return lines
 
 

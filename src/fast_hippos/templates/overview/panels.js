@@ -106,7 +106,9 @@ function drawDistributions(ctx, ks, m) {
     ctx.fillText(name === im.name ? name : name + "…", 24, top + h / 2);
   });
   // thresholds of the hit criteria on this value
-  for (const c of D.criteria.filter(c => c.metric === m)) for (const v of [c.value, c.op === "between" ? c.value2 : null]) {
+  // (in an experiment whose samples used other criteria there is no one threshold: then none is drawn)
+  const mixedCriteria = EXP && (D.differences || []).some(d => d.setting === "screening.criteria");
+  for (const c of (mixedCriteria ? [] : D.criteria).filter(c => c.metric === m)) for (const v of [c.value, c.op === "between" ? c.value2 : null]) {
     if (v === null || !(v > a && v < b)) continue; const x = MP.X(v);
     ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = css("--text"); ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(x, MP.m.t - 4); ctx.lineTo(x, MP.m.t + MP.ph); ctx.stroke(); ctx.restore();
   }

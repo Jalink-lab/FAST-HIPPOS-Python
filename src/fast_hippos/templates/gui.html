@@ -131,7 +131,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
   <img class="logo" src="__FH_LOGO__" alt="FAST-HIPPOS">
   <div><h1>FAST-HIPPOS</h1><div class="sub">Single-cell FLIM traces and hit identification · <span id="ver"></span> · <span id="from"></span></div></div>
   <span class="sp"></span>
-  <button id="bNewSample" hidden title="Start the next sample of the experiment: keeps all settings, empties the Images list, the output folder, the sample label and the own settings of single images. Adding images then proposes the output folder <experiment folder>\\<image name>.">＋ New sample</button>
+  <button id="bNewSample" hidden title="Start the next sample of the experiment: keeps all settings, empties the Images list, the output folder, the sample label and the own settings of single images. Adding images then proposes the output folder <experiment folder>\<image name>.">＋ New sample</button>
   <button id="bOpen" title="Load settings from a .toml file (e.g. fast_hippos_settings.toml from an output folder)">Open settings…</button>
   <button id="bSave" title="Save the settings as a .toml file">Save settings…</button>
   <button id="bReset" title="All settings back to the defaults">Defaults</button>
@@ -415,14 +415,14 @@ function runDiffersFromList(o) {  // did that run analyze other files than those
 // buttons for the results in the output folder (of this run or an earlier one)
 function renderResults() {
   const o = outputState(), el = $("results");
-  if (JOB.state === "running" || !o || !o.images.length) { el.innerHTML = ""; return; }
+  const xs = experimentState(), expBtn = xs && xs.index ? `<button class="primary" data-open="${esc(S.input.experiment.replace(/[\\/]$/, "") + (S.input.experiment.includes("\\") ? "\\" : "/") + "index.html")}" title="Overview of all samples of the experiment: the images of all runs in the experiment folder together">Open experiment overview</button>` : "";
+  if (JOB.state === "running" || !o || !o.images.length) { el.innerHTML = JOB.state !== "running" && expBtn ? `<div class="muted">The experiment:</div>${expBtn}` : ""; return; }
   const sep = S.input.output.includes("\\") ? "\\" : "/", base = S.input.output.replace(/[\\/]$/, "") + sep;
   const links = [];
   if (o.index) links.push(`<button class="primary" data-open="${esc(base + "index.html")}" title="Overview of the run in the browser: all images, the hits and links to the dashboards">Open overview</button>`);
   for (const d of o.images) links.push(`<button data-open="${esc(base + d + sep + "dashboard.html")}" title="Interactive dashboard of this image: cells, traces, kymograph and hits">Dashboard: ${esc(d)}</button>`);
   links.push(`<button data-open="${esc(S.input.output)}" title="Open the output folder in the file explorer">Open output folder</button>`);
-  const x = experimentState();
-  if (x && x.index) links.push(`<button class="primary" data-open="${esc(S.input.experiment.replace(/[\\/]$/, "") + sep + "index.html")}" title="Overview of all samples of the experiment: the images of all runs in the experiment folder together">Open experiment overview</button>`);
+  if (expBtn) links.push(expBtn);
   el.innerHTML = `<div class="muted">Results in the output folder${JOB.state === "done" ? "" : " (earlier run)"}:</div>` + links.join("");
 }
 // the samples (runs) in the experiment folder, and which were analyzed with other settings than this window
@@ -443,7 +443,9 @@ const parentPath = (p) => String(p || "").replace(/[\\/]+$/, "").replace(/[\\/][
 function sampleOutput(path) {
   const exp = S.input.experiment.replace(/[\\/]+$/, ""), sep = exp.includes("\\") ? "\\" : "/";
   const name = String(path).replace(/[\\/]+$/, "").split(/[\\/]/).pop().replace(/\.(ome\.)?(tiff?|lif)$/i, "");
-  return exp + sep + name;
+  const x = experimentState(), taken = new Set(((x && x.samples) || []).map(s => s.name.toLowerCase()));
+  let n = name; for (let k = 2; taken.has(n.toLowerCase()); k++) n = `${name} ${k}`;  // e.g. the same series name in two .lif files
+  return exp + sep + n;
 }
 
 // ---------------------------------------------------------------- checks before running
@@ -466,7 +468,7 @@ function checks() {
   const out = [], ff = fileFacts(), add = (level, msg, input = false) => out.push([level, msg, input]);
   serverCheck();
   SRV.problems.forEach(m => add("err", m, true));  // images, channels, frames, files
-  if (!S.input.output) add("err", "Choose an output folder");
+  if (!S.input.output) add("err", S.input.experiment ? "Choose an output folder: add the images of the sample, and it is proposed" : "Choose an output folder", true);
   const o = outputState(), imgs = runImages(o);
   if (imgs.length) {
     add("info", `The output folder holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
@@ -476,6 +478,8 @@ function checks() {
     const normPath = (p) => p ? String(p).replace(/\\/g, "/").toLowerCase() : "";
     if (normPath(o.run.stage_positions_file) !== normPath(S.screening.stage_positions_file) && S.screening.enabled)
       add("warn", "The stage positions file differs from that of the run in the output folder: only Run analysis uses it (Re-apply screening keeps the run's positions)");
+    if (S.input.experiment && (o.run.sample_label || "") !== (S.input.sample_label || ""))
+      add("warn", `The sample label differs from that of the run in the output folder (${o.run.sample_label ? `“${o.run.sample_label}”` : "none"}): Run analysis and Re-apply screening give this sample the label of this window`);
     if (runDiffersFromList(o)) add("warn", "The Images list differs from the images of that run: Re-apply screening processes the run's images, not the list");
   }
   else if (Object.keys(S.image || {}).length && S.input.output && o)
@@ -486,12 +490,13 @@ function checks() {
     else if (S.input.output && !samePath(parentPath(S.input.output), S.input.experiment))
       add("warn", "The output folder is not directly inside the experiment folder, so this run is not a sample of the experiment (its overview is not updated)");
     if (x && x.samples.length) {
-      const others = x.samples.filter(s => !samePath(parentPath(S.input.output) + "/" + s.name, S.input.output)).length;
+      const others = x.samples.filter(s => !samePath(S.input.experiment.replace(/[\\/]+$/, "") + "/" + s.name, S.input.output)).length;
       add("info", `The experiment folder holds ${plural(x.samples.length, "sample")}: ${x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")).join(", ")}`
         + (others < x.samples.length ? "; this output folder is one of them" : ""));
       const diff = Object.entries(x.differs || {});
       const groups = {};  // samples that differ in the same settings, together
-      for (const [n, ks] of diff) { const g = `${ks.slice(0, 4).join(", ")}${ks.length > 4 ? ", …" : ""}`; (groups[g] = groups[g] || []).push(n); }
+      const nameOf = (k) => (FIELD[k] ? FIELD[k].label : k);
+      for (const [n, ks] of diff) { const g = `${ks.slice(0, 4).map(nameOf).join(", ")}${ks.length > 4 ? ", …" : ""}`; (groups[g] = groups[g] || []).push(n); }
       const all = diff.length === x.samples.length && Object.keys(groups).length === 1;
       if (diff.length) add("warn", (all ? `All ${plural(diff.length, "sample")} of the experiment were analyzed with other settings than this window: ${Object.keys(groups)[0]}`
         : `${plural(diff.length, "sample")} of the experiment ${diff.length === 1 ? "was" : "were"} analyzed with other settings than this window: `
@@ -611,7 +616,8 @@ document.addEventListener("click", async (e) => {
     if (!r || (Array.isArray(r) && !r.length)) return;
     if (kind === "files" || kind === "tiles") {
       const added = kind === "tiles" ? [r] : r, files = [...new Set([...(cur || []), ...added])]; set(f.key, files);
-      if (S.input.experiment && (!S.input.output || S.input.output === "output")) set("input.output", sampleOutput(added[0]));
+      if (S.input.experiment && (!S.input.output || S.input.output === "output" || !samePath(parentPath(S.input.output), S.input.experiment)))
+        set("input.output", sampleOutput(added[0]));
       else if (!S.input.output || S.input.output === "output") set("input.output", added[0].replace(/[\\/][^\\/]*$/, "") + "/FAST-HIPPOS_output");
       inspect(files);
     } else set(f.key, r);
@@ -713,7 +719,8 @@ async function start(reapply) {
 }
 $("bRun").onclick = () => start(false);
 $("bNewSample").onclick = () => {
-  S.input.files = []; S.input.series = null; S.input.output = ""; S.input.sample_label = null; S.image = {}; render();
+  S.input.files = []; S.input.series = null; S.input.output = ""; S.input.sample_label = null; S.image = {};
+  S.screening.manual_hits = null; render();
   toast("New sample: add its images; the output folder becomes the experiment folder\\<image name>. All other settings are kept.", 5000);
 };
 $("bReapplyAll").onclick = async () => {
@@ -779,6 +786,7 @@ function differingImages(o) {  // the images whose own settings differ between t
 }
 function imageSettingsDiffer(o) { return !!(o && o.run && !sameJSON(o.run.image_settings, S.image)); }
 function adoptImageSettings(o) {
+  if (o && o.run && o.run.sample_label && !S.input.sample_label && S.input.experiment) { S.input.sample_label = o.run.sample_label; render(); }
   const run = o && o.run && o.run.image_settings;
   if (run && Object.keys(run).length && !Object.keys(S.image || {}).length) {
     S.image = structuredClone(run); render();

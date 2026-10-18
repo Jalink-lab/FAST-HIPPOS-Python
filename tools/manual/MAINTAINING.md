@@ -37,7 +37,7 @@ fails when they are stale). Wrong text there: fix it in `gui.py` (TIPS / FIELDS)
   copy, in the release ZIP), `example_run/` (the output).
 - The example experiment (`guide/screen.md`): `experiment/` in the same folder, made with
   `python tools/manual/make_example_experiment.py` (each image a sample, `sample_1-3.toml`, ~1.5 min); the
-  screenshots `gui_experiment*`, `gui_run_experiment`, `experiment` and `exp_images` need it. Remake it after a change
+  screenshots `gui_experiment*`, `gui_run_experiment` and `experiment` need it. Remake it after a change
   to the example or the analysis.
 - On another computer: download `fast-hippos-example-data.zip` from the
   [example-data release](https://github.com/Jalink-lab/FAST-HIPPOS-Python/releases/tag/example-data), unpack it,
@@ -81,6 +81,8 @@ print([len(x) for x in d], [int(x.hit.sum()) for x in d], sum(int((x.hit & (x.cl
 | `dash_distribution`, `dash_scatter` | one panel each, at frame 15 |
 | `dash_cell` | the Cell card of a hit |
 | `overview.png`, `ov_images`, `ov_response`, `ov_cells`, `ov_maps`, `ov_hits` | the overview, and its panels |
+| `gui_experiment`, `gui_run_experiment`, `gui_experiment_differs` | the window with the settings of sample 3 of the example experiment: the Images card (experiment folder, sample label), the Run card (samples, Re-apply to all samples, Open experiment overview), and the warning about samples analyzed with other settings (a criterion changed in the page) |
+| `experiment.png` | the overview of the example experiment (3 samples) |
 
 Screenshots that change only because of times in the log (`gui.png`, `gui_run.png`) or the date in the overview
 header: restore them (`git checkout -- <file>`), so that commits only hold real changes.
