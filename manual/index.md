@@ -27,7 +27,7 @@ image them at high resolution, or anything else.
 
 </div>
 <figure class="fh-hero-movie">
-  <img class="no-lightbox" src="images/landing_movie.webp" alt="A lifetime time-lapse: after the stimulus nearly all cells turn orange; the few that stay blue-green are outlined as hits" width="480" height="300">
+  <img src="images/landing_movie.webp" alt="A lifetime time-lapse: after the stimulus nearly all cells turn orange; the few that stay blue-green are outlined as hits" width="480" height="300">
   <figcaption>Real data: cells with a cAMP sensor, coloured by their lifetime. After the stimulus nearly all cells
   respond (orange); the few that don't are the hits (pink).</figcaption>
 </figure>
