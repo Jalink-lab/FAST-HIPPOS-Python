@@ -7,7 +7,7 @@ hide: [navigation, toc]
 <div class="fh-hero-text" markdown>
 
 <div class="fh-brand" markdown>
-<img src="images/logo_hippos.png" alt="The FAST-HIPPOS logo: two hippos with goggles running over a grid" width="640" height="437">
+<img class="no-lightbox" src="images/logo_hippos.png" alt="The FAST-HIPPOS logo: two hippos with goggles running over a grid" width="640" height="437">
 
 # FAST-HIPPOS
 
@@ -27,7 +27,7 @@ image them at high resolution, or anything else.
 
 </div>
 <figure class="fh-hero-movie">
-  <img src="images/landing_movie.webp" alt="A lifetime time-lapse: after the stimulus nearly all cells turn orange; the few that stay blue-green are outlined as hits" width="480" height="300">
+  <img class="no-lightbox" src="images/landing_movie.webp" alt="A lifetime time-lapse: after the stimulus nearly all cells turn orange; the few that stay blue-green are outlined as hits" width="480" height="300">
   <figcaption>Real data: cells with a cAMP sensor, coloured by their lifetime. After the stimulus nearly all cells
   respond (orange); the few that don't are the hits (pink).</figcaption>
 </figure>

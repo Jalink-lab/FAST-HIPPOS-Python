@@ -26,7 +26,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install "mkdocs>=1.6,<2" "mkdocs-material>=9.5" "mkdocs-glightbox>=0.4"
+      # the versions the manual is built and checked with locally (a newer selectolax, used by glightbox, dropped
+      # the <img> tags written as HTML on the home page)
+      - run: pip install "mkdocs==1.6.1" "mkdocs-material==9.7.7" "mkdocs-glightbox==0.5.2" "selectolax==1.0.0" "pymdown-extensions==12.3" "markdown==3.11.1"
       - name: Live demo from the example-data release
         env:
           GH_TOKEN: ${{ github.token }}
