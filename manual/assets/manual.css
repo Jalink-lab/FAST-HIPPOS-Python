@@ -113,11 +113,13 @@
 .fh-loop .fh-axis { stroke: var(--md-default-fg-color--lighter); stroke-width: 1.5; }
 .fh-loop .fh-event { stroke: var(--md-default-fg-color--lightest); stroke-width: 1.5; stroke-dasharray: 3 4; }
 .fh-loop .fh-trace { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.fh-loop .fh-resp { stroke: #f08a24; opacity: .85; }
+.fh-loop .fh-resp { stroke: #f08a24; }
 .fh-loop .fh-hitline { stroke: var(--fh-hit); stroke-width: 3; }
-/* the traces are drawn again on every round of the loop */
-.fh-loop .fh-trace { stroke-dasharray: 260; stroke-dashoffset: 260; animation: fh-draw 8s ease-out infinite; animation-delay: 1.6s; }
-@keyframes fh-draw { 0% { stroke-dashoffset: 260; } 22%, 85% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.fh-loop .fh-cell { fill: color-mix(in srgb, var(--md-primary-fg-color) 28%, transparent); stroke: var(--md-primary-fg-color); stroke-width: 1.5; }
+.fh-loop .fh-cell-hit { fill: var(--fh-hit); stroke: var(--fh-hit); }
+.fh-loop .fh-beam { fill: none; stroke: var(--fh-hit); stroke-width: 2; }
+.fh-loop .fh-cross { fill: none; stroke: var(--fh-hit); stroke-width: 2; stroke-linecap: round; }
+/* the scenes in the centre are SMIL animations in the SVG itself, on the same clock as the pulse */
 /* (it also moves when the system asks for reduced motion, as the movie does: slow, small and looping) */
 /* on a phone only the names of the steps: the cards below the loop say the rest */
 @media (max-width: 600px) { .fh-loop .fh-small, .fh-loop .fh-tiny { display: none; } .fh-loop .fh-label { font-size: 30px; } }

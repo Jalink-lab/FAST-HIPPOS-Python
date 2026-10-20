@@ -57,17 +57,45 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
   <!-- a pulse travelling around the loop -->
   <circle class="fh-pulse" r="6"><animateMotion dur="8s" repeatCount="indefinite"><mpath href="#fh-ring"/></animateMotion></circle>
 
-  <!-- the centre: traces of single cells; most respond, the hits do not (their calibration still works) -->
-  <text x="360" y="148" class="fh-small fh-mid">a trace for every cell</text>
-  <line x1="285" y1="258" x2="437" y2="258" class="fh-axis"/>
-  <line x1="306" y1="160" x2="306" y2="258" class="fh-event"/>
-  <line x1="410" y1="160" x2="410" y2="258" class="fh-event"/>
-  <text x="306" y="272" class="fh-tiny fh-mid">stimulus</text>
-  <text x="410" y="272" class="fh-tiny fh-mid">calibration</text>
-  <path class="fh-trace fh-resp" d="M285,240 L306,241 C312,241 314,190 324,186 L410,184 C413,184 415,174 420,173 L437,172"/>
-  <path class="fh-trace fh-resp" d="M285,236 L306,236 C312,236 316,196 327,193 L410,190 C413,190 416,178 421,177 L437,176"/>
-  <path class="fh-trace fh-resp" d="M285,244 L306,243 C313,243 316,200 328,197 L410,195 C413,195 416,181 421,180 L437,179"/>
-  <path class="fh-trace fh-hitline" d="M285,242 L306,242 C315,242 320,236 330,235 L410,234 C413,234 415,182 421,180 L437,179"/>
+  <!-- the centre, a scene per step, on the clock of the pulse: the cells (Image), a trace for each (Analyze), the
+       hit stands out (Decide), the hit is photoactivated (Act) -->
+  <g class="fh-cap">
+    <text x="360" y="150" class="fh-small fh-mid">imaging the cells<animate attributeName="opacity" values="1;1;0;0;0" keyTimes="0;0.22;0.25;0.97;1" dur="8s" repeatCount="indefinite"/></text>
+    <text x="360" y="150" class="fh-small fh-mid" opacity="0">a trace for every cell<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.25;0.28;0.47;0.5;1" dur="8s" repeatCount="indefinite"/></text>
+    <text x="360" y="150" class="fh-small fh-mid" opacity="0">the hit stands out<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.5;0.53;0.72;0.75;1" dur="8s" repeatCount="indefinite"/></text>
+    <text x="360" y="150" class="fh-small fh-mid" opacity="0">photoactivating the hit<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.75;0.78;0.97;1" dur="8s" repeatCount="indefinite"/></text>
+  </g>
+  <g><animate attributeName="opacity" values="1;1;0;0;1;1" keyTimes="0;0.23;0.27;0.73;0.77;1" dur="8s" repeatCount="indefinite"/>
+    <ellipse cx="304" cy="186" rx="15" ry="10" transform="rotate(-15 304 186)" class="fh-cell"/>
+    <ellipse cx="339" cy="176" rx="12" ry="9" transform="rotate(10 339 176)" class="fh-cell"/>
+    <ellipse cx="373" cy="190" rx="14" ry="10" transform="rotate(0 373 190)" class="fh-cell"/>
+    <ellipse cx="410" cy="180" rx="12" ry="9" transform="rotate(20 410 180)" class="fh-cell"/>
+    <ellipse cx="318" cy="224" rx="14" ry="10" transform="rotate(10 318 224)" class="fh-cell"/>
+    <ellipse cx="354" cy="230" rx="15" ry="11" transform="rotate(-10 354 230)" class="fh-cell"/>
+    <ellipse cx="420" cy="246" rx="11" ry="8" transform="rotate(0 420 246)" class="fh-cell"/>
+    <ellipse cx="334" cy="255" rx="12" ry="8" transform="rotate(15 334 255)" class="fh-cell"/>
+    <ellipse cx="378" cy="256" rx="11" ry="8" transform="rotate(-20 378 256)" class="fh-cell"/>
+    <ellipse cx="395" cy="222" rx="13" ry="10" transform="rotate(5 395 222)" class="fh-cell"/>
+    <g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.77;0.8;0.96;1" dur="8s" repeatCount="indefinite"/>
+      <ellipse cx="395" cy="222" rx="13" ry="10" transform="rotate(5 395 222)" class="fh-cell fh-cell-hit"/>
+      <circle cx="395" cy="222" r="6" class="fh-beam"><animate attributeName="r" values="6;22" dur="0.9s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="0.9s" repeatCount="indefinite"/></circle>
+      <path d="M395,202 L395,209 M395,235 L395,242 M373,222 L380,222 M410,222 L417,222" class="fh-cross"/>
+    </g>
+  </g>
+  <g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.23;0.27;0.73;0.77;1" dur="8s" repeatCount="indefinite"/>
+    <line x1="285" y1="258" x2="437" y2="258" class="fh-axis"/>
+    <line x1="306" y1="160" x2="306" y2="258" class="fh-event"/>
+    <line x1="410" y1="160" x2="410" y2="258" class="fh-event"/>
+    <text x="306" y="272" class="fh-tiny fh-mid">stimulus</text>
+    <text x="410" y="272" class="fh-tiny fh-mid">calibration</text>
+    <g><animate attributeName="opacity" values="1;1;0.22;0.22" keyTimes="0;0.5;0.64;1" dur="8s" repeatCount="indefinite"/>
+      <path class="fh-trace fh-resp" d="M285,240 L306,241 C312,241 314,190 324,186 L410,184 C413,184 415,174 420,173 L437,172" stroke-dasharray="260" stroke-dashoffset="260"><animate attributeName="stroke-dashoffset" values="260;260;0;0" keyTimes="0;0.25;0.42;1" dur="8s" repeatCount="indefinite"/></path>
+      <path class="fh-trace fh-resp" d="M285,236 L306,236 C312,236 316,196 327,193 L410,190 C413,190 416,178 421,177 L437,176" stroke-dasharray="260" stroke-dashoffset="260"><animate attributeName="stroke-dashoffset" values="260;260;0;0" keyTimes="0;0.25;0.42;1" dur="8s" repeatCount="indefinite"/></path>
+      <path class="fh-trace fh-resp" d="M285,244 L306,243 C313,243 316,200 328,197 L410,195 C413,195 416,181 421,180 L437,179" stroke-dasharray="260" stroke-dashoffset="260"><animate attributeName="stroke-dashoffset" values="260;260;0;0" keyTimes="0;0.25;0.42;1" dur="8s" repeatCount="indefinite"/></path>
+    </g>
+    <path class="fh-trace fh-resp" d="M285,242 L306,242 C315,242 320,236 330,235 L410,234 C413,234 415,182 421,180 L437,179" stroke-dasharray="260" stroke-dashoffset="260"><animate attributeName="stroke-dashoffset" values="260;260;0;0" keyTimes="0;0.25;0.42;1" dur="8s" repeatCount="indefinite"/></path>
+    <path class="fh-trace fh-hitline" d="M285,242 L306,242 C315,242 320,236 330,235 L410,234 C413,234 415,182 421,180 L437,179" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.5;0.56;1" dur="8s" repeatCount="indefinite"/></path>
+  </g>
 
   <!-- the steps -->
   <g class="fh-node" transform="translate(360,65)">
