@@ -10,7 +10,7 @@ hide: [navigation, toc]
 <img class="no-lightbox" src="images/logo_hippos.png" alt="The FAST-HIPPOS logo: two hippos with goggles running over a grid" width="640" height="437">
 <h1 id="fast-hippos">FAST-HIPPOS</h1>
 </div>
-<p class="fh-tagline">Interactive analysis of single-cell response dynamics in time-lapse imaging, with the hits as stage positions for targeted follow-up.</p>
+<p class="fh-tagline">Interactive analysis of single-cell dynamics, with the hits as stage positions.</p>
 <p class="fh-acronym"><b>F</b>LIM <b>A</b>nalysis of <b>S</b>ingle-cell <b>T</b>races for <b>H</b>it <b>I</b>dentification of
 <b>P</b>henotypes in <b>P</b>ooled <b>O</b>ptical <b>S</b>creening</p>
 <p>Image thousands of cells while you stimulate them. FAST-HIPPOS follows every cell through the time-lapse, picks the
