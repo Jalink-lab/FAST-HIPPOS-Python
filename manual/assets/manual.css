@@ -114,10 +114,7 @@
 /* the traces are drawn again on every round of the loop */
 .fh-loop .fh-trace { stroke-dasharray: 260; stroke-dashoffset: 260; animation: fh-draw 8s ease-out infinite; animation-delay: 1.6s; }
 @keyframes fh-draw { 0% { stroke-dashoffset: 260; } 22%, 85% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .fh-loop .fh-pulse, .fh-loop .fh-glow { display: none; }
-  .fh-loop .fh-trace { animation: none; stroke-dashoffset: 0; }
-}
+/* (it also moves when the system asks for reduced motion, as the movie does: slow, small and looping) */
 /* on a phone only the names of the steps: the cards below the loop say the rest */
 @media (max-width: 600px) { .fh-loop .fh-small, .fh-loop .fh-tiny { display: none; } .fh-loop .fh-label { font-size: 30px; } }
 
