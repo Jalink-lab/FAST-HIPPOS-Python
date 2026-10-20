@@ -2,7 +2,8 @@
 
 1. re-apply the example run (example.toml in the example folder), so that its dashboards and overview are made with the
    current code;
-2. retake the screenshots (manual/images; all, or only those named with --shots);
+2. retake the screenshots (manual/images; all, or only those named with --shots), and the images of the home page
+   (make_landing_images.py: the lifetime movie and a close-up of the experiment overview);
 3. regenerate the reference pages (manual/reference/settings.md, metrics.md);
 4. rebuild the live demo (manual/demo) and its ZIP (manual-demo.zip in the example folder), for the release;
 5. build the site in strict mode (broken links, missing images) and run the manual tests.
@@ -48,6 +49,7 @@ def main() -> None:
         step("Re-apply the example run", [py, "-m", "fast_hippos.cli", "reapply", "example.toml"], cwd=example)
     if "screenshots" not in skip:  # (re-applies once more inside its own FAST-HIPPOS window)
         step("Screenshots", [py, TOOLS / "screenshots.py", example, *args.shots])
+        step("Home page images", [py, TOOLS / "make_landing_images.py", example])
     if "reference" not in skip:
         step("Reference pages", [py, TOOLS / "gen_reference.py"])
     if "demo" not in skip:

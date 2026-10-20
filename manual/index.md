@@ -1,21 +1,166 @@
 ---
 title: FAST-HIPPOS
-hide: [navigation]
+hide: [navigation, toc]
 ---
+
+<div class="fh-hero" markdown>
+<div class="fh-hero-text" markdown>
 
 # FAST-HIPPOS
 
-**F**LIM **A**nalysis of **S**ingle-cell **T**races for **H**it **I**dentification of **P**henotypes in **P**ooled
-**O**ptical **S**creening
+<p class="fh-tagline">Find the cells that respond differently, and send the microscope straight back to them.</p>
 
-FAST-HIPPOS finds the cells that respond differently in a time-lapse experiment, and sends the microscope back to
-exactly those cells. You image a field with thousands of cells while you stimulate them; FAST-HIPPOS measures a
-lifetime trace for every cell, picks the cells whose response matches what you are looking for, and writes their
-stage positions as Leica LAS X `.rgn` files. The microscope can then revisit the hits, for photoactivation,
-high-resolution imaging, FRAP or anything else.
+<p class="fh-acronym"><b>F</b>LIM <b>A</b>nalysis of <b>S</b>ingle-cell <b>T</b>races for <b>H</b>it <b>I</b>dentification of
+<b>P</b>henotypes in <b>P</b>ooled <b>O</b>ptical <b>S</b>creening</p>
 
-Outside screening, it is a fast way to get single-cell traces out of a FLIM, ratio or intensity time-lapse, and to
-look at them.
+Image thousands of cells while you stimulate them. FAST-HIPPOS follows every cell through the time-lapse, picks the
+ones whose response stands out, and turns them into stage positions for the microscope: to photoactivate them,
+image them at high resolution, or anything else.
+
+[Get started](start/install.md){ .md-button .md-button--primary }
+[Try it in your browser](start/demo.md){ .md-button }
+
+</div>
+<figure class="fh-hero-movie">
+  <img src="images/landing_movie.webp" alt="A lifetime time-lapse: after the stimulus nearly all cells turn orange; the few that stay blue-green are outlined as hits" width="480" height="300">
+  <figcaption>Real data: cells with a cAMP sensor, coloured by their lifetime. After the stimulus nearly all cells
+  respond (orange); the few that don't are the hits (pink).</figcaption>
+</figure>
+</div>
+
+## One loop: from image to action
+
+Screening for a *dynamic* phenotype means following every cell over time, and acting on the result while the
+cells are still on the stage. FAST-HIPPOS is the analysis in the middle of that loop.
+
+<div class="fh-loop">
+<svg viewBox="0 0 720 440" role="img" aria-labelledby="fh-loop-title">
+  <title id="fh-loop-title">The screening loop: image, analyze, decide, act, and back to the microscope</title>
+  <!-- the ring, with arrows between the steps -->
+  <path id="fh-ring" class="fh-ring" d="M360,65 A150,150 0 1,1 359.9,65"/>
+  <path class="fh-chevron" d="M466.1,96.2 L472.4,115.3 L453.3,108.9"/>
+  <path class="fh-chevron" d="M478.8,321.1 L459.7,327.4 L466.1,308.3"/>
+  <path class="fh-chevron" d="M253.9,333.8 L247.6,314.7 L266.7,321.1"/>
+  <path class="fh-chevron" d="M241.2,108.9 L260.3,102.6 L253.9,121.7"/>
+  <!-- a pulse travelling around the loop -->
+  <circle class="fh-pulse" r="6"><animateMotion dur="8s" repeatCount="indefinite"><mpath href="#fh-ring"/></animateMotion></circle>
+
+  <!-- the centre: traces of single cells; most respond, the hits do not (their calibration still works) -->
+  <text x="360" y="148" class="fh-small fh-mid">a trace for every cell</text>
+  <line x1="285" y1="258" x2="437" y2="258" class="fh-axis"/>
+  <line x1="306" y1="160" x2="306" y2="258" class="fh-event"/>
+  <line x1="410" y1="160" x2="410" y2="258" class="fh-event"/>
+  <text x="306" y="272" class="fh-tiny fh-mid">stimulus</text>
+  <text x="410" y="272" class="fh-tiny fh-mid">calibration</text>
+  <path class="fh-trace fh-resp" d="M285,240 L306,241 C312,241 314,190 324,186 L410,184 C413,184 415,174 420,173 L437,172"/>
+  <path class="fh-trace fh-resp" d="M285,236 L306,236 C312,236 316,196 327,193 L410,190 C413,190 416,178 421,177 L437,176"/>
+  <path class="fh-trace fh-resp" d="M285,244 L306,243 C313,243 316,200 328,197 L410,195 C413,195 416,181 421,180 L437,179"/>
+  <path class="fh-trace fh-hitline" d="M285,242 L306,242 C315,242 320,236 330,235 L410,234 C413,234 415,182 421,180 L437,179"/>
+
+  <!-- the steps -->
+  <g class="fh-node" transform="translate(360,65)">
+    <circle r="34" class="fh-glow"><animate attributeName="opacity" values="0.85;0;0" keyTimes="0;0.25;1" dur="8s" repeatCount="indefinite"/></circle>
+    <circle r="27" class="fh-disc"/>
+    <circle cx="-9" cy="-6" r="6" class="fh-icon-cell"/><circle cx="8" cy="-7" r="5" class="fh-icon-cell"/>
+    <circle cx="-2" cy="9" r="6" class="fh-icon-cell"/><circle cx="12" cy="8" r="4" class="fh-icon-cell fh-icon-hit"/>
+  </g>
+  <g class="fh-node" transform="translate(510,215)">
+    <circle r="34" class="fh-glow"><animate attributeName="opacity" values="0.85;0;0" keyTimes="0;0.25;1" dur="8s" begin="2s" repeatCount="indefinite"/></circle>
+    <circle r="27" class="fh-disc"/>
+    <path d="M-15,8 L-6,8 C-3,8 -2,-9 3,-9 L15,-9" class="fh-icon-line"/>
+    <path d="M-15,11 L15,11" class="fh-icon-thin"/>
+  </g>
+  <g class="fh-node" transform="translate(360,365)">
+    <circle r="34" class="fh-glow"><animate attributeName="opacity" values="0.85;0;0" keyTimes="0;0.25;1" dur="8s" begin="4s" repeatCount="indefinite"/></circle>
+    <circle r="27" class="fh-disc"/>
+    <path d="M-15,-4 L15,-4" class="fh-icon-dash"/>
+    <circle cx="-9" cy="-11" r="3" class="fh-icon-dot"/><circle cx="1" cy="-12" r="3" class="fh-icon-dot"/><circle cx="10" cy="-10" r="3" class="fh-icon-dot"/>
+    <circle cx="-4" cy="6" r="3.5" class="fh-icon-dot fh-icon-hit"/><circle cx="7" cy="9" r="3.5" class="fh-icon-dot fh-icon-hit"/>
+  </g>
+  <g class="fh-node" transform="translate(210,215)">
+    <circle r="34" class="fh-glow"><animate attributeName="opacity" values="0.85;0;0" keyTimes="0;0.25;1" dur="8s" begin="6s" repeatCount="indefinite"/></circle>
+    <circle r="27" class="fh-disc"/>
+    <circle r="11" class="fh-icon-thin"/><circle r="3.5" class="fh-icon-dot fh-icon-hit"/>
+    <path d="M0,-17 L0,-8 M0,8 L0,17 M-17,0 L-8,0 M8,0 L17,0" class="fh-icon-thin"/>
+  </g>
+
+  <text x="360" y="18" class="fh-label fh-mid">Image</text>
+  <text x="360" y="36" class="fh-small fh-mid">a time-lapse of thousands of cells</text>
+  <text x="560" y="210" class="fh-label">Analyze</text>
+  <text x="560" y="230" class="fh-small">find the cells, trace them,</text>
+  <text x="560" y="247" class="fh-small">detect the stimulus</text>
+  <text x="360" y="420" class="fh-label fh-mid">Decide</text>
+  <text x="360" y="438" class="fh-small fh-mid">hits by their dynamics, live in the dashboard</text>
+  <text x="160" y="210" class="fh-label fh-end">Act</text>
+  <text x="160" y="230" class="fh-small fh-end">the microscope revisits</text>
+  <text x="160" y="247" class="fh-small fh-end">every hit, along a short route</text>
+</svg>
+</div>
+
+<div class="grid cards" markdown>
+
+-   :material-microscope:{ .lg } **Image**
+
+    Record a time-lapse of many cells: a baseline, then the stimulus, and at the end, if you like, a calibration
+    (a maximal stimulus that shows that the sensor works). FLIM, ratio or intensity data; large areas as tile scans.
+
+-   :material-cog-play:{ .lg } **Analyze**
+
+    Choose the images and a few settings in the [FAST-HIPPOS window](guide/window.md) and click *Run analysis*.
+    Cellpose finds the cells; FAST-HIPPOS measures a trace for each of them and detects the stimulation.
+
+-   :material-chart-bell-curve:{ .lg } **Decide**
+
+    Set the hit criteria in the [dashboard](guide/dashboard.md) and see the hits change while you drag the
+    threshold. Compare the images of a run, or the [samples of a whole screen](guide/screen.md).
+
+-   :material-target:{ .lg } **Act**
+
+    Load the `.rgn` files in LAS X: the microscope [visits every hit](guide/microscope.md), along a short route.
+    Then on to the next sample.
+
+</div>
+
+## What you get
+
+<div class="grid cards fh-gallery" markdown>
+
+-   [![The dashboard of an image](images/dash_image.png)](guide/dashboard.md)
+
+    **[The dashboard](guide/dashboard.md)** of every image: the cells coloured by their lifetime, all traces, a
+    kymograph, distributions and a scatter plot. Here 675 cells, of which 24 hits (pink): the cells that barely
+    respond.
+
+-   [![The run overview](images/ov_maps.png)](guide/overview.md)
+
+    **[The run overview](guide/overview.md)** compares the images of a run: did they all respond, how many cells and
+    hits, quality flags, and where the hits are on the stage.
+
+-   [![The FAST-HIPPOS window](images/gui_run.png)](guide/window.md)
+
+    **[The FAST-HIPPOS window](guide/window.md)** checks the settings against the images before anything runs, and
+    re-applies new screening settings in seconds.
+
+-   [![The overview of an experiment](images/landing_experiment.png)](guide/screen.md)
+
+    **[A screen of several samples](guide/screen.md)**: one run per sample, and one overview of all of them, with a
+    warning when the samples were not analyzed alike.
+
+</div>
+
+## Where to start
+
+<div class="grid cards" markdown>
+
+-   :material-download:{ .lg } **[Install it](start/install.md)** and follow
+    [your first analysis](start/first-analysis.md), with example data.
+
+-   :material-web:{ .lg } **[Try it in your browser](start/demo.md)**: the dashboard and the overview of the example,
+    without installing anything.
+
+-   :material-tune:{ .lg } **[Look up a setting](reference/settings.md)**: all settings, with a filter.
+
+</div>
 
 !!! note "Beta"
     The analysis has been checked against the [Fiji version](https://imagej.net/plugins/fast-hippos) and on test
@@ -24,47 +169,6 @@ look at them.
     [Back to the microscope](guide/microscope.md#stage-coordinates-and-the-rgn-frame)). Settings and file formats
     may still change.
 
-<figure markdown>
-![The dashboard of an image](images/dashboard_views.png){ .shot }
-<figcaption>The dashboard of one image: 675 cells, coloured by their lifetime. The 24 hits (outlined in pink) are the
-cells that barely respond to the stimulation; their traces are pink.</figcaption>
-</figure>
-
-## How it works
-
-```mermaid
-flowchart LR
-  A[Time-lapse<br>images] --> B[Find the cells]
-  B --> C[Trace per cell]
-  C --> D[Stimulation and<br>calibration]
-  D --> E[Choose the hits]
-  E --> F[.rgn files for<br>the microscope]
-  E --> G[Dashboards and<br>overview]
-```
-
-<div class="grid cards" markdown>
-
--   :material-microscope:{ .lg } **1. Image**
-
-    Record a time-lapse of many cells: a baseline, then the stimulus, and at the end, if you like, a calibration
-    (a maximal stimulus that shows that the sensor works).
-
--   :material-cog-play:{ .lg } **2. Analyze**
-
-    Choose the images and a few settings in the [FAST-HIPPOS window](guide/window.md) and click *Run analysis*. Cellpose
-    finds the cells, FAST-HIPPOS measures their traces and detects the stimulation.
-
--   :material-chart-bell-curve:{ .lg } **3. Choose the hits**
-
-    Set the hit criteria in the [dashboard](guide/dashboard.md), and see the hits change while you drag the threshold.
-    Check them in the image, the traces and the [overview](guide/overview.md) of all images.
-
--   :material-target:{ .lg } **4. Revisit**
-
-    Load the `.rgn` files in LAS X: the microscope [visits every hit](guide/microscope.md), along a short route.
-
-</div>
-
 ## The paper
 
 FAST-HIPPOS (in its Fiji version) and the screening method it serves are described in:
@@ -72,10 +176,3 @@ FAST-HIPPOS (in its Fiji version) and the screening method it serves are describ
 > Mukherjee S, van Tooren M, Sfakianakis D, Kemps D, Klarenbeek J, Zanetti G, Kuiken HJ, Lieftink C, van den Broek B,
 > Beijersbergen RL, Jalink K. *Beyond Static Screens: optical pooled screening of signaling dynamics using time-lapse
 > FLIM.* bioRxiv 2025. [doi:10.1101/2025.07.11.664338](https://doi.org/10.1101/2025.07.11.664338)
-
-## Where to start
-
-- New to FAST-HIPPOS? [Install it](start/install.md) and follow [your first analysis](start/first-analysis.md), with
-  example data.
-- Curious first? [Try the dashboard and the overview in your browser](start/demo.md), without installing anything.
-- Looking for one setting? [All settings](reference/settings.md) has a filter.
