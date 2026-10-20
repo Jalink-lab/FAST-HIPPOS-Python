@@ -161,20 +161,19 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 
 </div>
 
-## What you get
+## Features
 
 <div class="grid cards fh-gallery" markdown>
 
 -   [![The dashboard of an image](images/dash_image.png)](guide/dashboard.md)
 
-    **[The dashboard](guide/dashboard.md)** of every image: the cells coloured by their lifetime, all traces, a
-    kymograph, distributions and a scatter plot. Here 675 cells, of which 24 hits (pink): the cells that barely
-    respond.
+    **[The dashboard](guide/dashboard.md)** of every image: the cells coloured by their lifetime, their traces, a
+    kymograph, distributions and scatter plots. Set the hit criteria there and watch the hits change.
 
 -   [![The run overview](images/ov_maps.png)](guide/overview.md)
 
-    **[The run overview](guide/overview.md)** compares the images of a run: did they all respond, how many cells and
-    hits, quality flags, and where the hits are on the stage.
+    **[The run overview](guide/overview.md)** compares the images of a run: their responses, cells and hits,
+    quality flags, and where the hits are on the stage.
 
 -   [![The FAST-HIPPOS window](images/gui_run.png)](guide/window.md)
 
@@ -183,8 +182,8 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 
 -   [![The overview of an experiment](images/landing_experiment.png)](guide/screen.md)
 
-    **[A screen of several samples](guide/screen.md)**: one run per sample, and one overview of all of them, with a
-    warning when the samples were not analyzed alike.
+    **[Multi-sample experiments](guide/screen.md)**: analyze each sample as soon as it has been imaged, and compare
+    all samples in one overview, which warns when they were not analyzed alike.
 
 </div>
 

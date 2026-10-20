@@ -55,8 +55,8 @@ fails when they are stale). Wrong text there: fix it in `gui.py` (TIPS / FIELDS)
 
 | Number | Pages |
 |---|---|
-| 675 / 749 / 856 cells, 2280 in total | `start/first-analysis.md`, `index.md` |
-| 75 hits (24 / 28 / 23), 64 of them marker-positive, `HITS_example_run_1-75.rgn` | `start/first-analysis.md`, `guide/choosing-hits.md`, `guide/output-folder.md`, `index.md`, `start/demo.md` |
+| 675 / 749 / 856 cells, 2280 in total | `start/first-analysis.md` |
+| 75 hits (24 / 28 / 23), 64 of them marker-positive, `HITS_example_run_1-75.rgn` | `start/first-analysis.md`, `guide/choosing-hits.md`, `guide/output-folder.md`, `start/demo.md` |
 | stimulation 5, calibration 25 | `start/first-analysis.md` |
 
 Recount with:
