@@ -1,6 +1,8 @@
 """Images of the home page of the manual, from the example run (example_run in the example folder; see
-make_example_data.py): the lifetime movie of a part of example_screen_1 as an animated WebP, in which the hits are
-outlined once the response is in, saved at the size of the image (the page scales it up); and a close-up of the
+make_example_data.py): the lifetime movie of a part of example_screen_1, in which the hits are outlined once the
+response is in, as one WebP per frame in manual/images/landing (the size of the image; the page scales it up), with
+movie.json (timing, labels, colour range) and colorbar.png for the player of the home page (manual/assets/manual.js),
+which writes the label and the colour scale as text over the frames, so that they stay sharp; and a close-up of the
 screenshot experiment.png (screenshots.py) for the card of the experiment overview.
 
     python tools/manual/make_landing_images.py [C:/PythonProjects/FAST-HIPPOS/data/manual]
@@ -16,7 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from scipy import ndimage as ndi
 
 from fast_hippos.dashboard import _luts
@@ -78,27 +80,31 @@ def main(example: Path) -> None:
     hit_labels = np.isin(lab, hits.cell.to_numpy())
     edge = hit_labels & (ndi.grey_erosion(np.where(hit_labels, lab, 0), size=3) != lab)
     codes = smoothed(v.lifetime8, 1, 2)
-    font = ImageFont.truetype("segoeui.ttf", 13) if Path("C:/Windows/Fonts/segoeui.ttf").exists() else ImageFont.load_default()
-    frames = []
+    movie = OUT / "landing"
+    movie.mkdir(exist_ok=True)
+    for old in movie.glob("f*.webp"):
+        old.unlink()
+    labels, size = [], 0
     stim, cal = events.get("stimulation"), events.get("calibration")
     for f in range(len(v.frames)):
         rgb = colour(codes[f][sl], v.intensity8[f][sl], v, dmin, dmax, lut)
         t = int(v.frames[f])
         if t >= REVEAL:
             rgb[edge] = (255, 79, 176)
-        im = Image.fromarray(rgb)
-        d = ImageDraw.Draw(im)
-        phase = ("baseline" if stim is None or t < stim else "hits found" if t >= REVEAL and (cal is None or t < cal)
-                 else "stimulated" if cal is None or t < cal else "calibration")
-        label = f"frame {t + 1}  ·  {phase}"
-        d.rounded_rectangle([8, 8, 20 + d.textlength(label, font=font), 30], 5, fill=(0, 0, 0))
-        d.text((14, 10), label, fill=(255, 79, 176) if phase == "hits found" else (255, 255, 255), font=font)
-        frames.append(im)
-    durations = [600 if (stim is not None and int(t) == stim) else 220 for t in v.frames]
-    durations[-1] = 1500
-    frames[0].save(OUT / "landing_movie.webp", save_all=True, append_images=frames[1:], duration=durations, loop=0,
-                   quality=72, method=6)
-    print("landing_movie.webp", (OUT / "landing_movie.webp").stat().st_size // 1024, "kB,", len(frames), "frames,",
+        Image.fromarray(rgb).save(movie / f"f{f:02d}.webp", quality=76, method=6)
+        size += (movie / f"f{f:02d}.webp").stat().st_size
+        labels.append("baseline" if stim is None or t < stim else "hits found" if t >= REVEAL and (cal is None or t < cal)
+                      else "stimulated" if cal is None or t < cal else "calibration")
+    durations = [700 if (stim is not None and int(t) == stim) else 1200 if int(t) == REVEAL else 230 for t in v.frames]
+    durations[-1] = 1600
+    Image.fromarray(lut[None, :, :]).save(movie / "colorbar.png")
+    n = len(v.frames)
+    (movie / "movie.json").write_text(json.dumps({
+        "n": n, "frames": [int(t) for t in v.frames], "durations": durations, "labels": labels,
+        "stimulation": stim, "calibration": cal, "reveal": REVEAL, "min": dmin, "max": dmax, "unit": "Lifetime (ns)",
+        "still": next((k for k, t in enumerate(v.frames) if t >= REVEAL + 4), n - 1),  # without animation: hits found
+    }, indent=1))
+    print(f"landing/: {n} frames, {size // 1024} kB,",
           f"{len(hits[(hits.centroid_x > x0) & (hits.centroid_x < x0 + W) & (hits.centroid_y > y0) & (hits.centroid_y < y0 + H)])} hits")
 
 

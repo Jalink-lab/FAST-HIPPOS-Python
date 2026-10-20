@@ -23,3 +23,42 @@ function fhFilter() {
   box.addEventListener("input", run);
 }
 if (window.document$) document$.subscribe(fhFilter); else document.addEventListener("DOMContentLoaded", fhFilter);
+
+// The movie of the home page: one image per frame (tools/manual/make_landing_images.py), with the label, the colour
+// scale and a timeline as page text over it, so that they stay sharp. It plays unless the reader prefers reduced
+// motion (then it shows the frame with the hits), and pauses while the pointer is on it or with the button.
+let fhMovieTimer = null;
+function fhMovie() {
+  clearTimeout(fhMovieTimer);
+  const box = document.querySelector(".fh-movie[data-movie]");
+  if (!box) return;
+  const base = box.dataset.movie, img = box.querySelector("img"), label = box.querySelector(".fh-movie-label");
+  const btn = box.querySelector(".fh-movie-play"), tl = box.querySelector(".fh-timeline");
+  fetch(base + "movie.json").then(r => r.json()).then(m => {
+    const pct = (k) => (100 * k) / m.n, segs = tl.querySelectorAll(".fh-tl-seg"), cursor = tl.querySelector(".fh-tl-cursor");
+    const stim = m.stimulation ?? 0, cal = m.calibration ?? m.n;
+    [stim, cal - stim, m.n - cal].forEach((w, i) => { segs[i].style.width = pct(w) + "%"; });
+    const ends = box.querySelectorAll(".fh-cb-ends span"); ends[0].textContent = m.min.toFixed(1); ends[1].textContent = m.max.toFixed(1);
+    const frames = Array.from({ length: m.n }, (_, k) => { const im = new Image(); im.src = `${base}f${String(k).padStart(2, "0")}.webp`; return im; });
+    let k = m.still, playing = !matchMedia("(prefers-reduced-motion: reduce)").matches, hover = false;
+    const show = () => {
+      img.src = frames[k].src;
+      const phase = m.labels[k];
+      label.innerHTML = `frame ${m.frames[k] + 1} · ` + (phase === "hits found" ? "<b>hits found</b>" : phase);
+      cursor.style.left = pct(k + 0.5) + "%";
+    };
+    const step = () => {
+      if (!document.body.contains(box)) return;  // another page was loaded
+      if (playing && !hover) { k = (k + 1) % m.n; show(); }
+      fhMovieTimer = setTimeout(step, playing && !hover ? m.durations[k] : 250);
+    };
+    const setButton = () => { btn.textContent = playing ? "⏸" : "⏵"; btn.setAttribute("aria-label", playing ? "Pause" : "Play"); };
+    btn.onclick = () => { playing = !playing; setButton(); };
+    box.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hover = true; });  // not a tap on a phone
+    box.addEventListener("pointerleave", () => { hover = false; });
+    btn.hidden = false; tl.hidden = false; setButton();
+    if (playing) k = 0;
+    show(); fhMovieTimer = setTimeout(step, m.durations[k]);
+  }).catch(() => { /* without the timing: the still frame stays */ });
+}
+if (window.document$) document$.subscribe(fhMovie); else document.addEventListener("DOMContentLoaded", fhMovie);

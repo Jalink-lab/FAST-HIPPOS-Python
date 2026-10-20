@@ -3,33 +3,41 @@ title: FAST-HIPPOS
 hide: [navigation, toc]
 ---
 
-<div class="fh-hero" markdown>
-<div class="fh-hero-text" markdown>
-
-<div class="fh-brand" markdown>
+<!-- the hero is plain HTML: inside a Markdown block, nested HTML on one line is cut apart -->
+<div class="fh-hero">
+<div class="fh-hero-text">
+<div class="fh-brand">
 <img class="no-lightbox" src="images/logo_hippos.png" alt="The FAST-HIPPOS logo: two hippos with goggles running over a grid" width="640" height="437">
-
-# FAST-HIPPOS
-
+<h1 id="fast-hippos">FAST-HIPPOS</h1>
 </div>
-
 <p class="fh-tagline">Find the cells that respond differently, and send the microscope straight back to them.</p>
-
 <p class="fh-acronym"><b>F</b>LIM <b>A</b>nalysis of <b>S</b>ingle-cell <b>T</b>races for <b>H</b>it <b>I</b>dentification of
 <b>P</b>henotypes in <b>P</b>ooled <b>O</b>ptical <b>S</b>creening</p>
-
-Image thousands of cells while you stimulate them. FAST-HIPPOS follows every cell through the time-lapse, picks the
+<p>Image thousands of cells while you stimulate them. FAST-HIPPOS follows every cell through the time-lapse, picks the
 ones whose response stands out, and turns them into stage positions for the microscope: to photoactivate them,
-image them at high resolution, or anything else.
-
-[Get started](start/install.md){ .md-button .md-button--primary }
-[Try it in your browser](start/demo.md){ .md-button }
-
+image them at high resolution, or anything else.</p>
+<p><a class="md-button md-button--primary" href="start/install/">Get started</a>
+<a class="md-button" href="start/demo/">Try it in your browser</a></p>
 </div>
 <figure class="fh-hero-movie">
-  <img src="images/landing_movie.webp" alt="A lifetime time-lapse: after the stimulus nearly all cells turn orange; the few that stay blue-green are outlined as hits" width="480" height="300">
-  <figcaption>Real data: cells with a cAMP sensor, coloured by their lifetime. After the stimulus nearly all cells
-  respond (orange); the few that don't are the hits (pink).</figcaption>
+<div class="fh-movie" data-movie="images/landing/">
+<img class="no-lightbox" src="images/landing/f16.webp" alt="A lifetime time-lapse: after the stimulus nearly all cells turn orange; the few that stay blue-green are outlined as hits" width="480" height="300">
+<div class="fh-movie-label">frame 17 · <b>hits found</b></div>
+<div class="fh-colorbar">
+<div class="fh-cb-name">Lifetime (ns)</div>
+<div class="fh-cb-grad"></div>
+<div class="fh-cb-ends"><span>2.0</span><span>3.6</span></div>
+</div>
+<button class="fh-movie-play" type="button" aria-label="Play" title="Play or pause (the movie also stops while the mouse is on it)" hidden>⏵</button>
+<div class="fh-timeline" hidden>
+<div class="fh-tl-seg fh-tl-base" title="baseline"></div>
+<div class="fh-tl-seg fh-tl-resp" title="response"></div>
+<div class="fh-tl-seg fh-tl-cal" title="calibration"></div>
+<div class="fh-tl-cursor"></div>
+</div>
+</div>
+<figcaption>Real data: cells with a cAMP sensor, coloured by their lifetime. After the stimulus nearly all cells
+respond (orange); the few that don't are the hits (pink).</figcaption>
 </figure>
 </div>
 

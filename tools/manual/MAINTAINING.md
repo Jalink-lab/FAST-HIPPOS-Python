@@ -84,7 +84,7 @@ print([len(x) for x in d], [int(x.hit.sum()) for x in d], sum(int((x.hit & (x.cl
 | `gui_experiment`, `gui_run_experiment`, `gui_experiment_differs` | the window with the settings of sample 3 of the example experiment: the Images card (experiment folder, sample label), the Run card (samples, Re-apply to all samples, Open experiment overview), and the warning about samples analyzed with other settings (a criterion changed in the page) |
 | `experiment.png` | the overview of the example experiment (3 samples) |
 | `logo_hippos.png` | the home page: the logo without its name, with a transparent background and floor (made once from the full logo; not by a script) |
-| `landing_movie.webp`, `landing_experiment.png` | the home page: the lifetime movie of a part of example_screen_1 (hits outlined from frame 12 on) and a close-up of `experiment.png`; made by `make_landing_images.py` (part of `refresh.py`) |
+| `landing/` (`f00-f29.webp`, `colorbar.png`, `movie.json`), `landing_experiment.png` | the home page: the frames of the lifetime movie of a part of example_screen_1 (hits outlined from frame 12 on), played by `manual.js` with the label, colour scale and timeline as page text; and a close-up of `experiment.png`; made by `make_landing_images.py` (part of `refresh.py`) |
 
 Screenshots that change only because of times in the log (`gui.png`, `gui_run.png`) or the date in the overview
 header: restore them (`git checkout -- <file>`), so that commits only hold real changes.
