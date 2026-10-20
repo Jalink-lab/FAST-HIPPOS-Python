@@ -41,10 +41,9 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 </figure>
 </div>
 
-## One loop: from image to action
+## From image to action { .fh-center }
 
-Screening for a *dynamic* phenotype means following every cell over time, and acting on the result while the
-cells are still on the stage. FAST-HIPPOS is the analysis in the middle of that loop.
+<p class="fh-lead">Follow every cell over time, and act on the result while the cells are still on the stage.</p>
 
 <div class="fh-loop">
 <svg viewBox="0 0 720 440" role="img" aria-labelledby="fh-loop-title">

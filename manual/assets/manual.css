@@ -86,7 +86,11 @@
 @media (max-width: 960px) { .fh-hero { grid-template-columns: 1fr; gap: 1rem; } }
 @media (max-width: 600px) { .md-typeset .fh-hero h1 { font-size: 2rem; } .md-typeset .fh-brand { flex-direction: column; align-items: flex-start; gap: .4rem; } .md-typeset .fh-brand img { width: 8rem; } }
 
-/* the screening loop (an inline SVG, coloured from the theme) */
+/* the screening loop (an inline SVG, coloured from the theme), under a centred heading and subtitle */
+.md-typeset h2.fh-center { text-align: center; margin: 2.2rem 0 .3rem; font-size: 1.45rem; font-weight: 700;
+  letter-spacing: -.01em; }
+.md-typeset .fh-lead { text-align: center; max-width: 34rem; margin: 0 auto 2.2rem; font-size: .85rem;
+  color: var(--md-default-fg-color--light); }
 .fh-loop { max-width: 46rem; margin: .5rem auto 1.4rem; }
 .fh-loop svg { width: 100%; height: auto; display: block; overflow: visible; }
 .fh-loop text { fill: var(--md-default-fg-color); font-family: var(--md-text-font-family, system-ui); }
