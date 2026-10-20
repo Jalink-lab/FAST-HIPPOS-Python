@@ -183,7 +183,7 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 -   [![The overview of an experiment](images/landing_experiment.png)](guide/screen.md)
 
     **[Multi-sample experiments](guide/screen.md)**: analyze each sample as soon as it has been imaged, and compare
-    all samples in one overview, which warns when they were not analyzed alike.
+    all samples in one overview.
 
 </div>
 
