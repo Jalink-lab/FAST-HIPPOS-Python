@@ -25,8 +25,9 @@ function fhFilter() {
 if (window.document$) document$.subscribe(fhFilter); else document.addEventListener("DOMContentLoaded", fhFilter);
 
 // The movie of the home page: one image per frame (tools/manual/make_landing_images.py), with the label, the colour
-// scale and a timeline as page text over it, so that they stay sharp. It plays unless the reader prefers reduced
-// motion (then it shows the frame with the hits), and pauses while the pointer is on it or with the button.
+// scale and a timeline as page text over it, so that they stay sharp. It starts by itself (also when the system asks
+// for reduced motion, as many work PCs do: it is short and has a pause button), and pauses while the mouse is on it
+// or with the button.
 let fhMovieTimer = null;
 function fhMovie() {
   clearTimeout(fhMovieTimer);
@@ -40,7 +41,7 @@ function fhMovie() {
     [stim, cal - stim, m.n - cal].forEach((w, i) => { segs[i].style.width = pct(w) + "%"; });
     const ends = box.querySelectorAll(".fh-cb-ends span"); ends[0].textContent = m.min.toFixed(1); ends[1].textContent = m.max.toFixed(1);
     const frames = Array.from({ length: m.n }, (_, k) => { const im = new Image(); im.src = `${base}f${String(k).padStart(2, "0")}.webp`; return im; });
-    let k = m.still, playing = !matchMedia("(prefers-reduced-motion: reduce)").matches, hover = false;
+    let k = m.still, playing = true, hover = false;
     const show = () => {
       img.src = frames[k].src;
       const phase = m.labels[k];
