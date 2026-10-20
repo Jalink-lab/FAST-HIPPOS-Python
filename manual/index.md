@@ -6,7 +6,12 @@ hide: [navigation, toc]
 <div class="fh-hero" markdown>
 <div class="fh-hero-text" markdown>
 
+<div class="fh-brand" markdown>
+<img src="images/logo_hippos.png" alt="The FAST-HIPPOS logo: two hippos with goggles running over a grid" width="640" height="437">
+
 # FAST-HIPPOS
+
+</div>
 
 <p class="fh-tagline">Find the cells that respond differently, and send the microscope straight back to them.</p>
 

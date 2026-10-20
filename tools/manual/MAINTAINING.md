@@ -83,6 +83,7 @@ print([len(x) for x in d], [int(x.hit.sum()) for x in d], sum(int((x.hit & (x.cl
 | `overview.png`, `ov_images`, `ov_response`, `ov_cells`, `ov_maps`, `ov_hits` | the overview, and its panels |
 | `gui_experiment`, `gui_run_experiment`, `gui_experiment_differs` | the window with the settings of sample 3 of the example experiment: the Images card (experiment folder, sample label), the Run card (samples, Re-apply to all samples, Open experiment overview), and the warning about samples analyzed with other settings (a criterion changed in the page) |
 | `experiment.png` | the overview of the example experiment (3 samples) |
+| `logo_hippos.png` | the home page: the logo without its name, with a transparent background and floor (made once from the full logo; not by a script) |
 | `landing_movie.webp`, `landing_experiment.png` | the home page: the lifetime movie of a part of example_screen_1 (hits outlined from frame 12 on) and a close-up of `experiment.png`; made by `make_landing_images.py` (part of `refresh.py`) |
 
 Screenshots that change only because of times in the log (`gui.png`, `gui_run.png`) or the date in the overview

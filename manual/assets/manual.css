@@ -54,6 +54,9 @@
   background: linear-gradient(90deg, var(--md-primary-fg-color), var(--fh-hit)); -webkit-background-clip: text;
   background-clip: text; color: transparent; }
 .md-typeset .fh-hero h1 .headerlink { display: none; }
+.md-typeset .fh-brand { display: flex; align-items: center; gap: 1.1rem; margin-bottom: .7rem; }
+.md-typeset .fh-brand img { width: 9.5rem; height: auto; flex: none; }
+.md-typeset .fh-brand h1 { margin: 0; }
 .md-typeset .fh-tagline { font-size: 1.25rem; line-height: 1.35; font-weight: 600; margin: 0 0 .6rem; }
 .md-typeset .fh-acronym { font-size: .68rem; color: var(--md-default-fg-color--light); margin: 0 0 1rem; }
 .md-typeset .fh-acronym b { color: var(--md-default-fg-color); }
@@ -63,7 +66,7 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, .28); }
 .md-typeset .fh-hero-movie figcaption { font-size: .62rem; max-width: none; }
 @media (max-width: 960px) { .fh-hero { grid-template-columns: 1fr; gap: 1rem; } }
-@media (max-width: 600px) { .md-typeset .fh-hero h1 { font-size: 2rem; } }
+@media (max-width: 600px) { .md-typeset .fh-hero h1 { font-size: 2rem; } .md-typeset .fh-brand { flex-direction: column; align-items: flex-start; gap: .4rem; } .md-typeset .fh-brand img { width: 8rem; } }
 
 /* the screening loop (an inline SVG, coloured from the theme) */
 .fh-loop { max-width: 46rem; margin: .5rem auto 1.4rem; }
