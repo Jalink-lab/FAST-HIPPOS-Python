@@ -1050,6 +1050,10 @@ def save_prefs(changes: dict) -> dict:
 def _page(token: str) -> bytes:
     html = resources.files("fast_hippos").joinpath("templates", "gui.html").read_text(encoding="utf-8")
     html = html.replace("__FH_LOGO__", _png_url("logo.png")).replace("__FH_ICON__", _png_url("favicon.png"))
+    t = resources.files("fast_hippos").joinpath("templates")  # the context help, shared with the dashboards
+    html = html.replace("/*__HELP_CSS__*/", t.joinpath("common", "help.css").read_text(encoding="utf-8"))
+    html = html.replace("/*__HELP_JS__*/", t.joinpath("common", "help.js").read_text(encoding="utf-8"))
+    html = html.replace("__FH_HELP__", t.joinpath("help.json").read_text(encoding="utf-8").replace("</", "<\\/"))
     prefs = load_prefs()
     html = html.replace("__FH_THEME__", prefs.get("theme", ""))  # in the page itself: no flash of the other theme
     html = html.replace("__FH_PREFS__", json.dumps(prefs).replace("<", "\\u003c"))

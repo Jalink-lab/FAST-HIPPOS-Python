@@ -30,6 +30,14 @@ labels in the code (e.g. "Fold all" / "Unfold all"): search for both.
 Generated, never edit by hand: `manual/reference/settings.md`, `manual/reference/metrics.md` (`tests/test_manual.py`
 fails when they are stale). Wrong text there: fix it in `gui.py` (TIPS / FIELDS) or `config.py` (METRICS).
 
+**Context help.** The window, the dashboard and both overviews show the manual in a side panel (*? Help*, the ?
+buttons, the ? and F1 keys): `src/fast_hippos/templates/help.json`, made from the guide, reference and help pages by
+`python tools/manual/make_help.py` (also run by `refresh.py`). After every change to those pages, run it and commit
+help.json with the change; `tests/test_help.py` fails when it is stale. The ? buttons point at headings
+(`data-help="guide/dashboard#image"` in the templates, `CARD_HELP` in `gui.html`): renaming a heading changes its
+anchor, and the same test then names the buttons to fix. Screenshots are left out of the help; links to pages that
+are not in it (Getting started, command line) open the online manual.
+
 ## The example
 
 - Folder: `C:/PythonProjects/FAST-HIPPOS/data/manual` (outside the synced project folder): `example_screen_1-3.tif`,

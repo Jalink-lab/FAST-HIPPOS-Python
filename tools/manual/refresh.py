@@ -4,7 +4,8 @@
    current code;
 2. retake the screenshots (manual/images; all, or only those named with --shots), and the images of the home page
    (make_landing_images.py: the lifetime movie and a close-up of the experiment overview);
-3. regenerate the reference pages (manual/reference/settings.md, metrics.md);
+3. regenerate the reference pages (manual/reference/settings.md, metrics.md) and the context help of the pages
+   (src/fast_hippos/templates/help.json, from the manual: make_help.py; always, it takes a second);
 4. rebuild the live demo (manual/demo) and its ZIP (manual-demo.zip in the example folder), for the release;
 5. build the site in strict mode (broken links, missing images) and run the manual tests.
 
@@ -52,12 +53,13 @@ def main() -> None:
         step("Home page images", [py, TOOLS / "make_landing_images.py", example])
     if "reference" not in skip:
         step("Reference pages", [py, TOOLS / "gen_reference.py"])
+    step("Context help of the pages (from the manual)", [py, TOOLS / "make_help.py"])
     if "demo" not in skip:
         step("Live demo", [py, TOOLS / "make_demo.py", example / "example_run", example / "manual-demo.zip"])
     if "build" not in skip:
         with tempfile.TemporaryDirectory() as site:  # not in the (synchronized) project folder
             step("Site build (strict)", [py, "-m", "mkdocs", "build", "--strict", "-q", "-d", site])
-        step("Manual tests", [py, "-m", "pytest", "-q", "-p", "no:warnings", "tests/test_manual.py"])
+        step("Manual tests", [py, "-m", "pytest", "-q", "-p", "no:warnings", "tests/test_manual.py", "tests/test_help.py"])
     print("\nDone. Look at the changed screenshots (git status manual/images) before committing.")
     print(f"To publish the demo: gh release upload example-data {example / 'manual-demo.zip'} --clobber")
 

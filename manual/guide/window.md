@@ -16,6 +16,10 @@ settings, starts the analysis, shows its progress and opens the results.
 **Hover over anything.** Every setting has a hover text that explains what it does and when to change it. The same
 texts are collected in [All settings](../reference/settings.md).
 
+**The manual in the window.** *? Help* opens this manual in a panel on the right. The **?** behind the title of a
+card opens the part about that card; ++question++ or ++f1++ opens the part about the card under the mouse. The
+dashboards and the overviews have the same help.
+
 **Basic and advanced settings.** Each card shows the settings that a typical run needs. All others are under
 *Advanced settings* at the bottom of the card, grouped under subheadings. When advanced settings differ from the
 defaults, the card says so (*Advanced settings · 1 changed*) and they are marked, and the line at the top of the

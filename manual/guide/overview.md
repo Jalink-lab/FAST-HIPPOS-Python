@@ -17,7 +17,8 @@ samples together.
 
 The top bar shows the totals of the run: images, cells, valid cells, hits, and when the run was made and last
 re-applied. *Run files* opens the files of the run (hit lists, `.rgn` files, log); *Export* downloads tables and `.rgn`
-files for the selected images.
+files for the selected images. *? Help* opens the manual next to the page; the **?** behind a panel title opens
+the part about that panel.
 
 ## Images
 

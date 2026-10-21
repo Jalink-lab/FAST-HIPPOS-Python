@@ -94,14 +94,20 @@ def _png_url(name: str) -> str:
     return "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
 
 
+def help_json() -> str:
+    """The context help (templates/help.json, made from the manual by tools/manual/make_help.py), for a <script>."""
+    raw = resources.files("fast_hippos").joinpath("templates", "help.json").read_text(encoding="utf-8")
+    return raw.replace("</", "<\\/")
+
+
 def _embed(template: str, data: dict) -> str:
     payload = json.dumps(_clean(data), separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
     page = template.replace("__FH_LOGO__", _png_url("logo.png")).replace("__FH_ICON__", _png_url("favicon.png"))
-    return page.replace("__FH_DATA__", payload)
+    return page.replace("__FH_HELP__", help_json()).replace("__FH_DATA__", payload)
 
 
 # page modules, in load order; screening.js is shared with the tests, templates/common by the dashboard and the Overview
-COMMON_JS = ["base.js", "plot.js"]
+COMMON_JS = ["base.js", "plot.js", "help.js"]
 DASHBOARD_JS = ["core.js", "persist.js", "viewer.js", "traces.js", "kymo.js", "dist.js", "scatter.js", "cellcard.js",
                 "table.js", "screenui.js", "export.js", "main.js"]
 
@@ -113,7 +119,7 @@ def _bundle(folder: str, css: list[str], js: list[str]) -> str:
     def read(*parts: str) -> str:
         return t.joinpath(*parts).read_text(encoding="utf-8")
 
-    styles = "\n".join([read("common", "base.css")] + [read(folder, f) for f in css])
+    styles = "\n".join([read("common", "base.css"), read("common", "help.css")] + [read(folder, f) for f in css])
     scripts = "\n".join([read("screening.js")] + [read("common", f) for f in COMMON_JS] + [read(folder, f) for f in js])
     return read(folder, "page.html").replace("/*__CSS__*/", styles).replace("/*__JS__*/", scripts)
 

@@ -123,18 +123,20 @@ pre.log { margin: 0; height: 330px; overflow: auto; background: var(--panel2); b
 pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
 .results { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .muted { color: var(--muted); }
+/*__HELP_CSS__*/
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 8px; display: none; z-index: 10; }
 </style>
 </head>
-<body>
-<header>
+<body data-help-home="guide/window">
+<header data-help-scope="guide/window">
   <img class="logo" src="__FH_LOGO__" alt="FAST-HIPPOS">
   <div><h1>FAST-HIPPOS</h1><div class="sub">Single-cell FLIM traces and hit identification · <span id="ver"></span> · <span id="from"></span></div></div>
   <span class="sp"></span>
   <button id="bNewSample" hidden title="Start the next sample of the experiment: keeps all settings, empties the Images list, the output folder, the sample label and the own settings of single images. Adding images then proposes the output folder <experiment folder>\<image name>.">＋ New sample</button>
-  <button id="bOpen" title="Load settings from a .toml file (e.g. fast_hippos_settings.toml from an output folder)">Open settings…</button>
-  <button id="bSave" title="Save the settings as a .toml file">Save settings…</button>
+  <button id="bOpen" data-help-scope="guide/window#settings-files" title="Load settings from a .toml file (e.g. fast_hippos_settings.toml from an output folder)">Open settings…</button>
+  <button id="bSave" data-help-scope="guide/window#settings-files" title="Save the settings as a .toml file">Save settings…</button>
   <button id="bReset" title="All settings back to the defaults">Defaults</button>
+  <button id="helpBtn" title="The manual of this window. ? or F1 over a section: the part about that section">? Help</button>
   <button id="bTheme" title="Light / dark">◐</button>
   <button id="bQuit" title="Stop FAST-HIPPOS (a running analysis is stopped too)">Quit</button>
 </header>
@@ -147,7 +149,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
     <div id="form"></div>
   </section>
   <aside class="side">
-    <div class="card" style="--h:150" data-card-title="Run"><h2 class="toggle" data-fold="Run" title="Click to fold or unfold this section"><span class="fold">▾</span>Run</h2><div style="padding:10px 12px">
+    <div class="card" style="--h:150" data-card-title="Run"><h2 class="toggle" data-fold="Run" data-help="guide/window#the-run-card" title="Click to fold or unfold this section"><span class="fold">▾</span>Run</h2><div style="padding:10px 12px">
       <ul class="checks" id="checks"></ul>
       <div class="runbtns">
         <button class="primary" id="bRun" title="Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.">▶ Run analysis</button>
@@ -164,6 +166,11 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
 </main>
 <div id="toast"></div>
 <script id="fh-prefs" type="application/json">__FH_PREFS__</script>
+<script id="fh-help" type="application/json">__FH_HELP__</script>
+<script>
+"use strict";
+/*__HELP_JS__*/
+</script>
 <script>
 "use strict";
 const TOKEN = "__FH_TOKEN__";
@@ -358,6 +365,10 @@ function applyFold() {
   document.querySelectorAll("[data-card-title]").forEach(c => c.classList.toggle("folded", FOLDED.has(c.dataset.cardTitle)));
   const b = $("bFoldAll"); if (b && SCHEMA) b.textContent = SCHEMA.layout.every(c => FOLDED.has(c.title)) ? "Unfold all" : "Fold all";
 }
+// the part of the manual about each card (its ? button)
+const CARD_HELP = { "Images": "guide/window#images", "Cell segmentation": "guide/window#cell-segmentation",
+  "Stimulation and calibration": "guide/window#stimulation-and-calibration", "Screening": "guide/window#screening",
+  "Display and output": "guide/window#display-and-output" };
 const HUES = { "Images": 212, "Cell segmentation": 175, "Stimulation and calibration": 32, "Screening": 330, "Display and output": 262 };
 function render() {
   const active = document.activeElement?.id;
@@ -369,7 +380,7 @@ function render() {
     const subs = card.advanced.filter(a => shown(a.show)).map(a => { const rows = rowsOf(a.keys); return { title: a.title, column: a.column, rows, fs: rows.flat() }; }).filter(a => a.fs.length);
     const changed = subs.flatMap(a => a.fs).filter(isChanged).length, open = ADV_ALL || openAdv.has(card.title);
     if (!open) hidden += changed;
-    html += `<div class="card" style="--h:${HUES[card.title] ?? 212}" data-card-title="${esc(card.title)}"><h2 class="toggle" data-fold="${esc(card.title)}" title="Click to fold or unfold this section"><span class="fold">▾</span>${esc(card.title)}</h2>` +
+    html += `<div class="card" style="--h:${HUES[card.title] ?? 212}" data-card-title="${esc(card.title)}"><h2 class="toggle" data-fold="${esc(card.title)}" data-help="${CARD_HELP[card.title] || "guide/window#the-cards"}" title="Click to fold or unfold this section"><span class="fold">▾</span>${esc(card.title)}</h2>` +
       (basic.length ? `<div class="body">${basic.map(fieldHTML).join("")}</div>` : `<div class="note">${esc(card.note || "")}</div>`) +
       (card.title === "Stimulation and calibration" ? imageSettingsHTML() : "");
     if (subs.length) {
@@ -382,6 +393,7 @@ function render() {
     html += `</div>`;
   }
   $("form").innerHTML = html;
+  HELP.buttons($("form"));
   applyFold();
   $("advNote").textContent = hidden ? `${hidden} hidden advanced setting${hidden > 1 ? "s" : ""} changed from the defaults` : "";
   if (active && $(active)) $(active).focus();
@@ -802,7 +814,7 @@ function imageSettingsHTML() {
   const tip = "Images that use other stimulation settings or another response window than the settings above. Set them in the dashboard of "
     + "the image with 'Apply to this image only'; they are used by runs and re-applies until you remove them here.";
   if (!entries.length) return `<div class="imgsets muted" title="${esc(tip)}"><span>All images use these settings. To give one image its own stimulation frames or response window, use <i>Apply to this image only</i> in its dashboard.</span></div>`;
-  return `<div class="imgsets" title="${esc(tip)}"><div class="imgsets-h">Own settings of single images</div>` + entries.map(([name, own]) =>
+  return `<div class="imgsets" title="${esc(tip)}"><div class="imgsets-h">Own settings of single images <button class="hq" type="button" data-help-btn="guide/own-settings" title="Explain this (opens the manual)">?</button></div>` + entries.map(([name, own]) =>
     `<div class="imgset"><b>${esc(name)}</b><span class="muted">${esc(ownText(own))}</span><button class="small" data-rmimg="${esc(name)}" title="Remove the own settings of this image: it then uses the settings above (at the next run or re-apply)">✕</button></div>`).join("") + "</div>";
 }
 function setSettings(s) {

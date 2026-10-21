@@ -144,3 +144,4 @@ instance when new results arrive after *Apply*, it also keeps the frame, zoom an
 | ++o++ | show or hide the cell outlines |
 | ++l++ | switch between box and lasso selection |
 | ++esc++ | clear the selection |
+| ++question++ or ++f1++ | the manual, at the part about the panel under the mouse (also: the **?** behind a panel title, *? Help* in the top bar) |

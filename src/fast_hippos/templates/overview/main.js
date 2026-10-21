@@ -51,7 +51,9 @@ addEventListener("keydown", (e) => { if (e.key === "Escape" && !e.target.closest
 restore();
 $("title").textContent = D.title; document.title = `${D.title} · FAST-HIPPOS ${EXP ? "experiment" : "overview"}`;
 if (EXP) $("title").title = "The experiment folder: one sample (run) per folder inside it, the images of all samples together";
-$("notes").innerHTML = (D.notes || []).map(n => `<div class="note-warn">⚠ ${esc(n)}</div>`).join("");
+if (EXP) document.body.dataset.helpHome = document.querySelector("header").dataset.helpScope = "guide/screen#the-experiment-overview";
+const NOTE_HELP = EXP ? ` <button class="hq" type="button" data-help-btn="guide/screen#are-the-samples-comparable" title="Explain this (opens the manual)">?</button>` : "";
+$("notes").innerHTML = (D.notes || []).map(n => `<div class="note-warn">⚠ ${esc(n)}${NOTE_HELP}</div>`).join("");
 $("ver").textContent = `FAST-HIPPOS ${D.version}`;
 $("logx").checked = S.logx; $("logy").checked = S.logy; $("hitsOnly").checked = S.hitsOnly; $("sameScale").checked = S.sameScale;
 initTable(); initPanels(); initMaps(); initHits(); initExports();
