@@ -752,8 +752,25 @@ $("bReapplyAll").onclick = async () => {
 };
 $("bReapply").onclick = () => start(true);
 $("bStop").onclick = () => api("stop");
+// One window: a page cannot bring another tab to the front, so a newer tab (a second start of FAST-HIPPOS opens one,
+// already in front) takes over and this one closes itself. Browsers that refuse to close it get a note instead.
+let REPLACED = false;
+if ("BroadcastChannel" in window) {
+  const tabs = new BroadcastChannel("fast-hippos-window");
+  tabs.onmessage = (e) => {
+    if (e.data !== "new" || REPLACED) return;
+    REPLACED = true;
+    if (rememberTimer) { clearTimeout(rememberTimer); api("remember", { settings: S }).catch(() => {}); }  // the last change
+    $("stopTitle").textContent = "FAST-HIPPOS is open in another tab";
+    $("stopText").textContent = "It continues there; you can close this tab.";
+    $("stopped").classList.remove("busy"); $("stopped").classList.add("on");
+    window.close();
+  };
+  tabs.postMessage("new");
+}
 // polls all the time: re-applies can also be started from a dashboard ('Apply to all images' / 'Apply to this image only')
 async function poll() {
+  if (REPLACED) return;
   poll.fails = poll.fails || 0;
   let st;
   try { st = await api("status", { since: JOB.n }); poll.fails = 0; }

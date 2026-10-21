@@ -1,7 +1,8 @@
 # The FAST-HIPPOS window
 
 FAST-HIPPOS opens in your web browser, but it runs on your own computer: nothing leaves it. Start it with the desktop
-shortcut. If it is already running, the shortcut opens the running window again.
+shortcut. If it is already running, the shortcut opens the running window again, in a new tab in front; the old tab
+closes itself, so that there is always one.
 
 <figure markdown>
 ![The FAST-HIPPOS window](../images/gui.png){ .shot }
