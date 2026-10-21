@@ -5,11 +5,13 @@
   --md-primary-fg-color--dark: #1856a3;
   --md-accent-fg-color: #d0157f;
   --fh-hit: #d0157f;
+  --fh-hippo: #7d65a7;
 }
 [data-md-color-scheme="slate"] {
   --md-primary-fg-color: #2a6fc4;
   --md-accent-fg-color: #ff4fb0;
   --fh-hit: #ff4fb0;
+  --fh-hippo: #a493c2;
 }
 
 /* screenshots: a thin frame, so that they stand out from the page */
@@ -59,8 +61,8 @@
 .md-typeset .fh-brand h1 { margin: 0; white-space: nowrap; font-size: clamp(1.7rem, 3.4vw, 2.6rem); }
 .md-typeset .fh-brand img { width: clamp(6rem, 11vw, 9.5rem); }
 .md-typeset .fh-tagline { font-size: 1.25rem; line-height: 1.35; font-weight: 600; margin: 0 0 .6rem; }
-.md-typeset .fh-acronym { font-size: .68rem; color: var(--md-default-fg-color--light); margin: 0 0 1rem; }
-.md-typeset .fh-acronym b { color: var(--md-default-fg-color); }
+.md-typeset .fh-acronym { font-size: 1.12rem; line-height: 1.45; color: var(--md-default-fg-color--light); margin: 0 0 1.1rem; max-width: 30rem; }
+.md-typeset .fh-acronym b { font-weight: 800; color: var(--fh-hippo); }  /* the purple of the hippos in the logo */
 .md-typeset .fh-hero .md-button { margin: .3rem .4rem .2rem 0; }
 .md-typeset .fh-hero-movie { margin: 0; }
 .md-typeset .fh-movie { position: relative; border-radius: 10px; overflow: hidden; background: #000;
