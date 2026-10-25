@@ -94,8 +94,8 @@ function shadeWindows(ctx, P) {
     ctx.fillStyle = col; ctx.fillRect(x0, P.m.t, x1 - x0, P.ph);
   };
   block(ev.baseline, css("--base-win"));
-  block(ev.response, withAlpha(css("--resp-solid"), 0.10));
-  block(ev.timed_window, withAlpha(css("--resp-solid"), 0.22));
+  block(ev.response, withAlpha(css("--resp-solid"), 0.06));
+  block(ev.timed_window, withAlpha(css("--resp-solid"), 0.12));
   block(ev.calibration_window, css("--cal-win"));
 }
 const eventX = (f) => (f - 0.5) * FI;  // time of the transition into frame f (the S / C markers of the Timing panel)

@@ -7,27 +7,27 @@
 <link rel="icon" type="image/png" href="__FH_ICON__">
 <style>
 :root {
-  --bg: #f3f5f8; --panel: #ffffff; --panel2: #f6f7f9; --line: #dde2e8; --text: #1b2330; --muted: #5d6877;
-  --accent: #1f6fd1; --accent-soft: rgba(31,111,209,.10); --hit: #d0157f; --ok: #1f9d5c; --warn: #b26a00; --err: #c62828;
-  --changed: #e69500; color-scheme: light;
+  --bg: #f4f4f8; --panel: #ffffff; --panel2: #f1f0f6; --line: #e2e1ea; --text: #1d1b2e; --muted: #67657d;
+  --accent: #5b3fe0; --accent-strong: #5b3fe0; --accent-soft: rgba(91,63,224,.10); --hit: #d0157f; --ok: #1f7a3a; --warn: #a15c00;
+  --err: #b42318; --changed: #e69500; color-scheme: light;
   /* saturation and lightness of the card colours (see .card); the hue is per card */
   --t-band: 70% 96%; --t-title: 50% 28%; --t-stripe: 55% 52%; --t-adv: 40% 98.6%; --t-toggle: 40% 40%; --t-h3: 45% 36%;
   --t-h3line: 45% 86%;
 }
 /* dark: by the system setting, unless light was chosen with the ◐ button; or chosen with it */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0f1216; --panel: #171b21; --panel2: #1d222a; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
-  --accent: #4da3ff; --accent-soft: rgba(77,163,255,.12); --hit: #ff4fb0; --ok: #3fbf7f; --warn: #e3a33a; --err: #ff6b6b;
-  --changed: #ffb340; color-scheme: dark;
-  --t-band: 28% 17%; --t-title: 70% 80%; --t-stripe: 55% 55%; --t-adv: 14% 12.5%; --t-toggle: 45% 68%; --t-h3: 55% 72%;
-  --t-h3line: 25% 26%;
+  --bg: #0f0e17; --panel: #181724; --panel2: #201f2e; --line: #2b2940; --text: #e8e6f3; --muted: #a09db8;
+  --accent: #8c76ff; --accent-strong: #6a50ee; --accent-soft: rgba(140,118,255,.14); --hit: #ff4fb0; --ok: #4cc27a;
+  --warn: #f0b04a; --err: #ff7b6e; --changed: #ffb340; color-scheme: dark;
+  --t-band: 18% 16%; --t-title: 55% 82%; --t-stripe: 45% 58%; --t-adv: 12% 12%; --t-toggle: 40% 72%; --t-h3: 45% 74%;
+  --t-h3line: 18% 25%;
 } }
 :root[data-theme="dark"] {
-  --bg: #0f1216; --panel: #171b21; --panel2: #1d222a; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
-  --accent: #4da3ff; --accent-soft: rgba(77,163,255,.12); --hit: #ff4fb0; --ok: #3fbf7f; --warn: #e3a33a; --err: #ff6b6b;
-  --changed: #ffb340; color-scheme: dark;
-  --t-band: 28% 17%; --t-title: 70% 80%; --t-stripe: 55% 55%; --t-adv: 14% 12.5%; --t-toggle: 45% 68%; --t-h3: 55% 72%;
-  --t-h3line: 25% 26%;
+  --bg: #0f0e17; --panel: #181724; --panel2: #201f2e; --line: #2b2940; --text: #e8e6f3; --muted: #a09db8;
+  --accent: #8c76ff; --accent-strong: #6a50ee; --accent-soft: rgba(140,118,255,.14); --hit: #ff4fb0; --ok: #4cc27a;
+  --warn: #f0b04a; --err: #ff7b6e; --changed: #ffb340; color-scheme: dark;
+  --t-band: 18% 16%; --t-title: 55% 82%; --t-stripe: 45% 58%; --t-adv: 12% 12%; --t-toggle: 40% 72%; --t-h3: 45% 74%;
+  --t-h3line: 18% 25%;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
@@ -38,7 +38,7 @@ header .sp { flex: 1; }
 input, select, button, textarea { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; }
 input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
 button { cursor: pointer; } button:hover:not(:disabled) { border-color: var(--accent); } button:disabled { opacity: .45; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 7px 14px; }
+button.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; font-weight: 600; padding: 7px 14px; }
 button.small { padding: 1px 7px; font-size: 12px; }
 button.link { background: none; border: none; color: var(--accent); padding: 0; }
 main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-content: center; gap: 14px; padding: 0 16px 24px;
@@ -54,7 +54,7 @@ main { display: grid; grid-template-columns: minmax(0, 940px) 700px; justify-con
 /* side by side: the Run panel starts level with the first settings section (below the row above it) */
 @media (min-width: 1331px) { .side { margin-top: 38px; } }
 .tabs button { border-radius: 999px; padding: 5px 14px; }
-.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tabs button.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
 .tabs .note { align-self: center; margin-left: 8px; color: var(--changed); }
 .tabs .sp { flex: 1; }
 .switch { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
