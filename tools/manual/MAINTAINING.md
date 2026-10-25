@@ -14,7 +14,7 @@ piece of work.
 | `config.py` METRICS, cell table columns | regenerate `reference/metrics.md` (other values: `OTHER_VALUES` in `gen_reference.py`) |
 | `templates/dashboard/` (panels, screening pane, Apply buttons) | `guide/dashboard.md`, `guide/choosing-hits.md`, `guide/own-settings.md`, `start/first-analysis.md` (step 7) |
 | `templates/overview/` | `guide/overview.md`, `guide/screen.md` (the experiment overview) |
-| `experiment.py`, experiment folder, New sample, Re-apply to all samples | `guide/screen.md`, `guide/window.md` (Images, Run card), `guide/output-folder.md`, `reference/command-line.md` |
+| `experiment.py`, experiment folder, New sample, Re-apply all samples, the top bar (Setup, Experiment, Sample, Image) | `guide/screen.md`, `guide/window.md` (Images, Run card), `guide/output-folder.md`, `reference/command-line.md` |
 | `events.py`, `screening.py` (detection, gates, criteria) | `guide/choosing-hits.md`, `reference/analysis.md`, `guide/window.md` (Stimulation and calibration), `help/faq.md` |
 | per-image settings (`config.IMAGE_SETTINGS`, Apply to this image only) | `guide/own-settings.md` |
 | `pipeline.py` output files, run folder, `_previous_run` | `guide/output-folder.md` |
@@ -89,7 +89,7 @@ print([len(x) for x in d], [int(x.hit.sum()) for x in d], sum(int((x.hit & (x.cl
 | `dash_distribution`, `dash_scatter` | one panel each, at frame 15 |
 | `dash_cell` | the Cell card of a hit |
 | `overview.png`, `ov_images`, `ov_response`, `ov_cells`, `ov_maps`, `ov_hits` | the overview, and its panels |
-| `gui_experiment`, `gui_run_experiment`, `gui_experiment_differs` | the window with the settings of sample 3 of the example experiment: the Images card (experiment folder, sample label), the Run card (samples, Re-apply to all samples, Open experiment overview), and the warning about samples analyzed with other settings (a criterion changed in the page) |
+| `gui_experiment`, `gui_run_experiment`, `gui_experiment_differs` | the window with the settings of sample 3 of the example experiment: the Images card (experiment folder, sample label), the Run card (samples, Re-apply all samples, Experiment overview), and the warning about samples analyzed with other settings (a criterion changed in the page) |
 | `experiment.png` | the overview of the example experiment (3 samples) |
 | `logo_hippos.png` | the home page: the logo without its name, with a transparent background and floor (made once from the full logo; not by a script) |
 | `landing/` (`f00-f29.webp`, `colorbar.png`, `movie.json`), `landing_experiment.png` | the home page: the frames of the lifetime movie of a part of example_screen_1 (hits outlined from frame 12 on), played by `manual.js` with the label, colour scale and timeline as page text; and a close-up of `experiment.png`; made by `make_landing_images.py` (part of `refresh.py`) |

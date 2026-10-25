@@ -72,7 +72,7 @@ def gui_shots(page: Page, url: str, want) -> Path:
         }""")
         save(page, "gui_rgn", clip=box)
         c.locator("text=Advanced settings").first.click()
-    return Path(page.evaluate("document.querySelector('#results [data-open]').dataset.open")).parent
+    return Path(page.evaluate("document.querySelector('#results [data-open]').dataset.open"))  # the output folder
 
 
 def dashboard_shots(page: Page, base: str, out: Path, want) -> None:

@@ -731,6 +731,8 @@ def output_info(path: str, job: Job | None = None, settings: dict | None = None)
             used = json.loads((out / "settings_used.json").read_text())
             info["stage_positions_file"] = used.get("screening", {}).get("stage_positions_file")
             info["sample_label"] = used.get("input", {}).get("sample_label")
+            # what the window takes over when this run (a sample) is chosen in its top bar
+            info["input"] = {k: used.get("input", {}).get(k) for k in ("files", "series", "sample_label")}
         except (OSError, ValueError):
             info["stage_positions_file"] = None
     if settings is not None and exists:
@@ -761,10 +763,13 @@ def experiment_info(path: str, settings: dict | None = None, job: Job | None = N
     for run in run_folders(folder):
         try:
             used = json.loads((run / "settings_used.json").read_text())
-            started = read_overview_data(run / "index.html").get("started")
+            overview = read_overview_data(run / "index.html")
         except (OSError, ValueError):
             continue
-        samples.append({"name": run.name, "label": (used.get("input") or {}).get("sample_label") or "", "started": started})
+        images = overview.get("images") or []
+        samples.append({"name": run.name, "label": (used.get("input") or {}).get("sample_label") or "",
+                        "started": overview.get("started"), "images": len(images),
+                        "hits": sum(im.get("n_hits") or 0 for im in images) if overview.get("screening") else None})
         if page is not None:
             theirs = comparable_settings(used)
             keys = [k for k in dict.fromkeys([*page, *theirs])
@@ -775,7 +780,7 @@ def experiment_info(path: str, settings: dict | None = None, job: Job | None = N
 
 
 def start_reapply_experiment(job: Job, gui_settings: dict) -> int:
-    """'Re-apply to all samples' in the GUI: the event, screening and display settings of the page for every sample
+    """'Re-apply all samples' in the GUI: the event, screening and display settings of the page for every sample
     (run) in the experiment folder, which keep the own settings of their single images; then the experiment overview."""
     experiment = gui_settings["input"].get("experiment")
     if not experiment or not experiment_info(experiment)["samples"]:

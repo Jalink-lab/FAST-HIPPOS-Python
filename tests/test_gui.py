@@ -227,3 +227,14 @@ def test_folded_sections_are_kept(tmp_path, monkeypatch):
     assert '"folded": ["Screening", "Run"]' in page
     gui.save_prefs({"folded": ["</script><script>alert(1)"]})
     assert "</script><script>alert" not in gui._page("t").decode("utf-8")  # cannot break out of the data block
+
+
+def test_window_shows_the_pages_in_one_tab():
+    """The top bar (Setup, Experiment, Sample, Image) and the frames; the pages hand their links to the window."""
+    from fast_hippos.dashboard import _dashboard_template
+
+    page = gui._page("t").decode("utf-8")
+    for view in ("setup", "experiment", "sample", "image"):
+        assert f'data-view="{view}"' in page
+    assert 'id="fr-image"' in page and "window.FH_SHELL" in page
+    assert "window.parent.FH_SHELL" in _dashboard_template()

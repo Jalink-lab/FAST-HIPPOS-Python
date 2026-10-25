@@ -68,5 +68,9 @@ new ResizeObserver(() => invalidate("traces", "tracesSel", "tracesHov", "kymo", 
 matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { hitRGB = hexToRgb(css("--hit")); outlinesChanged(); invalidate(...ALL()); });
 invalidate(...ALL());
 request("O/lab"); request("O/p");
-const m0 = location.hash.match(/cell=(\d+)/);
-if (m0) { const i = C.cell.indexOf(+m0[1]); if (i >= 0) { select(i); setTimeout(() => zoomTo([i]), 200); } }
+// #cell=<n>: open with that cell selected (from the overview; inside the window also when the page is already open)
+function cellFromHash() {
+  const m = location.hash.match(/cell=(\d+)/);
+  if (m) { const i = C.cell.indexOf(+m[1]); if (i >= 0) { select(i); setTimeout(() => zoomTo([i]), 200); } }
+}
+cellFromHash(); window.addEventListener("hashchange", cellFromHash);

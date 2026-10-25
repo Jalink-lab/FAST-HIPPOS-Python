@@ -31,8 +31,9 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-header { display: flex; align-items: center; gap: 14px; padding: 10px 16px; }
-header .logo { width: 60px; height: 60px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--line); flex: none; }
+header { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; padding: 6px 16px; position: sticky; top: 0; z-index: 15;
+  background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+header .logo { width: 44px; height: 44px; border-radius: 9px; background: #fff; box-shadow: 0 0 0 1px var(--line); flex: none; }
 header h1 { margin: 0; font-size: 18px; } header .sub { color: var(--muted); }
 header .sp { flex: 1; }
 input, select, button, textarea { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; }
@@ -123,6 +124,18 @@ pre.log { margin: 0; height: 330px; overflow: auto; background: var(--panel2); b
 pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
 .results { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .muted { color: var(--muted); }
+/* the top bar: Setup | Experiment | Sample | Image; the overviews and dashboards are shown inside the window */
+.views { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.views button.v { border-radius: 999px; padding: 5px 14px; }
+.views button.v.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+.views select { max-width: 240px; padding: 4px 6px; }
+#viewPages { display: none; } body.pages #viewPages { display: block; } body.pages main, body.pages .setupOnly { display: none; }
+body.pages header { margin-bottom: 0; }
+#viewPages iframe { border: 0; width: 100%; height: calc(100vh - var(--hdr, 60px)); display: none; background: var(--bg); }
+#viewPages iframe.on { display: block; }
+.setupOnly { display: contents; }
+.sfolder .prefix { color: var(--muted); white-space: nowrap; }
+.results .grp { color: var(--muted); margin-top: 6px; }
 /*__HELP_CSS__*/
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 8px; display: none; z-index: 10; }
 </style>
@@ -130,12 +143,23 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
 <body data-help-home="guide/window">
 <header data-help-scope="guide/window">
   <img class="logo" src="__FH_LOGO__" alt="FAST-HIPPOS">
-  <div><h1>FAST-HIPPOS</h1><div class="sub">Single-cell FLIM traces and hit identification · <span id="ver"></span> · <span id="from"></span></div></div>
+  <div><h1>FAST-HIPPOS</h1><div class="sub"><span id="ver"></span> · <span id="from"></span></div></div>
+  <nav class="views" id="views" data-help-scope="guide/window#finding-your-way">
+    <button class="v on" data-view="setup" title="The settings, the checks and running the analysis">Setup</button>
+    <button class="v" data-view="experiment" hidden title="The overview of all samples of the experiment">Experiment</button>
+    <button class="v" data-view="sample" title="The overview of the run in the output folder: all its images, the hits and the .rgn files">Sample</button>
+    <select id="selSample" hidden title="The sample in the window: its images, folder and label. Choosing another one loads it (the analysis settings stay those of the window)"></select>
+    <button class="v" data-view="image" title="The dashboard of one image: cells, traces, kymograph and the screening">Image</button>
+    <select id="selImage" hidden title="The image whose dashboard is shown"></select>
+  </nav>
   <span class="sp"></span>
+  <button id="popOut" hidden title="Open this page in a browser tab of its own (e.g. to see it next to another page)">↗</button>
+  <span class="setupOnly">
   <button id="bNewSample" hidden title="Start the next sample of the experiment: keeps all settings, empties the Images list, the output folder, the sample label and the own settings of single images. Adding images then proposes the output folder <experiment folder>\<image name>.">＋ New sample</button>
   <button id="bOpen" data-help-scope="guide/window#settings-files" title="Load settings from a .toml file (e.g. fast_hippos_settings.toml from an output folder)">Open settings…</button>
   <button id="bSave" data-help-scope="guide/window#settings-files" title="Save the settings as a .toml file">Save settings…</button>
   <button id="bReset" title="All settings back to the defaults">Defaults</button>
+  </span>
   <button id="helpBtn" title="The manual of this window. ? or F1 over a section: the part about that section">? Help</button>
   <button id="bTheme" title="Light / dark">◐</button>
   <button id="bQuit" title="Stop FAST-HIPPOS (a running analysis is stopped too)">Quit</button>
@@ -154,7 +178,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
       <div class="runbtns">
         <button class="primary" id="bRun" title="Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.">▶ Run analysis</button>
         <button id="bReapply" title="Redo event detection, screening and dashboards on the saved output in the output folder, without segmentation (seconds instead of minutes)">↻ Re-apply screening</button>
-        <button id="bReapplyAll" hidden title="">↻ Re-apply to all samples</button>
+        <button id="bReapplyAll" hidden title="">↻ Re-apply all samples</button>
         <button id="bStop" disabled title="Stop the running analysis. Results of images that were already finished are kept.">■ Stop</button>
       </div>
       <div><span class="state" id="state">Ready</span> <span class="muted" id="stateInfo"></span></div>
@@ -164,6 +188,7 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
     </div></div>
   </aside>
 </main>
+<div id="viewPages"><iframe id="fr-experiment" title="Experiment overview"></iframe><iframe id="fr-sample" title="Overview of the run"></iframe><iframe id="fr-image" title="Dashboard"></iframe></div>
 <div id="toast"></div>
 <script id="fh-prefs" type="application/json">__FH_PREFS__</script>
 <script id="fh-help" type="application/json">__FH_HELP__</script>
@@ -276,6 +301,9 @@ function cpStatus() {
 // ---------------------------------------------------------------- widgets
 function widget(f) {
   const v = get(f.key), id = "f_" + f.key.replace(".", "_");
+  // the sample folder as <experiment folder> \ name (a folder elsewhere is shown in full, with a warning in the Run card)
+  if (f.key === "input.output" && S.input.experiment && (!v || samePath(parentPath(v), S.input.experiment)))
+    return `<div class="row sfolder"><span class="prefix" title="${esc(S.input.experiment)}">${esc(baseName(S.input.experiment))} \\</span><input id="${id}" type="text" data-samplename value="${esc(v ? baseName(v) : "")}" placeholder="proposed when you add the images"><button class="small" data-browse="${f.key}" data-kind="folder" title="Choose another folder with a file dialog">Browse…</button></div>`;
   const num = (step) => `<input id="${id}" type="number" step="${step}" value="${v ?? ""}" placeholder="${esc(f.placeholder || (f.optional ? "—" : ""))}" data-num="${step === "1" ? "int" : "float"}">`;
   switch (f.kind) {
     case "bool": return `<input id="${id}" type="checkbox" ${v ? "checked" : ""}>`;
@@ -339,7 +367,9 @@ function fieldHTML(f) {
 function fieldHTMLRaw(f) {
   const wide = f.wide || ["files", "criteria", "model"].includes(f.kind) || ["file", "python", "folder"].includes(f.kind);
   const cls = ["field", f.kind === "bool" ? "check" : "", wide ? "wide" : "", isChanged(f) && f.level !== "basic" ? "changed" : ""].join(" ");
-  const label = `<label for="f_${f.key.replace(".", "_")}">${esc(f.label)}</label>`;
+  const sampleFolder = f.key === "input.output" && S.input.experiment;  // in an experiment: the folder of this sample
+  const label = `<label for="f_${f.key.replace(".", "_")}">${esc(sampleFolder ? "Sample folder" : f.label)}</label>`;
+  if (sampleFolder) f = { ...f, help: "One folder per sample, inside the experiment folder; proposed from the name of the first image" };
   // hover text: the fuller explanation, and the name of the setting in settings files
   const tip = esc((f.tip || f.help || "") + "\n\nSetting: " + f.key).replace(/\n/g, "&#10;");
   const hint = hintFor(f);
@@ -374,7 +404,9 @@ function render() {
   const active = document.activeElement?.id;
   let html = "", hidden = 0;
   for (const card of SCHEMA.layout) {
-    const basic = card.basic.map(k => FIELD[k]).filter(f => shown(f.show));
+    const first = ["input.experiment", "input.output", "input.sample_label", "input.files"];
+    const keys = card.title === "Images" && S.input.experiment ? [...first, ...card.basic.filter(k => !first.includes(k))] : card.basic;
+    const basic = keys.map(k => FIELD[k]).filter(f => shown(f.show));
     // a group's rows ("|" starts a new one), each with the fields that are shown
     const rowsOf = (keys) => keys.join(" ").split("|").map(r => r.trim().split(/\s+/).filter(Boolean).map(k => FIELD[k]).filter(f => shown(f.show))).filter(r => r.length);
     const subs = card.advanced.filter(a => shown(a.show)).map(a => { const rows = rowsOf(a.keys); return { title: a.title, column: a.column, rows, fs: rows.flat() }; }).filter(a => a.fs.length);
@@ -427,15 +459,14 @@ function runDiffersFromList(o) {  // did that run analyze other files than those
 // buttons for the results in the output folder (of this run or an earlier one)
 function renderResults() {
   const o = outputState(), el = $("results");
-  const xs = experimentState(), expBtn = xs && xs.index ? `<button class="primary" data-open="${esc(S.input.experiment.replace(/[\\/]$/, "") + (S.input.experiment.includes("\\") ? "\\" : "/") + "index.html")}" title="Overview of all samples of the experiment: the images of all runs in the experiment folder together">Open experiment overview</button>` : "";
-  if (JOB.state === "running" || !o || !o.images.length) { el.innerHTML = JOB.state !== "running" && expBtn ? `<div class="muted">The experiment:</div>${expBtn}` : ""; return; }
-  const sep = S.input.output.includes("\\") ? "\\" : "/", base = S.input.output.replace(/[\\/]$/, "") + sep;
+  const xs = experimentState(), expBtn = xs && xs.index ? `<div class="grp">The experiment:</div><button class="primary" data-go="experiment" title="Overview of all samples of the experiment: the images of all runs in the experiment folder together">Experiment overview</button>` : "";
+  renderNav();
+  if (JOB.state === "running" || !o || !o.images.length) { el.innerHTML = JOB.state !== "running" ? expBtn : ""; return; }
   const links = [];
-  if (o.index) links.push(`<button class="primary" data-open="${esc(base + "index.html")}" title="Overview of the run in the browser: all images, the hits and links to the dashboards">Open overview</button>`);
-  for (const d of o.images) links.push(`<button data-open="${esc(base + d + sep + "dashboard.html")}" title="Interactive dashboard of this image: cells, traces, kymograph and hits">Dashboard: ${esc(d)}</button>`);
-  links.push(`<button data-open="${esc(S.input.output)}" title="Open the output folder in the file explorer">Open output folder</button>`);
-  if (expBtn) links.push(expBtn);
-  el.innerHTML = `<div class="muted">Results in the output folder${JOB.state === "done" ? "" : " (earlier run)"}:</div>` + links.join("");
+  if (o.index) links.push(`<button class="primary" data-go="sample" title="Overview of the run: all images, the hits and the .rgn files">${S.input.experiment ? "Overview of this sample" : "Overview"}</button>`);
+  for (const d of o.images) links.push(`<button data-go="image" data-image="${esc(d)}" title="Interactive dashboard of this image: cells, traces, kymograph and hits">Dashboard: ${esc(d)}</button>`);
+  links.push(`<button data-open="${esc(S.input.output)}" title="Open the folder in the file explorer">Open ${S.input.experiment ? "sample" : "output"} folder</button>`);
+  el.innerHTML = `<div class="grp">${S.input.experiment ? "This sample" : "Results in the output folder"}${JOB.state === "done" ? "" : " (earlier run)"}:</div>` + links.join("") + expBtn;
 }
 // the samples (runs) in the experiment folder, and which were analyzed with other settings than this window
 const EXPS = {};
@@ -480,10 +511,10 @@ function checks() {
   const out = [], ff = fileFacts(), add = (level, msg, input = false) => out.push([level, msg, input]);
   serverCheck();
   SRV.problems.forEach(m => add("err", m, true));  // images, channels, frames, files
-  if (!S.input.output) add("err", S.input.experiment ? "Choose an output folder: add the images of the sample, and it is proposed" : "Choose an output folder", true);
+  if (!S.input.output) add("err", S.input.experiment ? "Add the images of the sample: its folder is then proposed" : "Choose an output folder", true);
   const o = outputState(), imgs = runImages(o);
   if (imgs.length) {
-    add("info", `The output folder holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
+    add("info", `${S.input.experiment ? "The sample folder" : "The output folder"} holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
       + "Run analysis replaces it; Re-apply screening redoes the screening of these images.");
     if (imageSettingsDiffer(o)) add("warn", `The run in the output folder has other own settings for ${differingImages(o).join(", ")} `
       + "than this window: Re-apply screening uses the ones listed under Stimulation and calibration");
@@ -513,7 +544,7 @@ function checks() {
       if (diff.length) add("warn", (all ? `All ${plural(diff.length, "sample")} of the experiment were analyzed with other settings than this window: ${Object.keys(groups)[0]}`
         : `${plural(diff.length, "sample")} of the experiment ${diff.length === 1 ? "was" : "were"} analyzed with other settings than this window: `
           + Object.entries(groups).map(([g, ns]) => `${ns.join(", ")} (${g})`).join("; "))
-        + ". Re-apply to all samples makes their stimulation, screening and display settings the same; other settings only change with a new run of that sample");
+        + ". Re-apply all samples makes their stimulation, screening and display settings the same; other settings only change with a new run of that sample");
     }
   }
   if (S.segmentation.method === "cellpose") {
@@ -542,7 +573,8 @@ function renderChecks() {
   $("bRun").disabled = blocked || wait; $("bReapply").disabled = blockedReapply || !imgs.length || wait;
   $("bRun").title = wait ? "Wait: the output folder is being read and the images are being checked"
     : "Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.";
-  $("bReapply").textContent = imgs.length ? `↻ Re-apply screening (${plural(imgs.length, "image")})` : "↻ Re-apply screening";
+  const what = S.input.experiment ? "↻ Re-apply this sample" : "↻ Re-apply screening";
+  $("bReapply").textContent = imgs.length ? `${what} (${plural(imgs.length, "image")})` : what;
   $("bReapply").title = imgs.length ? `Redo stimulation detection, screening and dashboards for the ${plural(imgs.length, "image")} of the run in the `
     + `output folder (${imgs.map(i => i.name).join(", ")}), with the stimulation, screening and display settings of this window. `
     + "Segmentation and traces of that run are kept (seconds instead of minutes). Dashboard size and tiles "
@@ -551,8 +583,9 @@ function renderChecks() {
   if (wait) $("bReapply").title = "Wait: the output folder is being read";
   const x = S.input.experiment ? experimentState() : null, n = x ? x.samples.length : 0;
   $("bNewSample").hidden = !S.input.experiment;
+  renderNav();
   $("bReapplyAll").hidden = !n; $("bReapplyAll").disabled = blockedReapply || !n;
-  $("bReapplyAll").textContent = `↻ Re-apply to all samples (${n})`;
+  $("bReapplyAll").textContent = `↻ Re-apply all samples (${n})`;
   $("bReapplyAll").title = n ? `Redo stimulation detection, screening and dashboards for every sample of the experiment (${x.samples.map(s => s.name).join(", ")}), `
     + "with the stimulation, screening and display settings of this window; each sample keeps its own segmentation and traces, "
     + "and the own settings of its single images. Then the experiment overview is updated once." : "";
@@ -562,6 +595,9 @@ function renderChecks() {
 function readInput(el) {
   const fieldEl = el.closest("[data-key]"); if (!fieldEl) return;
   const f = FIELD[fieldEl.dataset.key];
+  if (el.dataset.samplename !== undefined) {  // the name of the sample folder, inside the experiment folder
+    const n = el.value.trim().replace(/[\\/:*?"<>|]/g, ""); set("input.output", n ? joinP(S.input.experiment, n) : ""); return;
+  }
   let v;
   if (f.kind === "bool") v = el.checked;
   else if (f.kind === "boolselect") v = el.value === "true";
@@ -731,11 +767,12 @@ async function start(reapply) {
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 }
 $("bRun").onclick = () => start(false);
-$("bNewSample").onclick = () => {
+function newSample() {
   S.input.files = []; S.input.series = null; S.input.output = ""; S.input.sample_label = null; S.image = {};
-  S.screening.manual_hits = null; render();
+  S.screening.manual_hits = null; show("setup"); render();
   toast("New sample: add its images; the output folder becomes the experiment folder\\<image name>. All other settings are kept.", 5000);
-};
+}
+$("bNewSample").onclick = newSample;
 $("bReapplyAll").onclick = async () => {
   let x; try { x = await api("experiment", { path: S.input.experiment, settings: S }); } catch (e) { toast(e.message, 6000); return; }
   if (!x.samples.length) { toast("No samples (runs) in the experiment folder", 5000); return; }
@@ -752,6 +789,143 @@ $("bReapplyAll").onclick = async () => {
 };
 $("bReapply").onclick = () => start(true);
 $("bStop").onclick = () => api("stop");
+// ---------------------------------------------------------------- one tab: the top bar and the pages inside the window
+// Setup is this page. Experiment, Sample (the overview of the run) and Image (a dashboard) show the pages in the
+// output folders in a frame, served by FAST-HIPPOS (the files themselves stay pages of their own). Links between those
+// pages stay in the window (templates/common/base.js: SHELL -> FH_SHELL.open). Choosing a sample in the top bar loads
+// it into the window: its images, folder, label and the own settings of its images; the analysis settings stay.
+const VIEW = { cur: "setup", image: "", want: null };
+const normP = (p) => String(p || "").replace(/\\/g, "/").replace(/\/+$/, "");
+const joinP = (a, b) => { const sp = String(a).includes("\\") ? "\\" : "/"; return String(a).replace(/[\\/]+$/, "") + sp + b; };
+const baseName = (p) => normP(p).split("/").pop();
+const pageURL = (path) => "/files/" + normP(path).split("/").map(encodeURIComponent).join("/");
+const FRAMES = ["experiment", "sample", "image"];
+const sameName = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+function viewTargets() {  // the page each view shows now (null: nothing to show)
+  if (!S) return {};
+  const o = outputState(), x = S.input.experiment ? experimentState() : null, imgs = (S.input.output && o && o.images) || [];
+  if (!imgs.includes(VIEW.image)) VIEW.image = imgs[0] || "";
+  return {
+    experiment: x && x.index ? joinP(S.input.experiment, "index.html") : null,
+    sample: S.input.output && o && o.index ? joinP(S.input.output, "index.html") : null,
+    image: VIEW.image ? joinP(joinP(S.input.output, VIEW.image), "dashboard.html") : null,
+  };
+}
+function renderNav() {
+  if (!S) return;
+  const t = viewTargets(), exp = !!S.input.experiment, x = exp ? experimentState() : null, o = outputState();
+  const btn = (v) => document.querySelector(`#views [data-view="${v}"]`);
+  btn("experiment").hidden = !exp; btn("experiment").disabled = !t.experiment;
+  btn("sample").textContent = exp ? "Sample" : "Overview"; btn("sample").disabled = !t.sample;
+  btn("image").disabled = !t.image;
+  const sel = $("selSample"); sel.hidden = !exp;
+  if (exp) {  // the samples, with their hits; the sample in the window may not have run yet
+    const samples = (x && x.samples) || [], cur = S.input.output ? baseName(S.input.output) : "";
+    const known = samples.find(s => sameName(s.name, cur));
+    const inside = S.input.output && samePath(parentPath(S.input.output), S.input.experiment);
+    const opts = samples.map(s => `<option value="${esc(s.name)}">${esc(s.name)}${s.label ? " · " + esc(s.label) : ""}${s.hits != null ? ` · ${plural(s.hits, "hit")}` : ""}</option>`);
+    if (!known) opts.unshift(`<option value="">${inside ? esc(cur) + " (not analyzed yet)" : S.input.output ? "(folder outside the experiment)" : "(new sample)"}</option>`);
+    opts.push(`<option value="__new">＋ New sample</option>`);
+    const html = opts.join(""); if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
+    sel.value = known ? known.name : "";
+  }
+  const isel = $("selImage"), imgs = (S.input.output && o && o.images) || [];
+  const ih = imgs.map(n => `<option>${esc(n)}</option>`).join(""); if (isel.dataset.html !== ih) { isel.innerHTML = ih; isel.dataset.html = ih; }
+  isel.hidden = imgs.length < 2; isel.value = VIEW.image;
+  if (VIEW.want && t[VIEW.want.view]) { const w = VIEW.want; VIEW.want = null; show(w.view, w); }
+  else if (VIEW.cur !== "setup" && !t[VIEW.cur] && o !== null && (!exp || x !== null)) show("setup");
+}
+function show(view, opts = {}) {
+  if (view === "image" && opts.image) VIEW.image = opts.image;
+  const target = view === "setup" ? null : viewTargets()[view];
+  if (view !== "setup" && !target) return;
+  VIEW.cur = view;
+  document.querySelectorAll("#views [data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  document.body.classList.toggle("pages", view !== "setup");
+  document.documentElement.style.setProperty("--hdr", document.querySelector("header").offsetHeight + "px");
+  for (const v of FRAMES) {
+    const fr = $("fr-" + v); fr.classList.toggle("on", v === view);
+    if (v !== view) continue;
+    const url = pageURL(target) + (opts.hash || "");
+    if (fr.dataset.url !== url) {  // replace(): no entries in the browser history for the frame
+      if (fr.dataset.url) fr.contentWindow.location.replace(url); else fr.src = url;
+      fr.dataset.url = url;
+    }
+  }
+  $("popOut").hidden = view === "setup";
+  document.title = view === "setup" ? "FAST-HIPPOS" : `${view === "image" ? VIEW.image : baseName(view === "experiment" ? S.input.experiment : S.input.output)} · FAST-HIPPOS`;
+  const hash = "#" + view + (view === "image" ? "/" + encodeURIComponent(VIEW.image) : "");
+  if (!opts.fromHistory && location.hash !== hash) history.pushState({ view, image: VIEW.image }, "", hash);
+}
+addEventListener("popstate", (e) => { const st = e.state || { view: "setup" }; show(st.view, { image: st.image, fromHistory: true }); });
+addEventListener("resize", () => document.documentElement.style.setProperty("--hdr", document.querySelector("header").offsetHeight + "px"));
+document.querySelectorAll("#views [data-view]").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+$("selImage").onchange = (e) => show("image", { image: e.target.value });
+$("selSample").onchange = async (e) => {
+  const v = e.target.value;
+  if (v === "__new") { newSample(); renderNav(); return; }
+  if (v && await switchSample(v) && VIEW.cur !== "setup") VIEW.want = { view: VIEW.cur === "experiment" ? "sample" : VIEW.cur };
+  renderNav();
+};
+$("popOut").onclick = () => { const fr = $("fr-" + VIEW.cur); if (fr.dataset.url) window.open(fr.dataset.url, "_blank"); };
+// load a sample of the experiment into the window (asks first when the images in the window were not analyzed yet)
+async function switchSample(name) {
+  const out = joinP(S.input.experiment, name);
+  if (samePath(out, S.input.output)) return true;
+  let o; try { o = await api("output", { path: out }); OUT[out] = o; } catch (e) { toast(e.message, 5000); return false; }
+  if (!o.run) { toast(`${name} holds no analyzed sample`, 4000); return false; }
+  const cur = outputState();
+  if ((S.input.files || []).length && cur !== null && !(cur && cur.run)
+      && !confirm(`The images of the sample in the window (${S.input.files.map(baseName).join(", ")}) are not analyzed yet.\n\n`
+        + `Switch to sample ${name} anyway? Its images then replace them in the Images list.`)) return false;
+  const inp = o.run.input || {};
+  S.input.output = out; S.input.files = inp.files || o.run.inputs || []; S.input.series = inp.series ?? null;
+  S.input.sample_label = inp.sample_label ?? null; S.image = structuredClone(o.run.image_settings || {});
+  inspect(S.input.files); render(); api("remember", { settings: S }).catch(() => {});
+  toast(`Sample ${name}: its images, folder and label are now in the window (the analysis settings stay)`, 4500);
+  return true;
+}
+// called by the pages in the frames (common/base.js) for a link to another overview or dashboard
+window.FH_SHELL = {
+  open(href) {
+    const u = new URL(href, location.href);
+    if (u.origin !== location.origin || !u.pathname.startsWith("/files/")) { window.open(u.href, "_blank"); return; }
+    const path = decodeURIComponent(u.pathname.slice(7)), name = baseName(path).toLowerCase(), dir = parentPath(path);
+    if (name === "dashboard.html") { goRun(parentPath(dir), { view: "image", image: baseName(dir), hash: u.hash }, u.href); return; }
+    if (name === "index.html" && S.input.experiment && samePath(dir, S.input.experiment)) { show("experiment"); return; }
+    if (name === "index.html") { goRun(dir, { view: "sample" }, u.href); return; }
+    window.open(u.href, "_blank");
+  },
+};
+async function goRun(run, want, href) {
+  if (!samePath(run, S.input.output)) {
+    if (!(S.input.experiment && samePath(parentPath(run), S.input.experiment))) { window.open(href, "_blank"); return; }
+    if (!(await switchSample(baseName(run)))) return;
+  }
+  VIEW.want = want; renderNav();
+}
+// the pages follow the light / dark of the window; the help button and ? / F1 open the help of the page shown
+const shellTheme = () => document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+function syncTheme(fr) {
+  try {
+    const d = fr.contentDocument, w = fr.contentWindow; if (!d || !d.getElementById("theme")) return;
+    const cur = d.documentElement.dataset.theme || (w.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    if (cur !== shellTheme()) d.getElementById("theme").click();
+  } catch { /* not loaded */ }
+}
+FRAMES.forEach(v => $("fr-" + v).addEventListener("load", () => syncTheme($("fr-" + v))));
+$("bTheme").addEventListener("click", () => FRAMES.forEach(v => syncTheme($("fr-" + v))));
+function frameHelp() {
+  try { const w = $("fr-" + VIEW.cur).contentWindow; w.FH_HELP.open(w.document.body.dataset.helpHome); return true; } catch { return false; }
+}
+document.addEventListener("click", (e) => {
+  if (VIEW.cur !== "setup" && e.target.closest && e.target.closest("#helpBtn") && frameHelp()) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+addEventListener("keydown", (e) => {
+  if (VIEW.cur !== "setup" && (e.key === "F1" || (e.key === "?" && !e.target.closest("input, select, textarea"))) && frameHelp()) {
+    e.preventDefault(); e.stopImmediatePropagation();
+  }
+}, true);
 // One window: a page cannot bring another tab to the front, so a newer tab (a second start of FAST-HIPPOS opens one,
 // already in front) takes over and this one closes itself. Browsers that refuse to close it get a note instead.
 let REPLACED = false;
@@ -799,7 +973,10 @@ async function poll() {
   if (changedState) { delete OUT[S.input.output || ""]; for (const k in EXPS) delete EXPS[k]; renderChecks(); renderResults(); }  // re-check for results
   setTimeout(poll, st.state === "running" ? 700 : 2000);
 }
-$("results").addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) api("open", { path: b.dataset.open }).catch(err => toast(err.message)); });
+$("results").addEventListener("click", (e) => {
+  const g = e.target.closest("[data-go]"); if (g) { show(g.dataset.go, { image: g.dataset.image }); return; }
+  const b = e.target.closest("[data-open]"); if (b) api("open", { path: b.dataset.open }).catch(err => toast(err.message));
+});
 
 // images with their own settings (Settings.image): set in an image's dashboard with 'Apply to this image only'
 const OWN_LABELS = { stimulation_frame: "stimulation", calibration_frame: "calibration", baseline_only: "baseline only", no_calibration: "no calibration", sensitivity: "detection threshold",
@@ -847,6 +1024,9 @@ function setSettings(s) {
   $("ver").textContent = "version " + SCHEMA.version;
   $("from").textContent = init.from ? "last used settings" : "default settings";
   setSettings(init.settings);
+  const h = location.hash.slice(1).split("/");  // a view in the address (#sample, #image/<name>), e.g. after a reload
+  history.replaceState({ view: "setup" }, "", location.pathname);
+  if (FRAMES.includes(h[0])) VIEW.want = { view: h[0], image: h[1] ? decodeURIComponent(h[1]) : "" };
   const st = await api("status"); JOB = { n: 0, state: st.state, run_id: st.run_id };
   poll();
 })();

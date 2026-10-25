@@ -1,6 +1,20 @@
 // ---------------------------------------------------------------- shared by the dashboard and the run Overview
 // Helpers that do not depend on the data of a page (templates/common, loaded before the page's own scripts).
 const $ = (id) => document.getElementById(id);
+// Inside the FAST-HIPPOS window (gui.html shows this page in a frame, with its own top bar): links to other pages
+// (overviews, dashboards) open in the window, not in new tabs; Ctrl+click still opens a new tab.
+const SHELL = (() => { try { return (window.parent !== window && window.parent.FH_SHELL) || null; } catch { return null; } })();
+if (SHELL) {
+  document.documentElement.classList.add("embedded");
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a[href]");
+    if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const u = new URL(a.getAttribute("href"), location.href);
+    if (!/\.html$/i.test(u.pathname)) return;
+    e.preventDefault(); e.stopPropagation(); SHELL.open(u.href);
+  }, true);
+}
+function openPage(href) { const u = new URL(href, location.href).href; if (SHELL) SHELL.open(u); else window.open(u, "_blank"); }
 function b64bytes(s) { const b = atob(s); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
 function b64f32(s) { return s ? new Float32Array(b64bytes(s).buffer) : null; }
 function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }

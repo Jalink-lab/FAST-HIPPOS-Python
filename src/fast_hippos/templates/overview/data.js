@@ -44,5 +44,5 @@ function showTip(html, ev) {
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // a relative path as a link (folder names may hold '#', '%' or spaces)
 const encPath = (p) => String(p).split("/").map(encodeURIComponent).join("/");
-function openCell(im, cell) { if (im.href) window.open(`${encPath(im.href)}#cell=${cell}`, "_blank"); }
+function openCell(im, cell) { if (im.href) openPage(`${encPath(im.href)}#cell=${cell}`); }
 function setHover(k) { if (k === S.hover) return; S.hover = k; invalidate("tableHov", "resp", "metric", "maps"); }

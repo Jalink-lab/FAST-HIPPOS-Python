@@ -21,7 +21,7 @@ from .overview import QC, _flags, _level, summary_table
 log = logging.getLogger(__name__)
 
 SUMMARY_FILE = "experiment_summary.tsv"
-LOG_FILE = "experiment_log.txt"  # of the last "Re-apply to all samples"
+LOG_FILE = "experiment_log.txt"  # of the last "Re-apply all samples"
 
 # settings that make no difference to how comparable the samples are (paths, output, display, .rgn files, ...)
 NOT_COMPARED = {
@@ -181,12 +181,12 @@ def build_experiment_data(experiment: Path, failed: list[str] | None = None) -> 
         fixed_only = any(d["setting"].split(".")[0] not in REAPPLY_SECTIONS for d in diffs)
         notes.insert(0, "The samples were not all analyzed with the same settings, so their results are not fully "
                         "comparable: " + " | ".join(describe_differences(diffs)) + "."
-                        + (" 'Re-apply to all samples' in the FAST-HIPPOS window makes the stimulation, screening and "
+                        + (" 'Re-apply all samples' in the FAST-HIPPOS window makes the stimulation, screening and "
                            "display settings the same." if fixable else "")
                         + (" Other settings (segmentation, traces, image type, …) only change by running those samples "
                            "again." if fixed_only else ""))
     if failed:
-        notes.insert(0, f"Not re-applied (the last 'Re-apply to all samples' failed for them; they keep their earlier "
+        notes.insert(0, f"Not re-applied (the last 'Re-apply all samples' failed for them; they keep their earlier "
                         f"results): {', '.join(failed)}. See experiment_log.txt.")
     units = {i.get("unit") for i in images if i.get("unit")}
     if len(units) > 1:

@@ -14,6 +14,20 @@ settings, starts the analysis, shows its progress and opens the results.
 
 ## Finding your way
 
+**Everything in one tab.** The bar at the top switches between the pages of FAST-HIPPOS, all in this browser tab:
+
+- **Setup**: the settings and the Run card (this page);
+- **Experiment**: the [overview of all samples](screen.md#the-experiment-overview), with an experiment folder;
+- **Overview** (**Sample** with an experiment folder): the [overview of the run](overview.md) in the output folder;
+  with an experiment folder, the menu next to it shows the samples with their hits and loads another sample into
+  the window (its images, folder, label and the settings of its single images; the analysis settings stay), or
+  starts a **＋ New sample**;
+- **Image**: the [dashboard](dashboard.md) of one image (the menu next to it chooses the image).
+
+Links in the overviews (an image, a cell, a sample) open the page in the window, and the browser's back button goes
+back. ↗ opens the page shown in a tab of its own, for instance to see two pages side by side; ++ctrl++ + click on a
+link does the same. The pages themselves stay single files in the output folders, which open in any browser.
+
 **Hover over anything.** Every setting has a hover text that explains what it does and when to change it. The same
 texts are collected in [All settings](../reference/settings.md).
 
@@ -52,8 +66,10 @@ together.
   stage positions.
 - **Experiment folder** (optional): for a screen with one run per sample, the folder that holds the output folders
   of all samples, and their joint overview. Empty for a single run. See [A screen of several samples](screen.md).
-- **Output folder**: one folder per run. See [the output folder](output-folder.md). With an experiment folder, a
-  folder inside it, named after the first image.
+- **Output folder**: one folder per run. See [the output folder](output-folder.md). With an experiment folder it is
+  the **Sample folder**, shown as *experiment folder* \ *name*: a folder inside the experiment folder, named after
+  the first image (type another name to change it). The card then starts with the experiment folder, the sample
+  folder and the sample label.
 - **Sample label** (with an experiment folder): a short description of the sample, shown in the experiment overview.
 - **Image type**: what the pixel values mean, and so how the value per cell is computed: two-component TCSPC fits
   (with τ₁ and τ₂), Fast FLIM, TauContrast, frequency-domain FLIM, ratio imaging, or intensity only.
@@ -118,19 +134,20 @@ files, the output folder already holds results, Cellpose will run without GPU.
 **▶ Run analysis** analyzes all images: segmentation, traces, stimulation detection, screening, dashboards. If the
 output folder already holds a run, FAST-HIPPOS first tells you exactly which results will be replaced.
 
-**↻ Re-apply screening** redoes only the part after the segmentation and the traces (stimulation detection,
+**↻ Re-apply screening** (*Re-apply this sample* with an experiment folder) redoes only the part after the segmentation and the traces (stimulation detection,
 screening, hit lists, `.rgn` files, dashboards) for the images of the run in the output folder, with the current
 settings. It takes seconds instead of minutes. Use it after changing screening settings.
 
 **■ Stop** stops a running analysis; the results of the previous run are then kept.
 
 With an [experiment folder](screen.md), the card also lists the samples of the experiment and warns when some were
-analyzed with other settings than those in the window. **↻ Re-apply to all samples** then re-applies the settings of
-the window to every sample, and **＋ New sample** (top right of the window) starts the next sample with the same
-settings.
+analyzed with other settings than those in the window. **↻ Re-apply all samples** then re-applies the settings of
+the window to every sample, and **＋ New sample** (top right, and in the sample menu of the top bar) starts the next
+sample with the same settings.
 
-The **log** shows the progress. When the run is done, the buttons below it open the overview, the dashboard of each
-image, and the output folder, and with an experiment folder also the experiment overview.
+The **log** shows the progress. When the run is done, the buttons below it open the overview and the dashboard of each
+image in the window (as the top bar does), and the output folder in the file explorer; with an experiment folder
+also the experiment overview.
 
 ## Settings files
 

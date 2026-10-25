@@ -99,3 +99,4 @@ const HELP = (() => {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
   return { open, close, buttons };
 })();
+window.FH_HELP = HELP;  // for the FAST-HIPPOS window, which shows this page in a frame

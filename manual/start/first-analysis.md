@@ -135,9 +135,10 @@ The log shows what happens per image: the number of cells, the frames where the 
 found, the number of hits. With a GPU this takes about a minute for the three images. The very first time, Cellpose
 first downloads its model (internet needed), which adds a minute.
 
-When it is done, the buttons under *Results in the output folder* open the results:
+When it is done, the buttons under *Results in the output folder* (or **Overview** and **Image** in the bar at the
+top) open the results in the window:
 
-- **Open overview**: all images of the run together, see [the run overview](../guide/overview.md).
+- **Overview**: all images of the run together, see [the run overview](../guide/overview.md).
 - **Dashboard: example_screen_1** etc.: one image in detail, see [the dashboard](../guide/dashboard.md).
 
 ## 7. Look at the results

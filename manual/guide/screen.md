@@ -11,21 +11,28 @@ per sample inside it. The experiment folder gets an overview of all samples, whi
 ## Setting it up
 
 1. In the *Images* card, choose an **Experiment folder** (e.g. `D:\screens\ADRB2 screen`). It may be empty.
-2. Add the images of the first sample. The output folder becomes `<experiment folder>\<image name>` (with a number
-   added when a sample of that name exists already); you can change it. Give the sample a **Sample label** if you
+2. Add the images of the first sample. Its **Sample folder** becomes `<experiment folder>\<image name>` (with a
+   number added when a sample of that name exists already); type another name to change it. Give the sample a **Sample label** if you
    like: its condition, plate or library part. The label shows in the experiment overview.
 3. **▶ Run analysis**. When the run is done, the `.rgn` files of this sample are in its output folder; see
    [Back to the microscope](microscope.md).
-4. For the next sample, click **＋ New sample** (top right of the window). This keeps all settings, but empties the
-   image list, the output folder, the sample label, the [settings of single images](own-settings.md) and a file of
-   hand-picked hits. Add the images of the next sample, and the output folder is set for you again. Run.
+4. For the next sample, click **＋ New sample** (top right of the window, or in the sample menu of the top bar).
+   This keeps all settings, but empties the image list, the sample folder, the sample label, the
+   [settings of single images](own-settings.md) and a file of hand-picked hits. Add the images of the next sample,
+   and the sample folder is set for you again. Run.
+
+The bar at the top of the window shows where you are: **Experiment** (all samples), **Sample** (one sample, with a
+menu of all samples and their hits) and **Image** (a dashboard). Choosing another sample in the menu, or clicking a
+sample in the experiment overview, loads it into the window: its images, folder, label and the settings of its single
+images; the analysis settings stay those of the window. When the images in the window were not analyzed yet,
+FAST-HIPPOS asks first.
 
 <figure markdown>
 ![The Images card with an experiment folder](../images/gui_experiment.png){ .shot width="560" }
 </figure>
 
 Every run (and every re-apply) of a sample updates the overview of the experiment: `index.html` in the experiment
-folder. *Open experiment overview* in the Run card opens it.
+folder. **Experiment** in the bar at the top shows it.
 
 ```text
 ADRB2 screen\                  ← the experiment folder
@@ -89,7 +96,7 @@ display settings (except *Time smoothing*), the `.rgn` settings (file size, rout
 hand-picked hits, and the [settings of single images](own-settings.md), which are deliberate differences. When the
 hit criteria differ, the *Cells* panel draws no threshold lines.
 
-**↻ Re-apply to all samples** (in the Run card) makes them the same: it re-applies the stimulation, screening and
+**↻ Re-apply all samples** (in the Run card) makes them the same: it re-applies the stimulation, screening and
 display settings of the window to every sample, one after the other, and then updates the experiment overview once.
 Each sample keeps its own segmentation and traces, its sample label, its hand-picked hits and the settings of its
 single images; a sample of another image type (e.g. ratio data among lifetime samples) also keeps its quality

@@ -36,7 +36,7 @@ The `.tsv` files are tab-separated tables: open them in Excel, or in Python or R
 
 In a [screen of several samples](screen.md) every sample has an output folder like this one, inside the experiment
 folder, which adds `index.html` (the overview of all samples), `experiment_summary.tsv` (its images table, with
-the sample and its label) and, after *Re-apply to all samples*, `experiment_log.txt`.
+the sample and its label) and, after *Re-apply all samples*, `experiment_log.txt`.
 
 !!! tip "Sharing"
     The overview and the dashboards work without FAST-HIPPOS. To share the results, copy the whole output folder
