@@ -515,7 +515,7 @@ function checks() {
   const o = outputState(), imgs = runImages(o);
   if (imgs.length) {
     add("info", `${S.input.experiment ? "The sample folder" : "The output folder"} holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
-      + "Run analysis replaces it; Re-apply screening redoes the screening of these images.");
+      + `Run analysis replaces it; ${S.input.experiment ? "Re-apply this sample" : "Re-apply screening"} redoes the screening of these images.`);
     if (imageSettingsDiffer(o)) add("warn", `The run in the output folder has other own settings for ${differingImages(o).join(", ")} `
       + "than this window: Re-apply screening uses the ones listed under Stimulation and calibration");
     const normPath = (p) => p ? String(p).replace(/\\/g, "/").toLowerCase() : "";
@@ -535,7 +535,7 @@ function checks() {
     if (x && x.samples.length) {
       const others = x.samples.filter(s => !samePath(S.input.experiment.replace(/[\\/]+$/, "") + "/" + s.name, S.input.output)).length;
       add("info", `The experiment folder holds ${plural(x.samples.length, "sample")}: ${x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")).join(", ")}`
-        + (others < x.samples.length ? "; this output folder is one of them" : ""));
+        + (others < x.samples.length ? "; the sample in the window is one of them" : ""));
       const diff = Object.entries(x.differs || {});
       const groups = {};  // samples that differ in the same settings, together
       const nameOf = (k) => (FIELD[k] ? FIELD[k].label : k);
