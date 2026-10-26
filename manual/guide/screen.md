@@ -4,12 +4,16 @@ A screen usually goes like this: **one (stitched) image per sample**, every samp
 imaged, its hits photoactivated on the microscope, and then the next sample. Afterwards, or while the screen goes
 on, you want to compare all samples.
 
-That is how FAST-HIPPOS works: **every image is a sample**, analyzed in a run of its own, in a folder of its own inside
-the **experiment folder**. The experiment folder gets an overview of all samples, which is updated after every run.
+That is how every analysis in FAST-HIPPOS works. Everything you analyze belongs to an **experiment**: a folder (the
+*experiment folder*) with one folder per **sample**, and an overview that compares the samples. Every image is a
+sample, analyzed in a run of its own, with its own hit list and `.rgn` files. There is no separate mode for a single
+image: with one image you have an experiment of one sample, and its overview is just short.
 
 ## Setting it up
 
-1. In the *Images* card, choose an **Experiment folder** (e.g. `D:\screens\ADRB2 screen`). It may be empty.
+1. In the *Images* card, choose an **Experiment folder** (e.g. `D:\screens\ADRB2 screen`). It may be empty, and you
+   use the same folder for the whole screen. If you add images without choosing one, FAST-HIPPOS proposes a folder
+   *FAST-HIPPOS* next to the images.
 2. Add the image of the first sample (or several images: each is a sample). Each sample gets a row with its name,
    its folder `<experiment folder>\<name>` (the image name; type another to change it), and a **label** if you like:
    its condition, plate or library part. The label shows in the experiment overview.
@@ -19,11 +23,15 @@ the **experiment folder**. The experiment folder gets an overview of all samples
    This keeps all settings, but empties the image list, the [settings of single images](own-settings.md) and a
    file of hand-picked hits. Add the image of the next sample, and run.
 
-The bar at the top of the window shows where you are: **Experiment** (all samples), **Sample** (one sample, with a
-menu of all samples and their hits) and **Image** (a dashboard). Choosing another sample in the menu, or clicking a
-sample in the experiment overview, loads it into the window: its images, folder, label and the settings of its single
-images; the analysis settings stay those of the window. When the images in the window were not analyzed yet,
-FAST-HIPPOS asks first.
+With several images in the list, **▶ Run analysis** analyzes the samples one after the other, each as a run of its
+own, and updates the experiment overview once at the end. A sample that already has results in the experiment folder
+is replaced; its old results wait in `_previous_run` until the new run is complete.
+
+The bar at the top of the window shows where you are: **Experiment** (the overview of all samples), **Sample** (the
+overview of one sample, with a menu of all samples with their label and hits) and **Image** (the dashboard of one
+image). Choosing another sample in the menu, or clicking a sample in the experiment overview, loads it into the
+window: its images, folder, label and the settings of its single images; the analysis settings stay those of the
+window. When the images in the window were not analyzed yet, FAST-HIPPOS asks first.
 
 <figure markdown>
 ![The Images card with an experiment folder](../images/gui_experiment.png){ .shot width="560" }
@@ -36,7 +44,7 @@ folder. **Experiment** in the bar at the top shows it.
 ADRB2 screen\                  ← the experiment folder
     index.html                 ← the overview of all samples
     experiment_summary.tsv     ← its images table
-    plate 1\                   ← the output folder (run) of one sample
+    plate 1\                   ← the folder of one sample (its run)
         index.html, HITS_plate 1.rgn, ...
         plate 1\dashboard.html
     plate 2\
@@ -49,9 +57,13 @@ name starts with `_`, are left out. To leave out a sample, move its folder out o
 changes at the next run, or at once with `fast-hippos-cli experiment <folder>` (see
 [the command line](../reference/command-line.md)).
 
-!!! warning "Give every sample its own output folder"
-    The output folder must be a folder *inside* the experiment folder. FAST-HIPPOS refuses to run into the
-    experiment folder itself, and warns when the output folder is somewhere else: such a run is not part of the experiment.
+!!! warning "Give every sample its own folder"
+    A sample is always a folder *inside* the experiment folder. FAST-HIPPOS refuses to run into the experiment
+    folder itself, and warns when results are written somewhere else: such a run is not part of the experiment.
+
+!!! note "Hits are per sample"
+    Hit criteria, random hits, sorting and the `.rgn` files belong to a sample: there is no combined hit list over
+    samples, because they are different specimens. To compare samples, use the experiment overview.
 
 ## The experiment overview
 
@@ -59,21 +71,21 @@ changes at the next run, or at once with `fast-hippos-cli experiment <folder>` (
 ![The overview of an experiment](../images/experiment.png){ .shot }
 </figure>
 
-It works like [the run overview](overview.md), with the images of all samples together:
+It works like [the overview of a sample](overview.md), with the images of all samples together:
 
 - the top bar counts the samples, images, cells and hits, and shows when the first and the last sample were analyzed
   (or last re-applied);
-- the images table has a **Sample** column (click it for the overview of that run) and a **Label** column; the
+- the images table has a **Sample** column (click it for the overview of that sample) and a **Label** column; the
   hits table and the exported tables have them too;
 - the quality flags compare every image with all images of the experiment (e.g. *few cells* means fewer than in the
   other samples);
 - *Samples* (top right) opens the overview of every sample, and the summary table of the experiment;
-- *Export* saves `.rgn` files and tables per image, as in a run overview. It has no route through the hits of several
-  images together: the samples are different specimens.
+- *Export* saves `.rgn` files and tables per image, as in the overview of a sample. It has no route through the hits of
+  several images together: the samples are different specimens.
 
-Clicking an image opens its dashboard, as in the overview of its run. Opening a sample's output folder in the
-window (as output folder) takes over its sample label; the Run card warns when the label in the window differs. Changing the screening in a dashboard and
-applying it re-applies the run of that sample, and so updates the experiment overview too.
+Clicking an image opens its dashboard, as in the overview of its sample. Loading a sample into the window takes over
+its label; the Run card warns when the label in the window differs. Changing the screening in a dashboard and
+applying it re-applies that sample, and so updates the experiment overview too.
 
 ## Are the samples comparable?
 
@@ -94,7 +106,7 @@ display settings (except *Time smoothing*), the `.rgn` settings (file size, rout
 hand-picked hits, and the [settings of single images](own-settings.md), which are deliberate differences. When the
 hit criteria differ, the *Cells* panel draws no threshold lines.
 
-**↻ Re-apply all samples** (in the Run card) makes them the same: it re-applies the stimulation, screening and
+**↻ Re-apply all samples** (in the Run card, next to *Re-apply this sample*) makes them the same: it re-applies the stimulation, screening and
 display settings of the window to every sample, one after the other, and then updates the experiment overview once.
 Each sample keeps its own segmentation and traces, its sample label, its hand-picked hits and the settings of its
 single images; a sample of another image type (e.g. ratio data among lifetime samples) also keeps its quality
@@ -103,7 +115,7 @@ experiment overview names it, and `experiment_log.txt` says why. Settings that o
 made the same by running the sample again.
 
 <figure markdown>
-![The Run card of a sample](../images/gui_run_experiment.png){ .shot width="560" }
+![The Run card with an experiment](../images/gui_run_experiment.png){ .shot width="560" }
 </figure>
 
 !!! tip "Changing the hit criteria during a screen"
@@ -113,5 +125,5 @@ made the same by running the sample again.
 
 ## The example
 
-The [example data](../start/first-analysis.md) can be set up as an experiment: each of the three images as a sample
-of its own (*library part 1–3*), with the settings of the example. The screenshots on this page show it.
+The [example data](../start/first-analysis.md) are an experiment of three samples: each of the three images is a
+sample of its own (*library part 1–3*), analyzed with the settings of the example. The screenshots on this page show it.

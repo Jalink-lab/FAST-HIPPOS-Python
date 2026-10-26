@@ -145,13 +145,14 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 
 -   :material-cog-play:{ .lg } **Analyze**
 
-    Choose the images and a few settings in the [FAST-HIPPOS window](guide/window.md) and click *Run analysis*.
-    Cellpose finds the cells; FAST-HIPPOS measures a trace for each of them and detects the stimulation.
+    Choose an experiment folder, the images (each is a sample) and a few settings in the
+    [FAST-HIPPOS window](guide/window.md) and click *Run analysis*. Cellpose finds the cells; FAST-HIPPOS measures a
+    trace for each of them and detects the stimulation.
 
 -   :material-chart-bell-curve:{ .lg } **Decide**
 
     Set the hit criteria in the [dashboard](guide/dashboard.md) and see the hits change while you drag the
-    threshold. Compare the images of a run, or the [samples of a whole screen](guide/screen.md).
+    threshold. Compare the [samples of a whole screen](guide/screen.md) in the experiment overview.
 
 -   :material-target:{ .lg } **Act**
 
@@ -169,9 +170,9 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
     **[The dashboard](guide/dashboard.md)** of every image: the cells coloured by their lifetime, their traces, a
     kymograph, distributions and scatter plots. Set the hit criteria there and watch the hits change.
 
--   [![The run overview](images/ov_maps.png)](guide/overview.md)
+-   [![The overviews](images/ov_maps.png)](guide/overview.md)
 
-    **[The run overview](guide/overview.md)** compares the images of a run: their responses, cells and hits,
+    **[The overviews](guide/overview.md)** of a sample and of the whole experiment: responses, cells and hits,
     quality flags, and where the hits are on the stage.
 
 -   [![The FAST-HIPPOS window](images/gui_run.png)](guide/window.md)
@@ -181,8 +182,8 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 
 -   [![The overview of an experiment](images/landing_experiment.png)](guide/screen.md)
 
-    **[Multi-sample experiments](guide/screen.md)**: analyze each sample as soon as it has been imaged, and compare
-    all samples in one overview.
+    **[Samples and experiments](guide/screen.md)**: every image is a sample. Analyze each sample as soon as it has been
+    imaged, and compare all samples in one overview.
 
 </div>
 
@@ -193,8 +194,8 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 -   :material-download:{ .lg } **[Install it](start/install.md)** and follow
     [your first analysis](start/first-analysis.md), with example data.
 
--   :material-web:{ .lg } **[Try it in your browser](start/demo.md)**: the dashboard and the overview of the example,
-    without installing anything.
+-   :material-web:{ .lg } **[Try it in your browser](start/demo.md)**: the dashboard and the experiment overview of the
+    example, without installing anything.
 
 -   :material-tune:{ .lg } **[Look up a setting](reference/settings.md)**: all settings, with a filter.
 

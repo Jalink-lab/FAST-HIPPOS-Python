@@ -19,8 +19,8 @@ Dashboard
 :   The interactive page of one image (`dashboard.html`).
 
 Experiment folder
-:   For a screen of several samples: the folder that holds one output folder (run) per sample, and the overview of
-    all samples.
+:   The folder that holds one folder per sample, and the overview of all samples. Every analysis in the window goes into
+    an experiment folder, also with one image.
 
 Hit
 :   A valid cell that meets the hit criteria (or that you picked by hand).
@@ -33,20 +33,22 @@ Lifetime
     *intensity*.
 
 Output folder
-:   The folder with the results of one run.
+:   The folder with the results of one run: in the window, the folder of a sample. (Its name in settings files is
+    `input.output`.)
 
 Overview
-:   The page that compares the images of a run (`index.html`).
+:   A page that compares images (`index.html`): of one sample, in its folder, or of the whole experiment, in the
+    experiment folder.
 
 Sample
-:   In a screen of several samples: one specimen, imaged and analyzed in a run of its own, in an output folder inside
-    the experiment folder.
+:   One specimen: every image is a sample, analyzed in a run of its own, with its own hit list and `.rgn` files, in
+    its own folder inside the experiment folder. It can carry a label, e.g. its condition.
 
 Quality gate
 :   A condition that every hit must meet, to keep out cells whose traces cannot be trusted.
 
 Re-apply
-:   Redo the screening of a run with other settings, without segmenting and measuring again.
+:   Redo the screening of a sample (or of all samples) with other settings, without segmenting and measuring again.
 
 Response
 :   The part of a trace between the stimulation and the calibration. The *response window* is the part of it whose
@@ -56,7 +58,8 @@ Response
 :   A LAS X region file with stage positions, which the microscope can visit.
 
 Run
-:   One analysis of a set of images with one set of settings, in one output folder.
+:   One analysis of a sample with one set of settings, in one folder. (From a settings file, a run can also hold
+    several images, with one combined hit list.)
 
 Stimulation
 :   The stimulus whose effect is measured, e.g. adding an agonist. Its frame is the first frame with the stimulus.

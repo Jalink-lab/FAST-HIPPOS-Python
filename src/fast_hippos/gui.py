@@ -214,17 +214,14 @@ FIELDS: dict[str, dict] = {
 # 'help' line under a field stays; this is the fuller explanation. Every setting has one (checked by a test).
 TIPS: dict[str, str] = {
     # ---- images
-    "input.files": "The time-lapse images to analyze. Each .tif is one image; a .lif file can hold many images "
-        "(series), and a folder of tiles exported from LAS X is stitched into one image. All are analyzed with the "
-        "same settings, and the screening is done over all of them together.",
-    "input.output": "Folder for all results: tables, plots, dashboards and .rgn files. Each image gets a subfolder. "
-        "An existing output folder is overwritten by a new run, or re-used by 'Re-apply screening'. In a screen of "
-        "several samples: one output folder per sample, inside the experiment folder.",
-    "input.experiment": "For a screen of several samples, each analyzed in its own run with the same settings: the "
-        "folder that holds the output folders of all samples. It gets an overview of all samples (index.html), "
-        "updated after every run and re-apply of a sample in it, with a warning when samples were analyzed with "
-        "different settings. 'New sample' then proposes the output folder <experiment folder>\\<image name>. "
-        "Empty = no experiment.",
+    "input.files": "The time-lapse images to analyze. Each image is a sample of its own: a .tif, a folder of tiles "
+        "exported from LAS X (stitched into one image), or each series of a .lif file (untick the series to leave out). "
+        "All are analyzed with the same settings, each in a run of its own, with its own hits and .rgn files.",
+    "input.output": "The folder of one sample (one run): tables, plots, dashboards and .rgn files, with a subfolder per "
+        "image. The window sets it per sample (<experiment folder>/<sample name>); a new run replaces the results in it.",
+    "input.experiment": "The folder that holds one folder per sample, and the overview of all samples (index.html), "
+        "updated after every run and re-apply, with a warning when samples were analyzed with different settings. "
+        "Adding images without one proposes a folder FAST-HIPPOS next to the images.",
     "input.sample_label": "A short description of this sample (e.g. its condition, cell line or library), shown in "
         "the experiment overview. Empty = none.",
     "input.modality": "What the pixel values mean, and so how the lifetime (or ratio) per cell is calculated. TCSPC: "

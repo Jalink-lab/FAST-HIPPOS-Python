@@ -4,8 +4,8 @@ hide: [navigation, toc]
 
 # Try it in your browser
 
-These are the real results of the [example analysis](first-analysis.md): the overview of the run and the dashboards
-of its three images, exactly as FAST-HIPPOS writes them. They run completely in your browser; nothing is installed or
+These are the real results of the [example analysis](first-analysis.md): the overview of the experiment (three
+samples) and the dashboards of its three images, exactly as FAST-HIPPOS writes them. They run completely in your browser; nothing is installed or
 uploaded. Each dashboard holds the full images (about 25 MB), so it may take a few seconds to load.
 
 The experiment: Cos7 cells with the cAMP sensor EpacH250, with about 5 % ADRB2 knock-out cells among them, are
@@ -20,8 +20,9 @@ See [what the experiment is about](first-analysis.md#what-the-experiment-is-abou
     </div>
     <iframe class="fh-demo" src="../../demo/experiment/index.html" loading="lazy" title="Overview of the example experiment"></iframe>
 
-    Select images in the table to compare them, switch between *distribution* and *scatter*, hover over a hit in
-    the maps. The image names link to the dashboards. See [the run overview](../guide/overview.md).
+    Select images (samples) in the table to compare them, switch between *distribution* and *scatter*, hover over a hit in
+    the maps. The image names link to the dashboards. See [the overview](../guide/overview.md) and
+    [a screen of several samples](../guide/screen.md#the-experiment-overview).
 
 === "Dashboard of one image"
 
@@ -37,7 +38,7 @@ See [what the experiment is about](first-analysis.md#what-the-experiment-is-abou
       change.
     - Click a cell, a trace, a kymograph column or a point in the scatter plot: the same cell is selected everywhere.
 
-    See [the dashboard](../guide/dashboard.md) for all it can do. The buttons that re-apply the screening to all images
+    See [the dashboard](../guide/dashboard.md) for all it can do. The buttons that re-apply the screening
     only appear in dashboards opened from the FAST-HIPPOS window.
 
 !!! note "Larger screens"

@@ -1,8 +1,8 @@
 # The dashboard
 
 Every image gets a dashboard: one page with the image, the traces of all cells, their values and the screening, all
-linked. It is a single file, `dashboard.html` in the image's folder of the output folder. It needs no internet, no
-server and no FAST-HIPPOS: open it in any browser, or send the output folder to a colleague.
+linked. It is a single file, `dashboard.html` in the image's folder inside the folder of its sample. In the FAST-HIPPOS window, **Image** in the top bar opens it (its menu chooses the image). It needs no internet, no
+server and no FAST-HIPPOS: open it in any browser, or send the experiment folder to a colleague.
 
 [Try it: the dashboard of the example :material-arrow-right:](../start/demo.md){ .md-button }
 
@@ -15,7 +15,7 @@ server and no FAST-HIPPOS: open it in any browser, or send the output folder to 
 The name of the image, the number of cells and frames, the stimulation and calibration frames (*auto* = detected,
 *set* = from the settings, *this image* = [set for this image only](own-settings.md)) and the number of hits. Below
 it: play the time-lapse, the frame, the lookup table and the lifetime range of the images, the traces (raw or
-smoothed), which cells are shown, and how to select (box or lasso). *↑ Overview* goes to the overview of the run,
+smoothed), which cells are shown, and how to select (box or lasso). *↑ Overview* goes to the overview of the sample,
 ◐ switches between light and dark.
 
 ## Everything is linked

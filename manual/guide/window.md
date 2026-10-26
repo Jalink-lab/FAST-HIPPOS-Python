@@ -17,16 +17,15 @@ settings, starts the analysis, shows its progress and opens the results.
 **Everything in one tab.** The bar at the top switches between the pages of FAST-HIPPOS, all in this browser tab:
 
 - **Setup**: the settings and the Run card (this page);
-- **Experiment**: the [overview of all samples](screen.md#the-experiment-overview), with an experiment folder;
-- **Overview** (**Sample** with an experiment folder): the [overview of the run](overview.md) in the output folder;
-  with an experiment folder, the menu next to it shows the samples with their hits and loads another sample into
-  the window (its images, folder, label and the settings of its single images; the analysis settings stay), or
-  starts a **＋ New sample**;
+- **Experiment**: the [overview of all samples](screen.md#the-experiment-overview) of the experiment folder;
+- **Sample**: the [overview of one sample](overview.md); the menu next to it lists the samples with their label and
+  hits and loads another sample into the window (its images, folder, label and the settings of its single images;
+  the analysis settings stay), or starts a **＋ New sample**;
 - **Image**: the [dashboard](dashboard.md) of one image (the menu next to it chooses the image).
 
 Links in the overviews (an image, a cell, a sample) open the page in the window, and the browser's back button goes
 back. ↗ opens the page shown in a tab of its own, for instance to see two pages side by side; ++ctrl++ + click on a
-link does the same. The pages themselves stay single files in the output folders, which open in any browser.
+link does the same. The pages themselves stay single files in the experiment folder, which open in any browser.
 
 **Hover over anything.** Every setting has a hover text that explains what it does and when to change it. The same
 texts are collected in [All settings](../reference/settings.md).
@@ -56,10 +55,12 @@ folded, and also the light or dark look (◐).
 ### Images
 
 The images to analyze and where the results go. **Every image is a sample**: it is analyzed in a run of its own,
-with the settings of the window, and gets its own folder, overview, hit list and `.rgn` files.
+with the settings of the window, and gets its own folder, overview, hit list and `.rgn` files. With one image you
+have an experiment of one sample.
 
-- **Experiment folder**: the folder that holds one folder per sample, and the overview of all samples. Adding images
-  without one proposes a folder *FAST-HIPPOS* next to the images. See [A screen of several samples](screen.md).
+- **Experiment folder**: always needed. The folder that holds one folder per sample, and the overview of all
+  samples. Adding images without one proposes a folder *FAST-HIPPOS* next to the images. See
+  [A screen of several samples](screen.md).
 - **Add images…**: time-lapse `.tif` files (ImageJ hyperstacks) or Leica `.lif` files. Every series of a `.lif` file
   is a sample of its own, with a tick box in its row: untick the series you want to leave out.
 - **Add tile folder…**: a folder of tiles exported from LAS X, which FAST-HIPPOS stitches by their stage positions into
@@ -128,33 +129,32 @@ most runs, and colours and ranges can also be changed in the dashboard.
 **Checks.** The top of the card checks the settings against the images, all the time. Red problems would stop the
 analysis and disable *Run analysis*: no images, frames beyond the end of the movie, a calibration before the
 stimulation, Cellpose not found. Orange warnings point out surprises: images without stage positions get no `.rgn`
-files, the output folder already holds results, Cellpose will run without GPU.
+files, a sample already has results (it will be replaced), Cellpose will run without GPU.
 
 **▶ Run analysis** analyzes the samples of the Images list, one after the other: segmentation, traces, stimulation
 detection, screening, dashboards; then it updates the experiment overview. If samples of the same name already
 have results, FAST-HIPPOS first tells you which will be replaced.
 
-**↻ Re-apply screening** (*Re-apply this sample* with an experiment folder) redoes only the part after the segmentation and the traces (stimulation detection,
-screening, hit lists, `.rgn` files, dashboards) for the images of the run in the output folder, with the current
-settings. It takes seconds instead of minutes. Use it after changing screening settings.
+**↻ Re-apply this sample** redoes only the part after the segmentation and the traces (stimulation detection,
+screening, hit lists, `.rgn` files, dashboards) for the sample chosen in the top bar, with the current settings. It
+takes seconds instead of minutes. Use it after changing screening settings.
 
 **■ Stop** stops a running analysis; the results of the previous run are then kept.
 
-With an [experiment folder](screen.md), the card also lists the samples of the experiment and warns when some were
-analyzed with other settings than those in the window. **↻ Re-apply all samples** then re-applies the settings of
-the window to every sample, and **＋ New sample** (top right, and in the sample menu of the top bar) starts the next
-sample with the same settings.
+The card also lists the samples of the [experiment](screen.md) and warns when some were analyzed with other settings
+than those in the window. **↻ Re-apply all samples** re-applies the settings of the window to every sample, and
+**＋ New sample** (top right, and in the sample menu of the top bar) starts the next sample with the same settings.
 
-The **log** shows the progress. When the run is done, the buttons below it open the overview and the dashboard of each
-image in the window (as the top bar does), and the output folder in the file explorer; with an experiment folder
-also the experiment overview.
+The **log** shows the progress. When the analysis is done, the buttons below it open the *Overview of this sample*, the
+*Dashboard* of each image, the sample folder (*Open sample folder*) and the *Experiment overview*, all in the window
+(as the top bar does) or in the file explorer.
 
 ## Settings files
 
 FAST-HIPPOS remembers the settings of the window (after every change, and the settings applied from a
 dashboard), and starts with them next time. Every run also saves its settings in the
-output folder (`fast_hippos_settings.toml`). **Open settings…** loads such a file, **Save settings…** saves the current
-settings, and **Defaults** goes back to the default settings (the images and the output folder stay). Both keep
+folder of the sample (`fast_hippos_settings.toml`). **Open settings…** loads such a file, **Save settings…** saves the current
+settings, and **Defaults** goes back to the default settings (the images and the experiment folder stay). Both keep
 the Cellpose environments you set, since they belong to the computer rather than to an experiment (unless the loaded
 file names its own). Settings files
 can also be used on the [command line](../reference/command-line.md).

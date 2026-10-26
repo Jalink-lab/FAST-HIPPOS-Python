@@ -1,23 +1,25 @@
-# The run overview
+# The overviews
 
-The overview compares the images of a run, which are usually different areas, wells or conditions (for several
-samples, each in a run of its own, see [A screen of several samples](screen.md)). Did they all
-respond? Are there images with few cells, or without calibration? Where are the hits? It is `index.html` in the
-output folder; in the FAST-HIPPOS window it is **Overview** (or **Sample**) in the bar at the top. Like the dashboards it is a single file that
-works in any browser.
+There are two overviews, which work in the same way: the overview of one **sample**, and the overview of the whole
+**experiment**, which compares all samples ([A screen of several samples](screen.md)). This page describes the panels
+that both have. Did the cells respond? Are there images with few cells, or without calibration? Where are the hits?
+The overview of a sample is `index.html` in the folder of the sample; in the FAST-HIPPOS window it is **Sample** in
+the bar at the top. The overview of the experiment is `index.html` in the experiment folder, and **Experiment** in
+the bar. Like the dashboards they are single files that work in any browser.
+
+The window makes every image a sample, so the overview of a sample usually shows one image (a `.lif` series or a
+stitched tile scan is one image too). The comparison of images is made in the experiment overview. A sample with
+several images, for instance from `fast-hippos-cli run` with a settings file, has the same page with all its images.
 
 [Try it: the overview of the example :material-arrow-right:](../start/demo.md){ .md-button }
 
 <figure markdown>
-![The run overview](../images/overview.png){ .shot }
+![The experiment overview](../images/overview.png){ .shot }
 </figure>
 
-In a [screen of several samples](screen.md), the experiment folder has the same page for the images of all
-samples together.
-
-The top bar shows the totals of the run: images, cells, valid cells, hits, and when the run was made and last
-re-applied. *Run files* opens the files of the run (hit lists, `.rgn` files, log); *Export* downloads tables and `.rgn`
-files for the selected images. *? Help* opens the manual next to the page; the **?** behind a panel title opens
+The top bar shows the totals: samples (in the experiment overview), images, cells, valid cells, hits, and when the
+analysis was made and last re-applied. *Run files* opens the files of the sample (hit lists, `.rgn` files, log);
+*Export* downloads tables and `.rgn` files for the selected images. *? Help* opens the manual next to the page; the **?** behind a panel title opens
 the part about that panel.
 
 ## Images
@@ -90,15 +92,15 @@ dashboard of its image. *same scale* draws all maps at the same scale, to compar
 ![The hits table](../images/ov_hits.png){ .shot }
 </figure>
 
-The hits of the selected images (unfold the panel with ▸): their rank in the run, their `.rgn` file and stop number
+The hits of the selected images (unfold the panel with ▸): their rank in the sample, their `.rgn` file and stop number
 in it, their position and the value of the hit criterion. Click a row to open the cell in its dashboard.
 
 ## Export
 
 | Export | Gives |
 |---|---|
-| *Hits → .rgn per image* | one `.rgn` file per selected image, in the visiting order of the run |
-| *Hits → .rgn, selected images together* | one route through the hits of all selected images |
+| *Hits → .rgn per image* | one `.rgn` file per selected image, in the visiting order of its sample |
+| *Hits → .rgn, selected images together* | one route through the hits of all selected images (only for images of one sample; not in the experiment overview) |
 | *Hits → TSV* | the hits of the selected images as a table |
 | *Images table → TSV* | the images table as shown, with the QC flags |
 | *Cells → TSV* | the values of the cells of the selected images |

@@ -6,14 +6,15 @@ for running the same analysis on many data sets, or on a computer without a scre
 ## Settings files
 
 Settings files are [TOML](https://toml.io) files: sections in square brackets, with `key = value` lines. Every run
-saves its settings as `fast_hippos_settings.toml` in the output folder, and *Save settings…* in the window writes one;
+saves its settings as `fast_hippos_settings.toml` in the folder of the sample, and *Save settings…* in the window writes one;
 these can be used on the command line as they are, and opened again in the window. Only settings that differ from the
 defaults are needed. A minimal file for a TCSPC screen:
 
 ```toml
 [input]
 files = ["C:/Data/screen/plate1.lif"]
-output = "C:/Data/screen/plate1_results"
+output = "C:/Data/screen/plate1_results"   # the folder of the run (for `run`)
+experiment = "C:/Data/screen/experiment"   # the experiment folder (for `run-samples`)
 modality = "tcspc"
 tau1 = 0.6                     # ns
 tau2 = 3.4                     # ns
@@ -31,6 +32,7 @@ criteria = [
 ]
 ```
 
+- With `run-samples`, `output` and `sample_label` are not used: the window sets them per sample (the folder `<experiment>\<name>` and the label), and so does the command. The settings reference lists them as *Per sample*.
 - Paths may be relative to the settings file. Use `/` or double `\\` in Windows paths.
 - Frames count from 0 and are the *first* frame with the stimulus. Channels count from 1, as in Fiji.
 - An empty value (`""`) means *automatic* or *not set*, e.g. `stimulation_frame = ""`.
@@ -54,8 +56,9 @@ Run the commands in PowerShell, in the FAST-HIPPOS folder, as `uv run fast-hippo
 
 | Command | |
 |---|---|
-| `fast-hippos-cli run settings.toml` | the full analysis |
-| `fast-hippos-cli reapply settings.toml` | redo stimulation detection, screening and dashboards for the run in the output folder, with the `[events]`, `[screening]` and `[display]` settings of the file |
+| `fast-hippos-cli run settings.toml` | the full analysis of the images of the file as **one run**, in the folder `input.output`, with one combined hit list over the images (the window does not offer this) |
+| `fast-hippos-cli run-samples settings.toml` | what the window does: every image of the file (every series of a `.lif`) is a sample, analyzed in a run of its own in `<experiment>\<name>` (`[input] experiment` is needed), then the experiment overview is updated once. A sample of that name is replaced |
+| `fast-hippos-cli reapply settings.toml` | redo stimulation detection, screening and dashboards for the run in the folder `input.output`, with the `[events]`, `[screening]` and `[display]` settings of the file |
 | `fast-hippos-cli reapply settings.toml --override screening.toml` | the same, with the settings of a second file on top, e.g. one saved with *Settings → TOML* in a dashboard (`run` takes `--override` too) |
 | `fast-hippos-cli experiment folder` | rebuild the overview of all samples in an experiment folder (see [A screen of several samples](../guide/screen.md)); every run of a sample in it does this too, when its settings file has `experiment = "<folder>"` under `[input]` |
 | `fast-hippos-cli experiment folder --reapply settings.toml` | re-apply the `[events]`, `[screening]` and `[display]` settings of the file to every sample of the experiment (each keeps the own settings of its single images), then rebuild its overview |
@@ -66,8 +69,8 @@ Run the commands in PowerShell, in the FAST-HIPPOS folder, as `uv run fast-hippo
 | `fast-hippos-cli gui` | open the window (with a console that shows its messages) |
 | `fast-hippos-cli shortcut` | put a shortcut on the desktop (Windows) |
 
-`fast-hippos-cli <command> --help` lists the options of a command. Like the window, every `run` and `reapply` writes
-its settings as `fast_hippos_settings.toml` into the output folder. A mistake in a settings file (an unknown
+`fast-hippos-cli <command> --help` lists the options of a command. Like the window, every `run`, `run-samples` and `reapply` writes
+its settings as `fast_hippos_settings.toml` into the folder of the run (of each sample). A mistake in a settings file (an unknown
 setting, a TOML syntax error) gives a short error message naming the section.
 
 !!! note "Re-apply and settings for single images"

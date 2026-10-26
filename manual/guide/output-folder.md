@@ -1,8 +1,9 @@
 # The output folder
 
-Every image is a sample, and every sample gets a folder of its own inside the experiment folder that you choose in
-the *Images* card: **one folder holds one run** of one image, with its hit list and `.rgn` files. (A run of several
-images in one folder, with one combined hit list, can still be made with a settings file on the
+All results go into the **experiment folder** that you choose in the *Images* card. Every image is a sample, and every
+sample gets a folder of its own in it: **one sample folder holds one run** of one image, with its hit list and `.rgn`
+files. The experiment folder itself holds the overview of all samples. (A run of several images in one folder, with
+one combined hit list, can still be made with a settings file on the
 [command line](../reference/command-line.md).)
 
 ## What is in it
@@ -35,29 +36,30 @@ example_screen_1/               one sample: its folder in the experiment folder
 
 The `.tsv` files are tab-separated tables: open them in Excel, or in Python or R. The TIFF images open in Fiji.
 
-In a [screen of several samples](screen.md) every sample has an output folder like this one, inside the experiment
-folder, which adds `index.html` (the overview of all samples), `experiment_summary.tsv` (its images table, with
-the sample and its label) and, after *Re-apply all samples*, `experiment_log.txt`.
+The experiment folder holds one such folder per sample, and adds `index.html` (the overview of all samples),
+`experiment_summary.tsv` (its images table, with the sample and its label) and, after *Re-apply all samples*,
+`experiment_log.txt`; see [A screen of several samples](screen.md).
 
 !!! tip "Sharing"
-    The overview and the dashboards work without FAST-HIPPOS. To share the results, copy the whole output folder
-    (with the `tiles` folders), or for one image just its folder.
+    The overview and the dashboards work without FAST-HIPPOS. To share the results, copy the whole experiment folder
+    (with the `tiles` folders), or for one sample just its folder.
 
 ## Running again
 
-**Run analysis** into a folder that already holds a run replaces that run. FAST-HIPPOS first lists exactly what will
-be replaced (the image folders and the files of the run), and moves them into a subfolder `_previous_run` before it
-starts. When the new run is complete, `_previous_run` is deleted; if the run is stopped or fails, it is kept, so
-nothing is lost. Other files in the folder are never touched.
+**Run analysis** of a sample that already has results in the experiment folder (a sample of the same name) replaces
+them. FAST-HIPPOS first lists exactly what will be replaced (the image folders and the files of the run), and moves
+them into a subfolder `_previous_run` of the sample folder before it starts. When the new run is complete,
+`_previous_run` is deleted; if the run is stopped or fails, it is kept, so nothing is lost. Other files in the
+folder are never touched. To keep both runs, give the new sample another name.
 
 To go back to the previous run after a stopped run: delete the partial results of the stopped run (the image folders
-and the files listed above), and move the contents of `_previous_run` back into the output folder. Do this before
+and the files listed above), and move the contents of `_previous_run` back into the sample folder. Do this before
 the next complete run, which deletes `_previous_run` (the window reminds you).
 
-**Re-apply screening** keeps the segmentation and the traces of the run in the folder, and redoes the rest with the
-current settings: stimulation detection, screening, hit lists, `.rgn` files, overview and dashboards. It takes
-seconds. It always processes the images *of the run*, also when the image list in the window has changed since; the
-window warns when they differ.
+**Re-apply this sample** keeps the segmentation and the traces of the sample, and redoes the rest with the current
+settings: stimulation detection, screening, hit lists, `.rgn` files, overview and dashboards. It takes seconds. It
+always processes the images *of the sample as analyzed*, also when the image list in the window has changed since;
+the window warns when they differ. **Re-apply all samples** does this for every sample of the experiment.
 
 What a re-apply can change: the stimulation and calibration, the screening, the hit lists and `.rgn` files, and the
 display settings. What only a new run changes: the images, the segmentation, the traces, and a few settings that are

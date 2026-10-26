@@ -2,14 +2,17 @@
 
 You rarely know the right threshold before you have seen the data. That is why the whole screening can be changed in
 the dashboard, after the analysis: you drag a threshold and see at once which cells become hits, in the image, the
-traces and the table. When the hits look right, you apply the settings to all images, which also makes new `.rgn`
-files.
+traces and the table. When the hits look right, you apply the settings, which also makes new `.rgn` files of the sample.
 
 <figure markdown>
 ![The Screening pane](../images/dash_screening.png){ .shot }
 <figcaption>The Screening pane of a dashboard. The bars at the top count the cells, the valid cells and the
 hits.</figcaption>
 </figure>
+
+Hits are chosen per sample: the criteria, the sorting and the `.rgn` files belong to the sample of the dashboard
+(use *Re-apply all samples* in the window to give all samples the same criteria; see
+[A screen of several samples](screen.md#are-the-samples-comparable)).
 
 A cell is a hit when it
 
@@ -112,20 +115,21 @@ table), switch *Hits from* to *selection* and click *Use selection*. *Add select
 ## Apply the settings
 
 What you change in a dashboard first only affects that dashboard. To make it count, use one of the two **Apply**
-buttons. They are only there when the dashboard was opened from the FAST-HIPPOS window (with *Dashboard* or via the
-overview), because FAST-HIPPOS itself does the work.
+buttons. They are only there when the dashboard was opened from the FAST-HIPPOS window (with *Dashboard*, the
+*Image* menu or via an overview), because FAST-HIPPOS itself does the work.
 
-**↻ Apply to all images** uses these screening settings for all images of the output folder. FAST-HIPPOS redoes the
-screening of every image, the combined hit list and the `.rgn` files with their routes, the overview and the
-dashboards. The segmentation and the traces are kept, so it takes seconds. A message lists the images first, and
-says what happens to images that have [settings of their own](own-settings.md).
+**↻ Apply to all images** uses these screening settings for all images of the sample (usually one). FAST-HIPPOS redoes
+the screening, the hit list and the `.rgn` files with their routes, the overview of the sample and of the experiment,
+and the dashboards. The segmentation and the traces are kept, so it takes seconds. A message lists the images first,
+and says what happens to images that have [settings of their own](own-settings.md). Other samples are not changed;
+to give them the same settings, use *Re-apply all samples* in the window.
 
-**↻ Apply to this image only** keeps the settings of the other images, and gives this image its own stimulation
+**↻ Apply to this image only** keeps the settings of the window, and gives this image its own stimulation
 frames and response window, for instance when its stimulation was missed or started later. See
 [Settings for single images](own-settings.md).
 
 After applying, the dashboard reloads with the new results, and the FAST-HIPPOS window shows the new settings, so
-that a later *Re-apply screening* or *Run analysis* uses them too.
+that a later *Re-apply this sample* or *Run analysis* uses them too.
 
 !!! tip "Changed your mind?"
     *Reset* (top right of the Screening pane) brings back the settings with which the dashboard was made.

@@ -65,7 +65,8 @@ log and the results on the right.</figcaption>
 <ol class="callouts" markdown>
 <li markdown>Click **Browse…** next to *Experiment folder* and choose (or make) an empty folder, e.g.
 `C:\Data\FAST-HIPPOS example\experiment`. All results go there, one folder per image. (If you skip this, adding
-the images proposes a folder *FAST-HIPPOS* next to them.)</li>
+the images proposes a folder *FAST-HIPPOS* next to them.) You always need an experiment folder, also for a single
+image of your own: it is then an experiment of one sample.</li>
 <li markdown>Click **Add images…** and choose the three `example_screen_*.tif` files. Each image shows its size, frames,
 channels, pixel size and frame interval, read from the file. Each image is a **sample**: below the images every
 sample gets a row with its name (its folder in the experiment folder) and an optional label, e.g. the condition.</li>
@@ -133,17 +134,25 @@ The *Run* card checks the settings against the images all the time. Problems tha
 in red and disable the button; warnings in orange point out surprises. When it says **Ready to run**, click
 **▶ Run analysis**.
 
-The log shows what happens per image: the number of cells, the frames where the stimulation and calibration were
-found, the number of hits. With a GPU this takes about a minute for the three images. The very first time, Cellpose
+**▶ Run analysis (3 samples)** analyzes the three samples one after the other, each as a run of its own in its folder in
+the experiment folder, and then updates the overview of the experiment. The log shows what happens per sample: the
+number of cells, the frames where the stimulation and calibration were found, the number of hits. With a GPU this
+takes about a minute for the three images. The very first time, Cellpose
 first downloads its model (internet needed), which adds a minute.
 
-When it is done, the buttons under *Results in the output folder* (or **Overview** and **Image** in the bar at the
-top) open the results in the window:
+When it is done, the buttons under the log (or **Experiment**, **Sample** and **Image** in the bar at the top) open
+the results in the window:
 
 - **Experiment overview**: the three samples together, see [the overview](../guide/overview.md) and
   [a screen of several samples](../guide/screen.md).
-- **Overview of this sample**: one sample, with its hits and `.rgn` files.
+- **Overview of this sample**: the sample chosen in the top bar, with its hits and `.rgn` files.
 - **Dashboard: example_screen_1** etc.: one image in detail, see [the dashboard](../guide/dashboard.md).
+- **Open sample folder**: the folder of the sample in the file explorer.
+
+!!! tip "With one image of your own"
+    Choose an experiment folder, add the image and run: you get one sample, with its overview, dashboard and `.rgn`
+    files. Later samples of the same screen go into the same experiment folder (**＋ New sample**), see
+    [A screen of several samples](../guide/screen.md).
 
 ## 7. Look at the results
 
@@ -172,7 +181,7 @@ Things to try:
 knock-out cells.</figcaption>
 </figure>
 
-Then open the overview, to compare the three images and see where the hits are. Of the 75 hits of the run, 64
+Then open the experiment overview, to compare the three samples and see where the hits are. Of the 75 hits in all, 64
 carry the marker: they are indeed knock-out cells. The other marker-positive cells are knock-out cells that still
 respond (the knock-out is polyclonal, so not every cell lost the receptor completely).
 
@@ -188,3 +197,4 @@ its hits (24, 28 and 23 in the three samples, 75 in all), in an efficient visiti
 - [The FAST-HIPPOS window](../guide/window.md): all cards, and the settings for other kinds of data.
 - [The output folder](../guide/output-folder.md): which files you get, and how to redo the screening without
   segmenting again.
+- [A screen of several samples](../guide/screen.md): the next sample, and comparing them.
