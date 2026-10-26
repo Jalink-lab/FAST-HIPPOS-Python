@@ -249,13 +249,13 @@ def run_samples(settings: Settings, samples: list[dict] | None = None) -> list[s
             if not run(Settings.from_dict(d), experiment_overview=False):
                 failed.append(s["name"])
         except Exception as e:  # noqa: BLE001 - the other samples go on
-            print(f"Sample {s['name']} failed: {e}", flush=True)
+            print(f"Image {s['name']} failed: {e}", flush=True)
             failed.append(s["name"])
     _setup_logging(experiment / LOG_FILE)
     write_experiment_overview(experiment, failed)
     if failed:
         log.error("Not analyzed: %s (see the run_log.txt in their folders)", ", ".join(failed))
-    log.info("Done. %d of %d samples analyzed; experiment overview in %s", len(samples) - len(failed), len(samples),
+    log.info("Done. %d of %d images analyzed; experiment overview in %s", len(samples) - len(failed), len(samples),
              experiment / "index.html")
     return failed
 
@@ -283,7 +283,7 @@ def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
             if not run(Settings.from_dict(reapply_settings(folder, changes)), reapply=True, experiment_overview=False):
                 failed.append(folder.name); reasons.append(f"{folder.name}: no images with cells")
         except Exception as e:  # noqa: BLE001 - the other samples go on
-            print(f"Sample {folder.name} failed: {e}", flush=True)
+            print(f"Image {folder.name} failed: {e}", flush=True)
             failed.append(folder.name); reasons.append(f"{folder.name}: {e}")
     _setup_logging(experiment / LOG_FILE)  # after the logs of the samples, which are in their folders
     write_experiment_overview(experiment, failed)
@@ -631,6 +631,8 @@ def process_image(
         intensity, lifetime, proj, labels, display_range(result, settings),
         s_disp.dashboard_max_size, s_disp.dashboard_max_megapixels,
         tiles_dir if (big and s_disp.dashboard and s_disp.dashboard_tiles) else None,
+        # the additional channel without a copy (the viewer takes only the frames it shows)
+        additional=image.data[:, s_in.additional_channel - 1] if s_in.additional_channel else None,
     )
     viewer.save(out_dir / "viewer.npz")  # the dashboard is written at the end of the run
     return result

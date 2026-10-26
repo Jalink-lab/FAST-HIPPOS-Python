@@ -176,6 +176,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
             # with a folder: the frames are files of their own next to the dashboard (only the first one is in it)
             "images": [write_frames(viewer, folder)] if folder is not None else frame_urls(viewer),
             "frames_path": FRAMES_DIR if folder is not None else None,
+            "additional": viewer.additional8 is not None,  # the additional channel in B: can be shown instead of the lifetime
             "projection": png_data_url(viewer.projection8),
             "labels": labels_url(viewer.labels),
             "size": [int(viewer.labels.shape[1]), int(viewer.labels.shape[0])],

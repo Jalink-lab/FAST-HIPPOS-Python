@@ -23,22 +23,22 @@ function lruBytes(max, size) {
       while (total > max && m.size > 1) { const [k0, v0] = m.entries().next().value; m.delete(k0); total -= size(v0); } },
     has: (k) => m.has(k), clear: () => { m.clear(); total = 0; }, bytes: () => total };
 }
-const rawCache = lruBytes(RAW_BUDGET, (e) => e.c.length * 2), labCache = lru(120), compCache = lru(100), outCache = lru(100), fillCache = lru(60), lastComp = new Map();
+const rawCache = lruBytes(RAW_BUDGET, (e) => e.c.length * (e.b ? 3 : 2)), labCache = lru(120), compCache = lru(100), outCache = lru(100), fillCache = lru(60), lastComp = new Map();
 let fillVersion = 0, fillRange = [0, 1];
 const inflight = new Map(); let active = 0; const queue = [];  // inflight: key -> priority (0 = needed on screen now)
 
 // Decoding the PNGs (lifetime code in R, intensity in G; labels as R + 256 G + 65536 B) in background workers, so
 // that playing and panning stay smooth while frames load; in the page itself where workers are not available.
 const WORKER_SRC = `self.onmessage = async (e) => {
-  const { id, url, lab } = e.data;
+  const { id, url, lab, ab } = e.data;
   try {
     const bmp = await createImageBitmap(await (await fetch(url)).blob(), { colorSpaceConversion: "none", premultiplyAlpha: "none" });
     const w = bmp.width, h = bmp.height, c = new OffscreenCanvas(w, h), x = c.getContext("2d", { willReadFrequently: true });
     x.drawImage(bmp, 0, 0); bmp.close(); const d = x.getImageData(0, 0, w, h).data;
     if (lab) { self.postMessage({ id, w, h, rgba: d.buffer }, [d.buffer]); return; }
-    const n = w * h, cc = new Uint8Array(n), g = new Uint8Array(n);
-    for (let p = 0, q = 0; p < n; p++, q += 4) { cc[p] = d[q]; g[p] = d[q + 1]; }
-    self.postMessage({ id, w, h, c: cc.buffer, g: g.buffer }, [cc.buffer, g.buffer]);
+    const n = w * h, cc = new Uint8Array(n), g = new Uint8Array(n), b = ab ? new Uint8Array(n) : null;
+    for (let p = 0, q = 0; p < n; p++, q += 4) { cc[p] = d[q]; g[p] = d[q + 1]; if (b) b[p] = d[q + 2]; }
+    self.postMessage({ id, w, h, c: cc.buffer, g: g.buffer, b: b && b.buffer }, b ? [cc.buffer, g.buffer, b.buffer] : [cc.buffer, g.buffer]);
   } catch (err) { self.postMessage({ id, error: String(err) }); }
 };`;
 const DECODERS = (() => {
@@ -50,10 +50,10 @@ const DECODERS = (() => {
 })();
 const decodeWaiters = new Map(); let decodeId = 0, decodeNext = 0;
 DECODERS.forEach(w => { w.onmessage = (e) => { const r = decodeWaiters.get(e.data.id); decodeWaiters.delete(e.data.id); if (r) r(e.data); }; });
-function splitRGBA(d, w, h) {  // the two channels that are used: lifetime code (R) and intensity (G)
-  const n = w * h, c = new Uint8Array(n), g = new Uint8Array(n);
-  for (let p = 0, q = 0; p < n; p++, q += 4) { c[p] = d[q]; g[p] = d[q + 1]; }
-  return { c, g, w, h };
+function splitRGBA(d, w, h) {  // the channels that are used: lifetime code (R), intensity (G), additional channel (B)
+  const n = w * h, c = new Uint8Array(n), g = new Uint8Array(n), b = V.additional ? new Uint8Array(n) : null;
+  for (let p = 0, q = 0; p < n; p++, q += 4) { c[p] = d[q]; g[p] = d[q + 1]; if (b) b[p] = d[q + 2]; }
+  return { c, g, b, w, h };
 }
 function decodeInPage(url) {
   return new Promise((res, rej) => { const im = new Image(); im.onload = () => {
@@ -65,8 +65,9 @@ function decodeInPage(url) {
 async function decodeURL(url, isLab) {
   if (DECODERS.length) {
     const r = await new Promise((res) => { const id = ++decodeId; decodeWaiters.set(id, res);
-      DECODERS[decodeNext++ % DECODERS.length].postMessage({ id, url, lab: isLab }); });
-    if (!r.error) return isLab ? { data: new Uint8ClampedArray(r.rgba), w: r.w, h: r.h } : { c: new Uint8Array(r.c), g: new Uint8Array(r.g), w: r.w, h: r.h };
+      DECODERS[decodeNext++ % DECODERS.length].postMessage({ id, url, lab: isLab, ab: !!V.additional }); });
+    if (!r.error) return isLab ? { data: new Uint8ClampedArray(r.rgba), w: r.w, h: r.h }
+      : { c: new Uint8Array(r.c), g: new Uint8Array(r.g), b: r.b ? new Uint8Array(r.b) : null, w: r.w, h: r.h };
   }
   const img = await decodeInPage(url);  // no workers, or the worker could not decode it
   return isLab ? img : splitRGBA(img.data, img.w, img.h);
@@ -201,6 +202,10 @@ const timeRadius = () => (V.smoothed_xy === null || V.smoothed_xy === undefined 
 function composite(frs, pr, f = 1, own = 0) {
   const fr = frs[own], c = document.createElement("canvas"); c.width = fr.w; c.height = fr.h;
   const x = c.getContext("2d"), img = x.createImageData(fr.w, fr.h), out = img.data, dc = fr.c, dg = fr.g, { tauIdx, gain, L } = LT;
+  if (S.layer === "additional" && fr.b) {  // the additional channel, in grey (brightness as the intensity)
+    const ab = fr.b; for (let q = 0, p = 0; q < out.length; q += 4, p++) { out[q] = out[q + 1] = out[q + 2] = gain[ab[p]] * 255; out[q + 3] = 255; }
+    x.putImageData(img, 0, 0); return c;
+  }
   const useProj = !!pr, r = smoothRadius(f), sm = r > 0 || frs.length > 1 ? smoothCodes(frs, r, own) : null;
   for (let q = 0, p = 0; q < out.length; q += 4, p++) {
     const k = tauIdx[sm ? sm[p] : dc[p]], g = gain[useProj ? pr.c[p] : dg[p]];
@@ -211,7 +216,7 @@ function composite(frs, pr, f = 1, own = 0) {
   x.putImageData(img, 0, 0); return c;
 }
 function tileImage(t, vf, then) {
-  const fk = frameKey(t, vf), key = `${fk}|${S.isrc}|${renderVersion}`;
+  const fk = frameKey(t, vf), key = `${fk}|${S.isrc}|${S.layer}|${renderVersion}`;
   let c = compCache.get(key); if (c) return c;
   const rt = timeRadius(), frs = [];  // the frame and its neighbours (the edge frame repeated, as for the traces)
   for (let k = -rt; k <= rt; k++) frs.push(request(frameKey(t, Math.min(NVF - 1, Math.max(0, vf + k))), then));
@@ -488,6 +493,10 @@ function initViewer() {
   $("voutl").checked = S.showOutl; $("outl").disabled = !S.showOutl;
   $("voutl").onchange = () => { S.showOutl = $("voutl").checked; $("outl").disabled = !S.showOutl; invalidate("viewerSel"); };
   $("isrc").onchange = () => { S.isrc = $("isrc").value; imageChanged(); };
+  // lifetime or the additional channel (when the image has one, in a run of this version)
+  if (!V.additional) { $("layerL").hidden = true; S.layer = "lifetime"; }
+  $("layer").value = S.layer; $("vbar").style.visibility = S.layer === "additional" ? "hidden" : "";
+  $("layer").onchange = () => { S.layer = $("layer").value; $("vbar").style.visibility = S.layer === "additional" ? "hidden" : ""; imageChanged(); };
   $("vsmooth").value = String(S.smoothxy);
   $("vsmoothl").textContent = D.is_lifetime ? "Lifetime" : String(D.unit).startsWith("Ratio") ? "Ratio" : "Intensity";
   $("vsmooth").onchange = () => { S.smoothxy = +$("vsmooth").value; imageChanged(); };

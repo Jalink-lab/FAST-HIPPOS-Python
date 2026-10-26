@@ -59,9 +59,12 @@ class ViewerData:
     # smoothing already in lifetime8 and the tiles: 0 since the dashboard smooths when drawing; None = written by an
     # older version, with the run's overlay smoothing (xy and t) in the data, which then cannot be changed
     smoothed_xy: float | None = None
+    additional8: np.ndarray | None = None  # (F, h, w) uint8: the additional channel, shown instead of the lifetime
 
     def save(self, path) -> None:
         arrays = {k: getattr(self, k) for k in ("lifetime8", "intensity8", "projection8", "labels", "frames")}
+        if self.additional8 is not None:
+            arrays["additional8"] = self.additional8
         meta = {"factor": self.factor, "lo": self.lo, "hi": self.hi, "tiles": self.tiles, "smoothed_xy": self.smoothed_xy}
         np.savez_compressed(path, meta=np.array(json.dumps(meta)), **arrays)
 
@@ -71,7 +74,8 @@ class ViewerData:
             if "meta" not in z.files:  # files written by version 0.1.0.dev0 before tiling
                 return cls(**{k: (z[k] if z[k].ndim else z[k].item()) for k in z.files})
             meta = json.loads(str(z["meta"]))
-            return cls(**{k: z[k] for k in ("lifetime8", "intensity8", "projection8", "labels", "frames")}, **meta)
+            extra = {"additional8": z["additional8"]} if "additional8" in z.files else {}
+            return cls(**{k: z[k] for k in ("lifetime8", "intensity8", "projection8", "labels", "frames")}, **meta, **extra)
 
 
 def _half(stack: np.ndarray) -> np.ndarray:
@@ -169,6 +173,7 @@ def prepare(
     max_size: int = 1024,
     max_megapixels: float = 200.0,
     tiles_dir: Path | None = None,
+    additional: np.ndarray | None = None,
 ) -> ViewerData:
     """Encode the image data. If the image is larger than ``max_size`` and ``tiles_dir`` is given, the levels
     between full resolution and the overview are written there as tiles. The lifetime is not smoothed: the dashboard
@@ -181,11 +186,14 @@ def prepare(
 
     tau = np.empty((len(frames), h, w), np.float32)
     inten = np.empty((len(frames), h, w), np.float32)
+    add = np.empty((len(frames), h, w), np.float32) if additional is not None else None
 
     def copy(i):
         tau[i] = lifetime[frames[i]]
         tau[i][~np.isfinite(tau[i]) | (tau[i] == 0)] = np.nan
         inten[i] = intensity[frames[i]]
+        if add is not None:
+            add[i] = additional[frames[i]]
 
     _map(copy, range(len(frames)))
     proj = projection.astype(np.float32)
@@ -196,15 +204,18 @@ def prepare(
     lo, hi = (min(dmin - 0.25 * span, p[0]), max(dmax + 0.25 * span, p[1])) if p is not None else (dmin, dmax)
     ilo, ihi = _percentiles(inten, [0.2, 99.8], step) if _percentiles(inten, [50], step) is not None else (0, 1)
     plo, phi = _percentiles(proj, [0.2, 99.8], step) if _percentiles(proj, [50], step) is not None else (0, 1)
+    pa = _percentiles(add, [0.2, 99.8], step) if add is not None else None
+    alo, ahi = pa if pa is not None else (0, 1)
     lab = labels.astype(np.int32)
 
     tiles: dict = {}
     for level in range(n_levels):
         if tiles_dir is not None:
-            meta = _write_level(Path(tiles_dir), level, tau, inten, proj, lab, (lo, hi), (ilo, ihi), (plo, phi))
+            meta = _write_level(Path(tiles_dir), level, tau, inten, proj, lab, (lo, hi), (ilo, ihi), (plo, phi), add, (alo, ahi))
             tiles.setdefault("levels", []).append(meta)
         hh, ww = lab.shape[0] // 2 * 2, lab.shape[1] // 2 * 2
         tau, inten, proj, lab = _half(tau), _half(inten), _half(proj[np.newaxis])[0], lab[:hh:2, :ww:2]
+        add = _half(add) if add is not None else None
     if tiles:
         tiles |= {"tile": TILE, "path": Path(tiles_dir).name}
     return ViewerData(
@@ -218,15 +229,17 @@ def prepare(
         hi=float(hi),
         tiles=tiles,
         smoothed_xy=0.0,
+        additional8=_to8(add, alo, ahi, False) if add is not None else None,
     )
 
 
-def _write_level(tiles_dir: Path, level: int, tau, inten, proj, lab, trange, irange, prange) -> dict:
+def _write_level(tiles_dir: Path, level: int, tau, inten, proj, lab, trange, irange, prange, add=None, arange=(0, 1)) -> dict:
     d = tiles_dir / f"L{level}"
     d.mkdir(parents=True, exist_ok=True)
     nf, h, w = tau.shape
     ny, nx = math.ceil(h / TILE), math.ceil(w / TILE)
     tau8, int8, proj8 = _to8(tau, *trange, True), _to8(inten, *irange, False), _to8(proj, *prange, False)
+    add8 = _to8(add, *arange, False) if add is not None else None
     jobs = []  # (file, key, function returning the tile image), evaluated in the worker threads
     for ty in range(ny):
         for tx in range(nx):
@@ -235,15 +248,17 @@ def _write_level(tiles_dir: Path, level: int, tau, inten, proj, lab, trange, ira
             jobs.append((d / f"p_{ty}_{tx}.js", f"L{level}/p_{ty}_{tx}", lambda sl=sl: proj8[sl]))
             for fi in range(nf):
                 jobs.append((d / f"t{fi}_{ty}_{tx}.js", f"L{level}/t{fi}_{ty}_{tx}",
-                             lambda sl=sl, fi=fi: _rg(tau8[fi][sl], int8[fi][sl])))
+                             lambda sl=sl, fi=fi: _rg(tau8[fi][sl], int8[fi][sl], None if add8 is None else add8[fi][sl])))
     _map(lambda job: job[0].write_text(f'FHTile("{job[1]}","{png_data_url(job[2]())}");', encoding="ascii"), jobs)
     log.info("Viewer tiles: level %d, %d x %d tiles x %d frames", level, nx, ny, nf)
     return {"level": level, "factor": 2**level, "width": w, "height": h, "nx": nx, "ny": ny}
 
 
-def _rg(r: np.ndarray, g: np.ndarray) -> np.ndarray:
+def _rg(r: np.ndarray, g: np.ndarray, b: np.ndarray | None = None) -> np.ndarray:
     out = np.zeros(r.shape + (3,), np.uint8)
     out[..., 0], out[..., 1] = r, g
+    if b is not None:
+        out[..., 2] = b
     return out
 
 
@@ -259,9 +274,12 @@ def png_data_url(arr: np.ndarray) -> str:
 
 
 def frame_urls(v: ViewerData) -> list[str]:
-    """One RGB PNG per frame: R = lifetime code, G = intensity, B = 0."""
-    zeros = np.zeros_like(v.lifetime8[0])
-    return _map(lambda i: png_data_url(np.dstack([v.lifetime8[i], v.intensity8[i], zeros])), range(len(v.frames)))
+    """One RGB PNG per frame: R = lifetime code, G = intensity, B = the additional channel (or 0)."""
+    return _map(lambda i: png_data_url(_frame_rgb(v, i)), range(len(v.frames)))
+
+
+def _frame_rgb(v: ViewerData, i: int) -> np.ndarray:
+    return _rg(v.lifetime8[i], v.intensity8[i], None if v.additional8 is None else v.additional8[i])
 
 
 FRAMES_DIR = "frames"  # next to the dashboard: one file per frame, loaded by the page when it needs it
@@ -275,10 +293,8 @@ def write_frames(v: ViewerData, folder: Path) -> str:
     if d.exists():
         shutil.rmtree(d)
     d.mkdir(parents=True)
-    zeros = np.zeros_like(v.lifetime8[0])
-
     def one(i: int) -> str:
-        url = png_data_url(np.dstack([v.lifetime8[i], v.intensity8[i], zeros]))
+        url = png_data_url(_frame_rgb(v, i))
         (d / f"t{i}.js").write_text(f'FHTile("O/t{i}","{url}");', encoding="ascii")
         return url
 
