@@ -61,7 +61,7 @@ with the settings of the window, and gets its own folder, overview, hit list and
 - **Experiment folder**: the folder that holds one folder per sample, and the overview of all samples. Adding images
   without one proposes a folder *FAST-HIPPOS* next to the images. See [A screen of several samples](screen.md).
 - **Add images…**: time-lapse `.tif` files (ImageJ hyperstacks) or Leica `.lif` files. Every series of a `.lif` file
-  is a sample of its own, unless you choose some under *Advanced → .lif series*.
+  is a sample of its own, with a tick box in its row: untick the series you want to leave out.
 - **Add tile folder…**: a folder of tiles exported from LAS X, which FAST-HIPPOS stitches by their stage positions into
   one image (one sample); see [Back to the microscope](microscope.md#tile-scans).
 - Every image shows what was read from it: size, frames, channels, pixel size, frame interval, and whether it holds

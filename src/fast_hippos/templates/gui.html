@@ -136,7 +136,8 @@ body.pages header { margin-bottom: 0; }
 .setupOnly { display: contents; }
 .samples { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
 .samples-h { color: var(--muted); font-size: 11.5px; }
-.srow { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) auto; gap: 6px; align-items: center; }
+.srow { display: grid; grid-template-columns: 16px minmax(120px, 1fr) minmax(120px, 1fr) auto; gap: 6px; align-items: center; }
+.srow.skip { opacity: .55; }
 .srow .st { font-size: 11.5px; white-space: nowrap; } .srow .st.done { color: var(--warn); }
 .results .grp { color: var(--muted); margin-top: 6px; }
 /*__HELP_CSS__*/
@@ -510,7 +511,7 @@ function checks() {
   SRV.problems.forEach(m => add("err", m, true));  // images, channels, frames, files
   const rows = sampleRows();
   if (!S.input.experiment) add("err", "Choose an experiment folder (adding images proposes one)", true);
-  if (!rows.length) add("err", "Add the images to analyze: each image is a sample", true);
+  if (!rows.length) add("err", sampleRows(true).length ? "All series are unticked: tick the ones to analyze" : "Add the images to analyze: each image is a sample", true);
   const dup = rows.map(r => r.name.toLowerCase()).filter((n, i, a) => a.indexOf(n) !== i);
   if (dup.length) add("err", `Two samples have the same name (${dup.join(", ")}): give each its own name`, true);
   const o = outputState(), imgs = runImages(o);
@@ -608,9 +609,10 @@ function readInput(el) {
 }
 document.addEventListener("change", (e) => {
   const el = e.target;
-  if (el.dataset.srow !== undefined) {  // the name or label of a sample row
-    const r = sampleRows()[+el.dataset.srow], k = el.dataset.field;
-    ROWS[r.key] = { ...(ROWS[r.key] || {}), [k]: k === "name" ? safeName(el.value) : el.value.trim() };
+  if (el.dataset.rkey !== undefined) {  // a sample row: a series ticked or not, its name or label
+    const key = el.dataset.rkey, k = el.dataset.field;
+    if (k === "use") { if (el.checked) SKIP.delete(key); else SKIP.add(key); }
+    else ROWS[key] = { ...(ROWS[key] || {}), [k]: k === "name" ? safeName(el.value) : el.value.trim() };
     render(); return;
   }
   const crit = el.closest("[data-crit]");
@@ -774,13 +776,13 @@ async function startSamples() {
       + (again.length ? `\n\nThese have results already, which are replaced (kept in _previous_run in their folder until the new run is complete):\n${bulletList(again, 20)}` : "")
       + "\n\nEach image is analyzed in a run of its own, then the experiment overview is updated.\n\nContinue?")) return;
   const samples = rows.map(r => ({ file: r.file, series: r.series, name: r.name, label: r.label || null }));
-  S.input.output = joinP(S.input.experiment, rows[rows.length - 1].name);  // the sample shown afterwards
-  let r; try { r = await api("run", { settings: S, samples }); } catch (e) { toast(e.message, 6000); return; }
+  const before = S.input.output; S.input.output = joinP(S.input.experiment, rows[rows.length - 1].name);  // shown afterwards
+  let r; try { r = await api("run", { settings: S, samples }); } catch (e) { S.input.output = before; toast(e.message, 6000); return; }
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = ""; render();
 }
 function newSample() {
   S.input.files = []; S.input.series = null; S.input.sample_label = null; S.image = {};
-  S.screening.manual_hits = null; for (const k in ROWS) delete ROWS[k]; show("setup"); render();
+  S.screening.manual_hits = null; for (const k in ROWS) delete ROWS[k]; for (const k in PICK) delete PICK[k]; SKIP.clear(); show("setup"); render();
   toast("New sample: add its images; the output folder becomes the experiment folder\\<image name>. All other settings are kept.", 5000);
 }
 $("bNewSample").onclick = newSample;
@@ -813,37 +815,41 @@ const pageURL = (path) => "/files/" + normP(path).split("/").map(encodeURICompon
 const FRAMES = ["experiment", "sample", "image"];
 // every image a sample: a .tif, a folder of tiles, or one series of a .lif (named as pipeline.sample_name); the names
 // and labels typed in the rows (key: file|series) are kept here until the next New sample
-const ROWS = {};
-const safeName = (s) => String(s || "").replace(/[\\/:*?"<>|]/g, "_").trim();
+// PICK: the one series of a .lif of a sample chosen in the top bar; SKIP: series of a .lif left out (unticked rows)
+const ROWS = {}, PICK = {}, SKIP = new Set();
+// a folder name that is a sample (not skipped like _folders, not . or ..): as pipeline.sample_name
+const safeName = (s) => String(s || "").replace(/[\\/:*?"<>|]/g, "_").trim().replace(/^[_.\s]+|[.\s]+$/g, "");
 function autoName(file, seriesName, n) {
   const base = /[\\/]$/.test(file) || !/\.[a-z]+$/i.test(baseName(file)) ? baseName(file) : baseName(file).replace(/\.(ome\.)?(tiff?|lif)$/i, "");
   return safeName(seriesName && n > 1 ? `${base} - ${seriesName}` : base) || "sample";
 }
-function sampleRows() {
+function sampleRows(all = false) {  // all: also the unticked series (as rows to show)
   if (!S) return [];
   const rows = [], taken = new Set(), x = S.input.experiment ? experimentState() : null;
   const known = (n) => ((x && x.samples) || []).find(s => sameName(s.name, n));  // a sample of that name has results
   for (const f of S.input.files || []) {
     const lif = /\.lif$/i.test(f), names = (lif && INFO[f] && INFO[f].series_names) || [null];
     names.forEach((sn, i) => {
-      if (lif && S.input.series && S.input.series.length && !S.input.series.includes(i)) return;
+      if (lif && f in PICK ? PICK[f] !== i : lif && S.input.series && S.input.series.length && !S.input.series.includes(i)) return;
       const key = f + "|" + (lif ? i : ""), own = ROWS[key] || {};
+      if (SKIP.has(key) && !all) return;
       let name = own.name || autoName(f, sn, names.length);
       if (!own.name) for (let k = 2, b = name; taken.has(name.toLowerCase()); k++) name = `${b} ${k}`;
       taken.add(name.toLowerCase());
-      rows.push({ key, file: f, series: lif ? i : null, name, label: own.label ?? ((known(name) && known(name).label) || "") });
+      rows.push({ key, file: f, series: lif ? i : null, lif, skip: SKIP.has(key), name, label: own.label ?? ((known(name) && known(name).label) || "") });
     });
   }
   return rows;
 }
 function samplesHTML() {
-  const rows = sampleRows(), x = S.input.experiment ? experimentState() : null;
+  const rows = sampleRows(true), x = S.input.experiment ? experimentState() : null;
   if (!rows.length) return "";
   const done = (n) => ((x && x.samples) || []).some(s => sameName(s.name, n));
   return `<div class="samples"><div class="samples-h">Each image is a sample: its folder in the experiment folder, and a label for the overviews</div>`
-    + rows.map((r, i) => `<div class="srow"><input type="text" data-srow="${i}" data-field="name" value="${esc(r.name)}" title="The folder of this sample in the experiment folder (${esc(baseName(r.file))}${r.series !== null ? ", series " + r.series : ""})">`
-      + `<input type="text" data-srow="${i}" data-field="label" value="${esc(r.label)}" placeholder="label, e.g. the condition (optional)" title="Shown in the experiment overview, to tell or group the samples">`
-      + `<span class="st${done(r.name) ? " done" : ""}">${done(r.name) ? "has results: replaced" : "new"}</span></div>`).join("") + "</div>";
+    + rows.map((r) => `<div class="srow${r.skip ? " skip" : ""}">${r.lif ? `<input type="checkbox" data-rkey="${esc(r.key)}" data-field="use" ${r.skip ? "" : "checked"} title="Analyze this series of ${esc(baseName(r.file))} (untick to leave it out)">` : "<span></span>"}`
+      + `<input type="text" data-rkey="${esc(r.key)}" data-field="name" value="${esc(r.name)}" ${r.skip ? "disabled" : ""} title="The folder of this sample in the experiment folder (${esc(baseName(r.file))}${r.series !== null ? ", series " + r.series : ""})">`
+      + `<input type="text" data-rkey="${esc(r.key)}" data-field="label" value="${esc(r.label)}" ${r.skip ? "disabled" : ""} placeholder="label, e.g. the condition (optional)" title="Shown in the experiment overview, to tell or group the samples">`
+      + `<span class="st${!r.skip && done(r.name) ? " done" : ""}">${r.skip ? "left out" : done(r.name) ? "has results: replaced" : "new"}</span></div>`).join("") + "</div>";
 }
 const inExperiment = (p) => !S.input.experiment || samePath(parentPath(p), S.input.experiment);  // a sample of it
 const sameName = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
@@ -893,10 +899,10 @@ function show(view, opts = {}) {
     const fr = $("fr-" + v); fr.classList.toggle("on", v === view);
     if (v !== view) continue;
     const url = pageURL(target) + (opts.hash || "");
-    if (fr.dataset.url !== url) {  // replace(): no entries in the browser history for the frame
+    if (fr.dataset.url !== url || fr.dataset.stale) {  // replace(): no entries in the browser history for the frame
       if (fr.dataset.url) fr.contentWindow.location.replace(url); else fr.src = url;
-      fr.dataset.url = url;
-    }
+      fr.dataset.url = url; delete fr.dataset.stale;
+    } else if (opts.hash) fr.contentWindow.location.hash = opts.hash.slice(1) + "&" + Date.now();  // the same cell again
   }
   $("popOut").hidden = view === "setup";
   document.title = view === "setup" ? "FAST-HIPPOS" : `${view === "image" ? VIEW.image : baseName(view === "experiment" ? S.input.experiment : S.input.output)} · FAST-HIPPOS`;
@@ -927,8 +933,9 @@ async function switchSample(name) {
   const inp = o.run.input || {};
   S.input.output = out; S.input.files = inp.files || o.run.inputs || []; S.input.series = inp.series ?? null;
   S.input.sample_label = null; S.image = structuredClone(o.run.image_settings || {});
-  for (const k in ROWS) delete ROWS[k];
-  if (S.input.files.length === 1) ROWS[S.input.files[0] + "|" + (S.input.series ? S.input.series[0] : "")] = { name, label: inp.sample_label || "" };
+  for (const k in ROWS) delete ROWS[k]; for (const k in PICK) delete PICK[k]; SKIP.clear();
+  if (S.input.files.length === 1 && S.input.series && S.input.series.length === 1) { PICK[S.input.files[0]] = S.input.series[0]; S.input.series = null; }
+  if (S.input.files.length === 1) ROWS[S.input.files[0] + "|" + (S.input.files[0] in PICK ? PICK[S.input.files[0]] : "")] = { name, label: inp.sample_label || "" };
   inspect(S.input.files); render(); api("remember", { settings: S }).catch(() => {});
   toast(`Sample ${name}: its images, folder and label are now in the window (the analysis settings stay)`, 4500);
   return true;
@@ -1019,6 +1026,10 @@ async function poll() {
   $("bar").style.width = (st.state === "done" ? 100 : st.state === "running" ? Math.min(95, (Math.max(nImg, 1) - 0.5) / total * 100) : 0) + "%";
   $("bStop").disabled = st.state !== "running";
   if (changedState) { delete OUT[S.input.output || ""]; for (const k in EXPS) delete EXPS[k]; renderChecks(); renderResults(); }  // re-check for results
+  if (changedState && st.state !== "running") {  // new results: the pages in the window are loaded again (the one shown at once)
+    for (const v of FRAMES) { const fr = $("fr-" + v); if (fr.dataset.url) fr.dataset.stale = "1"; }
+    if (VIEW.cur !== "setup") setTimeout(() => show(VIEW.cur, { fromHistory: true }), 800);
+  }
   setTimeout(poll, st.state === "running" ? 700 : 2000);
 }
 $("results").addEventListener("click", (e) => {

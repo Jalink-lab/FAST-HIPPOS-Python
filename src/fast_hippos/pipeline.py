@@ -195,7 +195,8 @@ def sample_name(path: str | Path, series_name: str | None = None, n_series: int 
     p = Path(path)
     base = p.name if p.is_dir() else re.sub(r"\.(ome\.)?(tiff?|lif)$", "", p.name, flags=re.IGNORECASE)
     name = f"{base} - {series_name}" if series_name and n_series > 1 else base
-    return re.sub(r'[\\/:*?"<>|]', "_", name).strip() or "sample"
+    name = re.sub(r'[\\/:*?"<>|]', "_", name).strip()
+    return re.sub(r"^[_.\s]+|[.\s]+$", "", name) or "sample"  # not skipped like _folders, not . or ..
 
 
 def sample_list(settings: Settings) -> list[dict]:
@@ -211,7 +212,7 @@ def sample_list(settings: Settings) -> list[dict]:
             lif = p.suffix.lower() == ".lif"
             if lif and settings.input.series and i not in settings.input.series:
                 continue
-            name = base = sample_name(p, info.get("name"), len(infos))
+            name = base = sample_name(p, info.get("name") or f"series {i}", len(infos))  # (as the window)
             for k in range(2, 1000):
                 if name.lower() not in taken:
                     break
@@ -240,8 +241,9 @@ def run_samples(settings: Settings, samples: list[dict] | None = None) -> list[s
     for k, s in enumerate(samples, 1):
         print(f"=== Sample {k} of {len(samples)}: {s['name']}", flush=True)  # the run logs go to their own folders
         d = copy.deepcopy(base)
+        name = sample_name(s["name"])  # a safe folder name inside the experiment folder
         d["input"] |= {"files": [s["file"]], "series": None if s.get("series") is None else [int(s["series"])],
-                       "output": str(experiment / s["name"]), "sample_label": s.get("label") or None,
+                       "output": str(experiment / name), "sample_label": s.get("label") or None,
                        "experiment": str(experiment)}
         try:
             if not run(Settings.from_dict(d), experiment_overview=False):

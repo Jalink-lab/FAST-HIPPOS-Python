@@ -1089,7 +1089,7 @@ window.FH_GUI = { token: "__TOKEN__", output: "__OUTPUT__", run: __RUN__ };
   const show = (text) => {
     if (!banner) { banner = document.createElement("div"); document.body.appendChild(banner);
       banner.style.cssText = "position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:99;padding:6px 14px;" +
-        "border-radius:8px;background:#1f6fd1;color:#fff;font:13px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3)"; }
+        "border-radius:8px;background:#6a50ee;color:#fff;font:13px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3)"; }
     banner.textContent = text;
   };
   async function watch() {

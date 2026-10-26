@@ -70,7 +70,7 @@ invalidate(...ALL());
 request("O/lab"); request("O/p");
 // #cell=<n>: open with that cell selected (from the overview; inside the window also when the page is already open)
 function cellFromHash() {
-  const m = location.hash.match(/cell=(\d+)/);
+  const m = location.hash.match(/cell=(\d+)/);  // (#cell=<n>&<time>: the same cell again)
   if (m) { const i = C.cell.indexOf(+m[1]); if (i >= 0) { select(i); setTimeout(() => zoomTo([i]), 200); } }
 }
 cellFromHash(); window.addEventListener("hashchange", cellFromHash);
