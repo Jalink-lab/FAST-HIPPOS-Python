@@ -19,7 +19,7 @@ Dashboard
 :   The interactive page of one image (`dashboard.html`).
 
 Experiment folder
-:   The folder that holds one folder per sample, and the overview of all samples. Every analysis in the window goes into
+:   The folder that holds one folder per image, and the overview of all images. Every analysis in the window goes into
     an experiment folder, also with one image.
 
 Hit
@@ -33,22 +33,23 @@ Lifetime
     *intensity*.
 
 Output folder
-:   The folder with the results of one run: in the window, the folder of a sample. (Its name in settings files is
+:   The folder with the results of one run: in the window, the folder of an image. (Its name in settings files is
     `input.output`.)
 
 Overview
-:   A page that compares images (`index.html`): of one sample, in its folder, or of the whole experiment, in the
-    experiment folder.
+:   A page that compares images (`index.html`): of the whole experiment, in the experiment folder (**Overview** in
+    the window). Every image folder also holds one of its own.
 
-Sample
-:   One specimen: every image is a sample, analyzed in a run of its own, with its own hit list and `.rgn` files, in
-    its own folder inside the experiment folder. It can carry a label, e.g. its condition.
+Image
+:   What you analyze: a `.tif`, a stitched tile folder or one series of a `.lif`. Every image is analyzed in a run of
+    its own, with its own hit list and `.rgn` files, in its own folder inside the experiment folder. It can carry a
+    label, e.g. its condition.
 
 Quality gate
 :   A condition that every hit must meet, to keep out cells whose traces cannot be trusted.
 
 Re-apply
-:   Redo the screening of a sample (or of all samples) with other settings, without segmenting and measuring again.
+:   Redo the screening of an image (or of all images) with other settings, without segmenting and measuring again.
 
 Response
 :   The part of a trace between the stimulation and the calibration. The *response window* is the part of it whose
@@ -58,7 +59,7 @@ Response
 :   A LAS X region file with stage positions, which the microscope can visit.
 
 Run
-:   One analysis of a sample with one set of settings, in one folder. (From a settings file, a run can also hold
+:   One analysis of an image with one set of settings, in one folder. (From a settings file, a run can also hold
     several images, with one combined hit list.)
 
 Stimulation

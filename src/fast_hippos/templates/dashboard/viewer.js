@@ -25,7 +25,9 @@ function lruBytes(max, size) {
 }
 const rawCache = lruBytes(RAW_BUDGET, (e) => e.c.length * (e.b ? 3 : 2)), labCache = lru(120), compCache = lru(100), outCache = lru(100), fillCache = lru(60), lastComp = new Map();
 let fillVersion = 0, fillRange = [0, 1];
-const inflight = new Map(); let active = 0; const queue = [];  // inflight: key -> priority (0 = needed on screen now)
+// inflight: key -> { prio (0 = needed on screen now), then: layers to redraw when it arrives (of every requester) }
+const inflight = new Map(); let active = 0; const queue = [];
+const FAILED = new Map();  // key -> time: a frame or tile that could not be loaded (not asked for again for 10 s)
 
 // Decoding the PNGs (lifetime code in R, intensity in G; labels as R + 256 G + 65536 B) in background workers, so
 // that playing and panning stay smooth while frames load; in the page itself where workers are not available.
@@ -49,7 +51,13 @@ const DECODERS = (() => {
   } catch { return []; }  // e.g. a browser that does not allow workers for pages opened from disk
 })();
 const decodeWaiters = new Map(); let decodeId = 0, decodeNext = 0;
-DECODERS.forEach(w => { w.onmessage = (e) => { const r = decodeWaiters.get(e.data.id); decodeWaiters.delete(e.data.id); if (r) r(e.data); }; });
+DECODERS.forEach(w => {
+  w.onmessage = (e) => { const r = decodeWaiters.get(e.data.id); decodeWaiters.delete(e.data.id); if (r) r(e.data); };
+  w.onerror = () => {  // a worker that does not run: decode in the page instead (also what it was waiting for)
+    DECODERS.splice(DECODERS.indexOf(w), 1);
+    for (const [id, r] of decodeWaiters) { decodeWaiters.delete(id); r({ error: "worker" }); }
+  };
+});
 function splitRGBA(d, w, h) {  // the channels that are used: lifetime code (R), intensity (G), additional channel (B)
   const n = w * h, c = new Uint8Array(n), g = new Uint8Array(n), b = V.additional ? new Uint8Array(n) : null;
   for (let p = 0, q = 0; p < n; p++, q += 4) { c[p] = d[q]; g[p] = d[q + 1]; if (b) b[p] = d[q + 2]; }
@@ -98,10 +106,12 @@ function request(key, then = ["viewer", "viewerSel", "cell"], prio = 0) {
   const isLab = key.endsWith("lab") || key.includes("/lab_");
   const hit = (isLab ? labCache : rawCache).get(key);
   if (hit) return hit;
+  if (performance.now() - (FAILED.get(key) ?? -1e9) < 10000) return null;  // missing: not again right away
   const was = inflight.get(key);
-  if (was === undefined) { inflight.set(key, prio); queue.push({ key, isLab, then, prio }); pump(); }
-  else if (prio < was) {  // needed sooner than asked before
-    inflight.set(key, prio); const q = queue.find(e => e.key === key); if (q) { q.prio = prio; q.then = then; }
+  if (!was) { inflight.set(key, { prio, then: new Set(then) }); queue.push({ key, isLab, prio }); pump(); }
+  else {
+    then.forEach(l => was.then.add(l));
+    if (prio < was.prio) { was.prio = prio; const q = queue.find(e => e.key === key); if (q) q.prio = prio; }  // needed sooner
   }
   return null;
 }
@@ -109,13 +119,15 @@ const MAX_ACTIVE = 8;
 function pump() {
   while (active < MAX_ACTIVE && queue.length) {
     let bi = 0; for (let i = 1; i < queue.length; i++) if (queue[i].prio < queue[bi].prio || (queue[i].prio === queue[bi].prio && i > bi)) bi = i;
-    const { key, isLab, then } = queue.splice(bi, 1)[0];  // the most urgent; among equals the newest (on screen now)
+    const { key, isLab } = queue.splice(bi, 1)[0];  // the most urgent; among equals the newest (on screen now)
     active++;
     sourceURL(key).then(url => url ? decodeURL(url, isLab) : null).then(img => {
-      if (img) (isLab ? labCache : rawCache).set(key, isLab ? labelEntry(img) : img);
-    }).catch(() => {}).finally(() => { active--; inflight.delete(key); invalidate(...then); pump(); });
+      if (img) (isLab ? labCache : rawCache).set(key, isLab ? labelEntry(img) : img); else FAILED.set(key, performance.now());
+    }).catch(() => FAILED.set(key, performance.now())).finally(() => {
+      const e = inflight.get(key); active--; inflight.delete(key); invalidate(...(e ? e.then : [])); pump();
+    });
   }
-  const n = [...inflight.values()].filter(p => p <= 1).length;  // what is (almost) on screen; the look-ahead is silent
+  const n = [...inflight.values()].filter(e => e.prio <= 1).length;  // what is (almost) on screen; the look-ahead is silent
   $("loading").textContent = BUFFERING ? "buffering…" : n ? `loading ${n} tile${n > 1 ? "s" : ""}…` : "";
 }
 let BUFFERING = false;  // playing waits for the next frame to be complete (set by the play loop in main.js)
@@ -333,7 +345,7 @@ function viewKeys(vf) {
   for (const t of tiles) for (let k = -rt; k <= rt; k++) keys.push(frameKey(t, Math.min(NVF - 1, Math.max(0, vf + k))));
   return keys;
 }
-const frameReady = (vf) => viewKeys(vf).every(k => rawCache.has(k));
+const frameReady = (vf) => viewKeys(vf).every(k => rawCache.has(k) || FAILED.has(k));  // (a missing file: play on)
 // playing: the frames ahead in the current view are loaded in advance, the nearest first, as many as fit in half the
 // memory budget (all of them for most movies, so that the second loop plays from memory)
 function prefetch(from = S.frame) {

@@ -14,7 +14,7 @@ piece of work.
 | `config.py` METRICS, cell table columns | regenerate `reference/metrics.md` (other values: `OTHER_VALUES` in `gen_reference.py`) |
 | `templates/dashboard/` (panels, screening pane, Apply buttons) | `guide/dashboard.md`, `guide/choosing-hits.md`, `guide/own-settings.md`, `start/first-analysis.md` (step 7) |
 | `templates/overview/` | `guide/overview.md`, `guide/screen.md` (the experiment overview) |
-| `experiment.py`, experiment folder, New sample, Re-apply all samples, the top bar (Setup, Experiment, Sample, Image) | `guide/screen.md`, `guide/window.md` (Images, Run card), `guide/output-folder.md`, `reference/command-line.md` |
+| `experiment.py`, experiment folder, New image, Re-apply all images, the Images list (ticks), the top bar (Setup, Overview, Image) | `guide/screen.md`, `guide/window.md` (Images, Run card), `guide/output-folder.md`, `reference/command-line.md` |
 | `events.py`, `screening.py` (detection, gates, criteria) | `guide/choosing-hits.md`, `reference/analysis.md`, `guide/window.md` (Stimulation and calibration), `help/faq.md` |
 | per-image settings (`config.IMAGE_SETTINGS`, Apply to this image only) | `guide/own-settings.md` |
 | `pipeline.py` output files, run folder, `_previous_run` | `guide/output-folder.md` |
@@ -42,9 +42,9 @@ are not in it (Getting started, command line) open the online manual.
 
 - Folder: `C:/PythonProjects/FAST-HIPPOS/data/manual` (outside the synced project folder): `example_screen_1-3.tif`,
   `stage_positions.txt`, `example.toml` (with the local Cellpose environments), `example_settings.toml` (the public
-  copy, in the release ZIP), `example_run/` (the output).
+  copy, in the release ZIP), `experiment/` (the output: the three images, each in a folder of its own).
 - The example experiment (`guide/screen.md`): `experiment/` in the same folder, made with
-  `python tools/manual/make_example_experiment.py` (each image a sample, `sample_1-3.toml`, ~1.5 min); the
+  `python tools/manual/make_example_experiment.py` (run-samples, labels *library part 1-3*, ~1.5 min); the
   screenshots `gui_experiment*`, `gui_run_experiment` and `experiment` need it. Remake it after a change
   to the example or the analysis.
 - On another computer: download `fast-hippos-example-data.zip` from the

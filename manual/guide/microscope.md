@@ -6,15 +6,15 @@ microscope can visit them one by one.
 
 ## The .rgn files
 
-After a run with screening, the folder of the sample holds:
+After a run with screening, the folder of the image holds:
 
 | File | |
 |---|---|
-| `HITS_<sample>.rgn` | all hits of the sample |
-| `HITS_<sample>_1-1000.rgn`, `HITS_<sample>_1001-2000.rgn`, … | the hits in files of at most 1000 positions (*Hits per .rgn file*), each with its own short route |
+| `HITS_<name>.rgn` | all hits of the image |
+| `HITS_<name>_1-1000.rgn`, `HITS_<name>_1001-2000.rgn`, … | the hits in files of at most 1000 positions (*Hits per .rgn file*), each with its own short route |
 | `hits_1-1000.tsv`, … | the same hits as tables, in visiting order |
 
-`<sample>` is the name of the sample (its folder). Each file lists
+`<name>` is the name of the image (its folder). Each file lists
 the positions in an order that keeps the stage travel short: the route is optimized, typically 13–18 % shorter than
 going from each hit to the nearest next one. The
 overview and the dashboards can draw these routes.
@@ -27,8 +27,8 @@ To visit the hits:
 3. Set up the experiment that should run at every position (photoactivation, high-resolution imaging, …) and start
    it.
 
-Every sample has its own `.rgn` files, in its own folder in the experiment folder (see
-[A screen of several samples](screen.md)): run the sample, visit its hits, then go on with the next sample.
+Every image has its own `.rgn` files, in its own folder in the experiment folder (see
+[A screen of many images](screen.md)): run the image, visit its hits, then go on with the next image.
 
 With more than one `.rgn` file, load and run them one after another; each next route starts near where the
 previous one ended. The `.rgn` files are the same as those of the Fiji version of FAST-HIPPOS.
@@ -53,7 +53,7 @@ in the order of the images, separated by spaces, tabs, commas or new lines (it r
 images); or the `.lif` file with the positions (used only for images without positions of their own).
 
 Images without stage positions are still analyzed and screened, but their hits get no `.rgn` file; the window warns
-about this before the run. A stage positions file is only read by *Run analysis*, not by *Re-apply this sample*.
+about this before the run. A stage positions file is only read by *Run analysis*, not by *Re-apply this image*.
 
 ### Stage coordinates and the .rgn frame
 
@@ -80,7 +80,7 @@ version.</figcaption>
 | *.rgn: invert X* | mirrored left–right |
 | *.rgn: invert Y* | mirrored top–bottom |
 
-*Re-apply this sample* uses changed settings: the `.rgn` files are written again, without a new segmentation.
+*Re-apply this image* uses changed settings: the `.rgn` files are written again, without a new segmentation.
 
 !!! tip "Hit positions on the nucleus"
     By default a hit position is the centre of the cell. With a *Nuclei classifier* (*Cell segmentation → Advanced*),
@@ -101,11 +101,11 @@ this once with a `.rgn` file in the Navigator, preferably with hits near the edg
 stitches:
 
 1. In LAS X, **export the tiles**: one TIFF per tile (`name_s0.tif`, `name_s1.tif`, …), with the `MetaData` folder.
-2. In the *Images* card, click **Add tile folder…** and choose the folder. The stitched image is one sample.
+2. In the *Images* card, click **Add tile folder…** and choose the folder. The stitched image is one image.
 
 FAST-HIPPOS reads the position of every tile, corrects the bidirectional scanning phase if *Correct bidirectional
 scanning phase* is on (once for all tiles), places each tile at its stage position, and saves the stitched image in
-the folder of the sample (`<name>_STITCHED.tif`), with the tile positions, so that it can be used again later. Tiles that
+the folder of the image (`<name>_STITCHED.tif`), with the tile positions, so that it can be used again later. Tiles that
 overlap are not blended yet: the later tile covers the earlier one.
 
 FAST-HIPPOS saves the tile positions it reads next to the tiles, as `tile_positions.tsv`, and uses that file from then

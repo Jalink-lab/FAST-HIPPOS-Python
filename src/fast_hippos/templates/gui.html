@@ -487,9 +487,9 @@ const parentPath = (p) => String(p || "").replace(/[\\/]+$/, "").replace(/[\\/][
 // the same checks of the settings against the images as at the start of a run (server side, metadata only)
 // inputs: the images and the output folder; while their check is not back yet, the page waits (see busy())
 const SRV = { key: "", problems: [], inputs: null, checkedInputs: null };
-const inputsKey = () => JSON.stringify([S.input.files, S.input.series, S.input.output, S.screening.stage_positions_file]);
+const inputsKey = () => JSON.stringify([S.input.files, S.input.series, S.input.output, S.screening.stage_positions_file, sampleRows().map(r => r.key)]);
 function serverCheck() {
-  const key = JSON.stringify(S); if (key === SRV.key) return;
+  const key = JSON.stringify([S, sampleRows().map(r => r.key)]); if (key === SRV.key) return;
   SRV.key = key; SRV.inputs = inputsKey(); clearTimeout(serverCheck.t);
   const inputs = SRV.inputs;
   serverCheck.t = setTimeout(async () => {
@@ -770,9 +770,9 @@ async function startSamples() {
       + (again.length ? `\n\nThese have results already, which are replaced (kept in _previous_run in their folder until the new run is complete):\n${bulletList(again, 20)}` : "")
       + "\n\nEach image is analyzed in a run of its own, then the experiment overview is updated.\n\nContinue?")) return;
   const samples = rows.map(r => ({ file: r.file, series: r.series, name: r.name, label: r.label || null }));
-  for (const r of rows) delete USE[r.key]; saveRows();  // once analyzed they have results: unticked by default
   const before = S.input.output; S.input.output = joinP(S.input.experiment, rows[rows.length - 1].name);  // shown afterwards
   let r; try { r = await api("run", { settings: S, samples }); } catch (e) { S.input.output = before; toast(e.message, 6000); return; }
+  for (const row of rows) delete USE[row.key]; saveRows();  // once analyzed they have results: unticked by default
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = ""; render();
 }
 function newSample() {
@@ -862,7 +862,10 @@ function pruneOwnSettings() {
   if (files.some(f => /\.lif$/i.test(f) && !(INFO[f] && INFO[f].series_names))) return;  // series names not read yet
   const o = outputState(); if (S.input.output && o === null) return;  // the current image is being read
   const keep = new Set(runImages(o).map(i => i.name.toLowerCase()));
-  for (const r of sampleRows(true)) for (const n of [r.image, r.name, fileBase(r.file), r.seriesName ? `${fileBase(r.file)} - ${r.seriesName}` : null]) if (n) keep.add(n.toLowerCase());
+  for (const r of sampleRows(true)) {
+    const stem = baseName(r.file).replace(/\.[^.]*$/, "");  // as Path.stem
+    for (const n of [r.image, r.name, fileBase(r.file), stem, r.seriesName ? `${stem} - ${String(r.seriesName).replace(/\//g, "-")}` : null]) if (n) keep.add(n.toLowerCase());
+  }
   const gone = Object.keys(S.image).filter(n => !keep.has(n.toLowerCase()));
   if (!gone.length) return;
   for (const n of gone) delete S.image[n];
@@ -897,7 +900,7 @@ function renderNav() {
   else if (VIEW.cur !== "setup" && !t[VIEW.cur] && o !== null && x !== null) show("setup");
 }
 // the dashboards of the last images viewed stay open (switching back is instant); the overview has a frame of its own
-const POOL = 3;
+const POOL = 2;
 function frameFor(view, page) {
   if (view === "overview") return $("fr-overview");
   const frs = [...document.querySelectorAll("#viewPages iframe.imgfr")];
@@ -915,7 +918,10 @@ function frameFor(view, page) {
 const allFrames = () => [...document.querySelectorAll("#viewPages iframe")];
 const shownFrame = () => allFrames().find(f => f.classList.contains("on")) || null;
 function pauseFrame(fr) {  // a dashboard that is hidden stops playing
-  try { const b = fr.contentDocument.getElementById("play"); if (b && b.textContent === "❚❚") b.click(); } catch { /* not loaded */ }
+  try {
+    const b = fr.contentDocument.getElementById("play"); if (b && b.textContent === "❚❚") b.click();
+    fr.contentWindow.eval("typeof rawCache !== 'undefined' && (queue.length = 0, rawCache.clear())");  // memory back
+  } catch { /* not loaded */ }
 }
 function show(view, opts = {}) {
   if (view === "image" && opts.image) VIEW.image = opts.image;

@@ -173,7 +173,7 @@ def build_experiment_data(experiment: Path, failed: list[str] | None = None) -> 
              "stimulation_mode": max(set(stim), key=stim.count) if stim else None}
     screening = any(im["screened"] for im in images)
     for im in images:
-        im["flags"] = [{"key": f, "level": _level(f, im), "text": QC[f]} for f in _flags(im, stats, screening)]
+        im["flags"] = [{"key": f, "level": _level(f, im), "text": QC[f]} for f in _flags(im, stats, im["screened"])]
     diffs = settings_differences(settings_by_run)
     if diffs:
         from .pipeline import REAPPLY_SECTIONS

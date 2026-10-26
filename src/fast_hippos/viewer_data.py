@@ -16,7 +16,6 @@ import json
 import logging
 import math
 import os
-import shutil
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -290,9 +289,10 @@ def write_frames(v: ViewerData, folder: Path) -> str:
     dashboard itself stays small and opens at once; it loads the frames as it needs them. Returns the first frame,
     which the dashboard holds itself (shown immediately)."""
     d = Path(folder) / FRAMES_DIR
-    if d.exists():
-        shutil.rmtree(d)
-    d.mkdir(parents=True)
+    d.mkdir(parents=True, exist_ok=True)
+    for f in d.glob("t*.js"):  # frames of an earlier, longer version of the image
+        if not f.stem[1:].isdigit() or int(f.stem[1:]) >= len(v.frames):
+            f.unlink(missing_ok=True)
     def one(i: int) -> str:
         url = png_data_url(_frame_rgb(v, i))
         (d / f"t{i}.js").write_text(f'FHTile("O/t{i}","{url}");', encoding="ascii")

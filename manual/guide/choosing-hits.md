@@ -2,7 +2,7 @@
 
 You rarely know the right threshold before you have seen the data. That is why the whole screening can be changed in
 the dashboard, after the analysis: you drag a threshold and see at once which cells become hits, in the image, the
-traces and the table. When the hits look right, you apply the settings, which also makes new `.rgn` files of the sample.
+traces and the table. When the hits look right, you apply the settings, which also makes new `.rgn` files of the image.
 
 <figure markdown>
 ![The Screening pane](../images/dash_screening.png){ .shot }
@@ -10,9 +10,13 @@ traces and the table. When the hits look right, you apply the settings, which al
 hits.</figcaption>
 </figure>
 
-Hits are chosen per sample: the criteria, the sorting and the `.rgn` files belong to the sample of the dashboard
-(use *Re-apply all samples* in the window to give all samples the same criteria; see
-[A screen of several samples](screen.md#are-the-samples-comparable)).
+Hits are chosen per image: the criteria, the sorting and the `.rgn` files belong to the image of the dashboard
+(use *Re-apply all images* in the window to give all images the same criteria; see
+[A screen of many images](screen.md#are-the-samples-comparable)).
+
+The **screen for hits** switch in the title bar of the pane turns all of this on or off. Off means no hits anywhere:
+the dashboard has no hit counter, hit colours or hit exports, and the overviews show no hits for the image. Switching
+it on tries the criteria that are set; *↻ Apply* then saves the screening as on.
 
 A cell is a hit when it
 
@@ -110,7 +114,7 @@ table), switch *Hits from* to *selection* and click *Use selection*. *Add select
 - **.rgn chunks of**: the maximum number of positions per `.rgn` file. LAS X handles at most about 1000.
 - **optimize path**: order the positions so that the microscope travels a short route. *Compute route* computes it
   for the current hits; *show in image* draws it.
-- **Hits → .rgn**, **Hits → TSV**: save the current hits of this image. **Settings → TOML**: save these settings.
+- **Hits → .rgn**, **Hits → TSV**: save the current hits of this image (not when screening is off). **Settings → TOML**: save these settings.
 
 ## Apply the settings
 
@@ -118,18 +122,18 @@ What you change in a dashboard first only affects that dashboard. To make it cou
 buttons. They are only there when the dashboard was opened from the FAST-HIPPOS window (with *Dashboard*, the
 *Image* menu or via an overview), because FAST-HIPPOS itself does the work.
 
-**↻ Apply to all images** uses these screening settings for all images of the sample (usually one). FAST-HIPPOS redoes
-the screening, the hit list and the `.rgn` files with their routes, the overview of the sample and of the experiment,
-and the dashboards. The segmentation and the traces are kept, so it takes seconds. A message lists the images first,
-and says what happens to images that have [settings of their own](own-settings.md). Other samples are not changed;
-to give them the same settings, use *Re-apply all samples* in the window.
+**↻ Apply** uses these screening settings for this image. FAST-HIPPOS redoes the screening, the hit list and the
+`.rgn` files with their route, the overview of the experiment and the dashboard. The segmentation and the traces are
+kept, so it takes seconds. The FAST-HIPPOS window takes the settings over, so that the next images are analyzed with
+them. Other images are not changed; to give them the same settings, use *Re-apply all images* in the window.
 
-**↻ Apply to this image only** keeps the settings of the window, and gives this image its own stimulation
-frames and response window, for instance when its stimulation was missed or started later. See
+**↻ Apply as own timing** makes the timing set here (the stimulation and calibration frames and the response window)
+this image's own, for instance when its stimulation was missed or started later. The settings of the window stay as
+they are, and the own timing is kept when all images are re-applied. See
 [Settings for single images](own-settings.md).
 
 After applying, the dashboard reloads with the new results, and the FAST-HIPPOS window shows the new settings, so
-that a later *Re-apply this sample* or *Run analysis* uses them too.
+that a later *Re-apply this image* or *Run analysis* uses them too.
 
 !!! tip "Changed your mind?"
     *Reset* (top right of the Screening pane) brings back the settings with which the dashboard was made.

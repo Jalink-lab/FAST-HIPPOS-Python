@@ -145,19 +145,19 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 
 -   :material-cog-play:{ .lg } **Analyze**
 
-    Choose an experiment folder, the images (each is a sample) and a few settings in the
+    Choose an experiment folder, the images and a few settings in the
     [FAST-HIPPOS window](guide/window.md) and click *Run analysis*. Cellpose finds the cells; FAST-HIPPOS measures a
     trace for each of them and detects the stimulation.
 
 -   :material-chart-bell-curve:{ .lg } **Decide**
 
     Set the hit criteria in the [dashboard](guide/dashboard.md) and see the hits change while you drag the
-    threshold. Compare the [samples of a whole screen](guide/screen.md) in the experiment overview.
+    threshold. Compare the [images of a whole screen](guide/screen.md) in the experiment overview.
 
 -   :material-target:{ .lg } **Act**
 
     Load the `.rgn` files in LAS X: the microscope [visits every hit](guide/microscope.md), along a short route.
-    Then on to the next sample.
+    Then on to the next image.
 
 </div>
 
@@ -172,7 +172,7 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 
 -   [![The overviews](images/ov_maps.png)](guide/overview.md)
 
-    **[The overviews](guide/overview.md)** of a sample and of the whole experiment: responses, cells and hits,
+    **[The overview](guide/overview.md)** of the whole experiment: responses, cells and hits,
     quality flags, and where the hits are on the stage.
 
 -   [![The FAST-HIPPOS window](images/gui_run.png)](guide/window.md)
@@ -182,8 +182,8 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 
 -   [![The overview of an experiment](images/landing_experiment.png)](guide/screen.md)
 
-    **[Samples and experiments](guide/screen.md)**: every image is a sample. Analyze each sample as soon as it has been
-    imaged, and compare all samples in one overview.
+    **[A screen of many images](guide/screen.md)**: analyze each image as soon as it has been
+    imaged, and compare all images in one overview.
 
 </div>
 

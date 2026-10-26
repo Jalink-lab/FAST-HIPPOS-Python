@@ -173,7 +173,7 @@ function initScreening() {
   if (!SCR.on) { body.classList.add("closed"); $("scrtoggle").textContent = "▸"; }
   // screening for hits on or off; off: no hits anywhere (the timing and the quality gates still apply)
   const setOn = () => { $("scron").checked = SCR.on; body.classList.toggle("noscreen", !SCR.on);
-    ["hitsrgn", "hitstsv", "route"].forEach(id => { $(id).disabled = !SCR.on; }); };
+    ["hitstsv", "route"].forEach(id => { $(id).disabled = !SCR.on; }); $("hitsrgn").disabled = !SCR.on || !HAS_ABS; };
   $("scron").onchange = () => { SCR.on = $("scron").checked; if (SCR.on && body.classList.contains("closed")) $("scrtoggle").click(); setOn(); recompute(); };
   setOn();
   $("scrtoggle").onclick = () => { body.classList.toggle("closed"); $("scrtoggle").textContent = body.classList.contains("closed") ? "▸" : "▾"; updateScreenUI(); };
@@ -219,7 +219,7 @@ function initScreening() {
   $("route").onclick = () => computeRoute(); $("vroute2").checked = S.showRoute;
   $("vroute2").onchange = () => { S.showRoute = $("vroute2").checked; $("vroute").checked = S.showRoute; invalidate("viewerHov"); };
   $("scrtoml").onclick = exportTOML;
-  if (window.FH_GUI) { for (const [id, scope] of [["scrapply", "all"], ["scrapplyimg", "image"]]) { $(id).hidden = false; $(id).onclick = () => applyTo(scope); } } $("hitstsv").onclick = exportHitsTSV; $("hitsrgn").onclick = exportHitsRGN; $("hitsrgn").disabled = !HAS_ABS;
+  if (window.FH_GUI) { for (const [id, scope] of [["scrapply", "all"], ["scrapplyimg", "image"]]) { $(id).hidden = false; $(id).onclick = () => applyTo(scope); } } $("hitstsv").onclick = exportHitsTSV; $("hitsrgn").onclick = exportHitsRGN; $("hitsrgn").disabled = !HAS_ABS || !SCR.on;
   initTimeline(); fillParams();
   new ResizeObserver(() => updateScreenUI()).observe(body);
 }

@@ -23,8 +23,8 @@
     lasts until the end of the movie; the calibration gate is not used.
 
 ??? question "The stimulation or the calibration was not found, or found at the wrong frame"
-    Open the dashboard of the image, drag *S* and *C* to the right frames, and click *Apply to all images* (the
-    settings of the sample) or *Apply to this image only*. See
+    Open the dashboard of the image, drag *S* and *C* to the right frames, and click *↻ Apply* (these settings
+    for this image) or *↻ Apply as own timing*. See
     [Settings for single images](../guide/own-settings.md). If detection fails often, lower the *Detection threshold*
     (*Stimulation and calibration → Advanced settings*), or set the frames in the window.
 
@@ -45,38 +45,38 @@
 
 ??? question "The positions of the .rgn file don't land on the cells in the LAS X Navigator"
     Microscopes differ in how their stage axes relate to the Navigator. Change *.rgn: swap stage X and Y*,
-    *.rgn: invert X* or *.rgn: invert Y* (*Screening → Advanced settings*) and click *Re-apply all samples*; see
+    *.rgn: invert X* or *.rgn: invert Y* (*Screening → Advanced settings*) and click *Re-apply all images*; see
     [stage coordinates and the .rgn frame](../guide/microscope.md#stage-coordinates-and-the-rgn-frame).
 
 ??? question "I changed the criteria in the dashboard, but the .rgn files did not change"
-    Changes in a dashboard only affect that page until you click *Apply to all images* (or *Apply to this image only*), or
+    Changes in a dashboard only affect that page until you click *↻ Apply* (or *↻ Apply as own timing*), or
     save the hits with *Hits → .rgn*. The Apply buttons only appear in dashboards opened from the FAST-HIPPOS window.
 
 ??? question "Can I analyze images with different protocols?"
-    Yes. Every image is a sample of its own. Leave the stimulation frames on automatic, or give single images
-    [their own settings](../guide/own-settings.md). The hit criteria are those of the window, for every sample; to
-    compare samples they should be the same (see [Are the samples comparable?](../guide/screen.md#are-the-samples-comparable)).
+    Yes. Every image is analyzed on its own. Leave the stimulation frames on automatic, or give single images
+    [their own settings](../guide/own-settings.md). The hit criteria are those of the window, for every image; to
+    compare images they should be the same (see [Are the images comparable?](../guide/screen.md#are-the-samples-comparable)).
 
 ## Results
 
 ??? question "I only have one image. Do I need an experiment?"
-    You choose an experiment folder (it may be empty, and the window proposes one next to your image), and the image is
-    a sample in it. Everything works as for a screen, and the experiment overview is just short. See
+    You choose an experiment folder (it may be empty, and the window proposes one next to your image), and the image gets a
+    folder in it. Everything works as for a screen, and the experiment overview is just short. See
     [Your first analysis](../start/first-analysis.md).
 
 ??? question "Where are my results?"
-    In the folder of the sample, inside the experiment folder you chose; see [the output folder](../guide/output-folder.md).
-    *Open sample folder* in the Run card opens it.
+    In the folder of the image, inside the experiment folder you chose; see [the output folder](../guide/output-folder.md).
+    *Open its folder* in the Run card opens it.
 
 ??? question "I ran the analysis again, and my previous results are gone"
-    A new run of a sample of the same name replaces its previous results, after asking. Give the new sample another
+    Analyzing an image of the same name again (tick it in the *Images* card) replaces its previous results, after asking. Give the image another
     name (its row in the *Images* card) to keep both. If a run did not finish, the previous results are still in
-    `_previous_run` in the folder of the sample.
+    `_previous_run` in the folder of the image.
 
 ??? question "Can someone without FAST-HIPPOS look at the results?"
-    Yes: send the experiment folder (or the folder of one sample). The overviews (`index.html`) and the dashboards open in any browser.
+    Yes: send the experiment folder (or the folder of one image, with its `frames/` and `tiles/`). The overviews (`index.html`) and the dashboards open in any browser.
 
 ## Still stuck?
 
 Report it on [GitHub](https://github.com/Jalink-lab/FAST-HIPPOS-Python/issues), with the log (`run_log.txt` in the
-folder of the sample) and the settings file.
+folder of the image) and the settings file.

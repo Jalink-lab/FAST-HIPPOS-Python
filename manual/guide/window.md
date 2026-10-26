@@ -17,13 +17,16 @@ settings, starts the analysis, shows its progress and opens the results.
 **Everything in one tab.** The bar at the top switches between the pages of FAST-HIPPOS, all in this browser tab:
 
 - **Setup**: the settings and the Run card (this page);
-- **Experiment**: the [overview of all samples](screen.md#the-experiment-overview) of the experiment folder;
-- **Sample**: the [overview of one sample](overview.md); the menu next to it lists the samples with their label and
-  hits and loads another sample into the window (its images, folder, label and the settings of its single images;
-  the analysis settings stay), or starts a **＋ New sample**;
-- **Image**: the [dashboard](dashboard.md) of one image (the menu next to it chooses the image).
+- **Overview**: the [overview of the experiment](overview.md), which compares all analyzed images
+  ([A screen of many images](screen.md#the-experiment-overview));
+- **Image ▾**: the [dashboard](dashboard.md) of one image. The menu lists every analyzed image of the experiment with
+  its label and hits. Choosing one makes it the **current image**: it is shown under *Image*, and *Re-apply this
+  image* redoes its screening. The dashboards of the last two images stay open, so that you can switch back at
+  once. Choosing an image here does not change the Images list;
+- **Settings ▾**: *Open settings…*, *Save settings…* and *Defaults* (see [Settings files](#settings-files));
+- **＋ New image**: empties the Images list for the next image(s), and keeps all settings.
 
-Links in the overviews (an image, a cell, a sample) open the page in the window, and the browser's back button goes
+Links in the overviews (an image, a cell) open the page in the window, and the browser's back button goes
 back. ↗ opens the page shown in a tab of its own, for instance to see two pages side by side; ++ctrl++ + click on a
 link does the same. The pages themselves stay single files in the experiment folder, which open in any browser.
 
@@ -45,7 +48,7 @@ window counts all changed settings that are hidden. *Show all advanced settings*
 </figure>
 
 **Greyed-out settings** have no effect with the current choices; the hover text says why. For instance the
-stimulation frames when *Baseline only* is ticked, or the screening settings when screening is off.
+stimulation frames when *Baseline only* is ticked, or the screening settings when *Screen for hits* is off.
 
 **Folding.** Click the title of a card to fold it; *Fold all* folds all cards. FAST-HIPPOS remembers which cards are
 folded, and also the light or dark look (◐).
@@ -54,23 +57,25 @@ folded, and also the light or dark look (◐).
 
 ### Images
 
-The images to analyze and where the results go. **Every image is a sample**: it is analyzed in a run of its own,
-with the settings of the window, and gets its own folder, overview, hit list and `.rgn` files. With one image you
-have an experiment of one sample.
+The images to analyze and where the results go. Every image is analyzed in a run of its own, with the settings of
+the window, and gets its own folder, hit list and `.rgn` files in the experiment folder. With one image you have an
+experiment of one image.
 
-- **Experiment folder**: always needed. The folder that holds one folder per sample, and the overview of all
-  samples. Adding images without one proposes a folder *FAST-HIPPOS* next to the images. See
-  [A screen of several samples](screen.md).
+- **Experiment folder**: always needed. The folder that holds one folder per image, and the overview of all
+  images. Adding images without one proposes a folder *FAST-HIPPOS* next to the images. See
+  [A screen of many images](screen.md).
 - **Add images…**: time-lapse `.tif` files (ImageJ hyperstacks) or Leica `.lif` files. Every series of a `.lif` file
-  is a sample of its own, with a tick box in its row: untick the series you want to leave out.
+  is an image of its own, with a tick box in its row: untick the series you want to leave out.
 - **Add tile folder…**: a folder of tiles exported from LAS X, which FAST-HIPPOS stitches by their stage positions into
-  one image (one sample); see [Back to the microscope](microscope.md#tile-scans).
+  one image; see [Back to the microscope](microscope.md#tile-scans).
 - Every image shows what was read from it: size, frames, channels, pixel size, frame interval, and whether it holds
   stage positions.
-- Below the images, **one row per sample**: its name (its folder in the experiment folder; the image name, which you
-  can change) and an optional **label**, e.g. the condition, shown in the overviews. A row says *has results:
-  replaced* when the experiment already holds a sample of that name. **▶ Run analysis** analyzes the rows one after
-  the other.
+- Below, **one row per image**: a **tick box**, its name (its folder in the experiment folder; the file name, which
+  you can change) and an optional **label**, e.g. the condition, shown in the overviews. The list holds the images
+  **to analyze**. Images that already have results start unticked and say *✓ has results*; tick one to analyze it
+  again, which replaces its results. **▶ Run analysis (n images)** analyzes the ticked rows one after the other and
+  then updates the overview. So when you add one new image and run, only that image is analyzed. Names, labels and
+  ticks survive a reload of the tab; **＋ New image** empties the list.
 - **Image type**: what the pixel values mean, and so how the value per cell is computed: two-component TCSPC fits
   (with τ₁ and τ₂), Fast FLIM, TauContrast, frequency-domain FLIM, ratio imaging, or intensity only.
 - **Additional channel**: optionally a channel whose intensity is measured per cell, e.g. a transfection marker.
@@ -110,7 +115,8 @@ stimulation frame.
 Tick **Screen for hits** and add the hit criteria: a cell value, *<* or *>*, and a threshold. Several criteria can be
 required together (AND), or be alternatives of which one is enough (OR). The thresholds are easiest to set in the
 dashboard, after the analysis; see [Choosing the hits](choosing-hits.md). *Classify cells on the additional channel*
-splits the cells on the marker intensity.
+splits the cells on the marker intensity. Without screening there are no hits anywhere: the dashboards show no hit
+counter or hit colours, and the overviews no hit columns, maps or exports.
 
 The advanced settings hold the response window, the quality gates, the sorting of the hit list, and everything about
 stage positions and `.rgn` files.
@@ -129,31 +135,32 @@ most runs, and colours and ranges can also be changed in the dashboard.
 **Checks.** The top of the card checks the settings against the images, all the time. Red problems would stop the
 analysis and disable *Run analysis*: no images, frames beyond the end of the movie, a calibration before the
 stimulation, Cellpose not found. Orange warnings point out surprises: images without stage positions get no `.rgn`
-files, a sample already has results (it will be replaced), Cellpose will run without GPU.
+files, an image already has results (it will be replaced), Cellpose will run without GPU.
 
-**▶ Run analysis** analyzes the samples of the Images list, one after the other: segmentation, traces, stimulation
-detection, screening, dashboards; then it updates the experiment overview. If samples of the same name already
-have results, FAST-HIPPOS first tells you which will be replaced.
+**▶ Run analysis (n images)** analyzes the ticked images of the Images list, one after the other: segmentation,
+traces, stimulation detection, screening, dashboards; then it updates the experiment overview. If ticked images
+already have results, FAST-HIPPOS first tells you which will be replaced.
 
-**↻ Re-apply this sample** redoes only the part after the segmentation and the traces (stimulation detection,
-screening, hit lists, `.rgn` files, dashboards) for the sample chosen in the top bar, with the current settings. It
-takes seconds instead of minutes. Use it after changing screening settings.
+**↻ Re-apply this image** redoes only the part after the segmentation and the traces (stimulation detection,
+screening, hit lists, `.rgn` files, dashboards) for the current image (chosen in the *Image* menu of the top bar),
+with the current settings. It takes seconds instead of minutes. Use it after changing screening settings.
 
 **■ Stop** stops a running analysis; the results of the previous run are then kept.
 
-The card also lists the samples of the [experiment](screen.md) and warns when some were analyzed with other settings
-than those in the window. **↻ Re-apply all samples** re-applies the settings of the window to every sample, and
-**＋ New sample** (top right, and in the sample menu of the top bar) starts the next sample with the same settings.
+The card also warns when some images of the [experiment](screen.md) were analyzed with other settings than those
+in the window. **↻ Re-apply all images** re-applies the settings of the window to every image of the experiment.
+[Own settings of single images](own-settings.md) are kept only for the images in the Images list and for the
+current image.
 
-The **log** shows the progress. When the analysis is done, the buttons below it open the *Overview of this sample*, the
-*Dashboard* of each image, the sample folder (*Open sample folder*) and the *Experiment overview*, all in the window
-(as the top bar does) or in the file explorer.
+The **log** shows the progress. When the analysis is done, the buttons below it open the *Dashboard* of the image(s)
+(*Dashboard: <image>*), the folder of the image (*Open its folder*) and the *Overview* of the experiment, all in the
+window (as the top bar does) or in the file explorer.
 
 ## Settings files
 
 FAST-HIPPOS remembers the settings of the window (after every change, and the settings applied from a
 dashboard), and starts with them next time. Every run also saves its settings in the
-folder of the sample (`fast_hippos_settings.toml`). **Open settings…** loads such a file, **Save settings…** saves the current
+folder of the image (`fast_hippos_settings.toml`). The **Settings ▾** menu has three items. **Open settings…** loads such a file, **Save settings…** saves the current
 settings, and **Defaults** goes back to the default settings (the images and the experiment folder stay). Both keep
 the Cellpose environments you set, since they belong to the computer rather than to an experiment (unless the loaded
 file names its own). Settings files

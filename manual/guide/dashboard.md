@@ -1,8 +1,10 @@
 # The dashboard
 
 Every image gets a dashboard: one page with the image, the traces of all cells, their values and the screening, all
-linked. It is a single file, `dashboard.html` in the image's folder inside the folder of its sample. In the FAST-HIPPOS window, **Image** in the top bar opens it (its menu chooses the image). It needs no internet, no
-server and no FAST-HIPPOS: open it in any browser, or send the experiment folder to a colleague.
+linked. It is a single file, `dashboard.html` in the folder of the image inside the experiment folder (its frames are files
+of their own next to it, in `frames/`). In the FAST-HIPPOS window, **Image** in the top bar opens it (its menu chooses
+the image). It needs no internet, no server and no FAST-HIPPOS: open it in any browser, or send the folder of the
+image (with `frames/` and `tiles/`) to a colleague.
 
 [Try it: the dashboard of the example :material-arrow-right:](../start/demo.md){ .md-button }
 
@@ -13,10 +15,14 @@ server and no FAST-HIPPOS: open it in any browser, or send the experiment folder
 ## The top bar
 
 The name of the image, the number of cells and frames, the stimulation and calibration frames (*auto* = detected,
-*set* = from the settings, *this image* = [set for this image only](own-settings.md)) and the number of hits. Below
-it: play the time-lapse, the frame, the lookup table and the lifetime range of the images, the traces (raw or
-smoothed), which cells are shown, and how to select (box or lasso). *↑ Overview* goes to the overview of the sample,
-◐ switches between light and dark.
+*set* = from the settings, *this image* = [set for this image only](own-settings.md)) and the number of hits (not when
+screening is off). Below it: play the time-lapse (the selector next to ▶ sets the speed: 2, 5, 10 or 20 frames per
+second), the frame, the lookup table and the lifetime range of the images, the traces (raw or smoothed), which cells
+are shown, and how to select (box or lasso). *Files ▾* lists the files of the image and its run: tables, `.rgn`
+files, plots and the log. *↑ Overview* goes to the overview of the experiment, ◐ switches between light and dark.
+
+Playing waits for every frame to be loaded (the top bar then says *buffering…*), instead of showing half-loaded
+frames. The frames are files of their own, so that a dashboard opens fast.
 
 ## Everything is linked
 
@@ -33,7 +39,9 @@ selection is outlined in all views. ++esc++ clears it.
 
 The pane at the top shows how the hits are chosen, and lets you change it: the timing, the quality gates, the
 classification on the additional channel, the hit criteria and the output. Every change takes effect at once in all
-views. This has its own page: [Choosing the hits](choosing-hits.md). Fold the pane with ▾ to make room.
+views. The **screen for hits** switch in the title bar of the pane turns the screening on or off. Off means no hits:
+no hit counter, no hit colours, and the hit exports are disabled; the cells, traces and values are all still there.
+Switching it on tries the criteria that are set. *↻ Apply* then saves the screening as on. This has its own page: [Choosing the hits](choosing-hits.md). Fold the pane with ▾ to make room.
 
 ### Image
 
@@ -57,6 +65,8 @@ the image without any outlines.
   (*Display and output → Advanced settings → Smoothing*).
 - *Cells* colours the cells by a value instead, for instance their response, so that you see where the responders
   are. *Intensity* plays the intensity as a movie, or shows its projection.
+- *Show*: **lifetime** or **additional channel**. The second shows the intensity of the additional channel in grey
+  (only for images analyzed with this version of FAST-HIPPOS, and with an additional channel).
 - *route* shows the visiting order of the hits in the `.rgn` files.
 - ⤢ shows the image full-screen.
 
@@ -124,19 +134,20 @@ the valid cells. *Select hits* selects the hits.
 |---|---|
 | *Rows → TSV* | the table as shown (a tab-separated text file; opens in Excel) |
 | *Selection → .rgn* | the stage positions of the selected cells, for LAS X |
-| *Hits → .rgn*, *Hits → TSV* (Screening pane) | the current hits |
+| *Hits → .rgn*, *Hits → TSV* (Screening pane) | the current hits (disabled when screening is off) |
 | *Settings → TOML* (Screening pane) | the screening settings, as a settings file |
+| *Files ▾* (top bar) | the tables, `.rgn` files, plots and log that the run wrote for this image |
 
 ## The dashboard remembers
 
 Each dashboard remembers its display settings: colours, ranges, plot choices, scatter axes. After a reload, for
-instance when new results arrive after *Apply*, it also keeps the frame, zoom and selection.
+instance when new results arrive after *↻ Apply*, it also keeps the frame, zoom and selection.
 
 ## Keys
 
 | Key | |
 |---|---|
-| ++space++ | play / pause the time-lapse |
+| ++space++ | play / pause the time-lapse (waits for each frame to load) |
 | ++arrow-left++ ++arrow-right++ | previous / next frame |
 | ++f++ | fit the image |
 | ++z++ | zoom to the selection (or the hits) |

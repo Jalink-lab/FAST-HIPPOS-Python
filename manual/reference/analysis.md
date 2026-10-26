@@ -62,8 +62,8 @@ The dashboard recomputes all of this in the browser, with the same results as th
 
 ## 7. Hit positions and routes
 
-Every sample has its own hit list: the hits are chosen, sorted and written to `.rgn` files per sample, never over
-samples. The stage position of a hit is the stage position of its image plus the offset of the cell in the image (its
+Every image has its own hit list: the hits are chosen, sorted and written to `.rgn` files per image, never over
+images. The stage position of a hit is the stage position of its image plus the offset of the cell in the image (its
 centre, or the centre of its nucleus with a nuclei classifier). The hits are split into `.rgn` files of at most 1000
 positions, and the order within each file is optimized to make the route of the stage short: a nearest-neighbour
 route, improved by 2-opt and Or-opt moves, typically 13–18 % shorter than nearest neighbour alone.

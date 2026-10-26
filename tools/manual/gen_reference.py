@@ -47,7 +47,7 @@ def settings_page() -> str:
         out += [f"## {card['title']}", ""]
         groups = [("Always shown", card["basic"])] + [(f"Advanced: {g['title']}", g["keys"]) for g in card["advanced"]]
         if card["title"] == "Images":  # in the window: the name and label of each sample row
-            groups.insert(1, ("Per sample (the rows of the Images list)", gui.PER_SAMPLE))
+            groups.insert(1, ("Per image (the rows of the Images list)", gui.PER_SAMPLE))
         for title, keys in groups:
             keys = [k for k in keys if k in fields]
             if not keys:

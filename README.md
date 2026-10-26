@@ -28,8 +28,8 @@ LAS X `.rgn` files, so that the microscope can revisit them for photoactivation,
 on. Outside screening, it is a fast way to get single-cell traces out of a time-lapse, and to look at them.
 
 It runs in your web browser, on your own computer: a window for the settings, an interactive dashboard per image in
-which you can change the hit criteria and see the hits change at once, and an overview that compares all samples of
-an experiment (every image is a sample, analyzed in a run of its own).
+which you can change the hit criteria and see the hits change at once, and an overview that compares all images of
+an experiment (every image is analyzed in a run of its own, in a folder of its own).
 
 <p align="center">
   <img src="manual/images/dashboard_views.png" alt="The dashboard of one image" width="100%">
