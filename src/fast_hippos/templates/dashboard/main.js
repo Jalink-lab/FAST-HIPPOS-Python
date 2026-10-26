@@ -16,8 +16,24 @@ function updateTimeLabel() { $("tlabel").textContent = `frame ${S.frame} / ${T -
 let playTimer = null;
 function togglePlay() {
   S.playing = !S.playing; $("play").textContent = S.playing ? "❚❚" : "▶";
-  if (S.playing) { const step = () => { if (!S.playing) return; setFrame(S.frame >= T - 1 ? 0 : S.frame + 1); playTimer = setTimeout(step, 110); }; step(); }
-  else clearTimeout(playTimer);
+  clearTimeout(playTimer); BUFFERING = false;
+  if (!S.playing) { pump(); return; }
+  // the next frame is shown only when it is complete: playing waits ("buffering…") instead of showing half a frame;
+  // frames are due at fixed times (the drawing time is not added on top), unless playing falls behind
+  let due = performance.now();
+  const step = () => {
+    if (!S.playing) return;
+    const next = S.frame >= T - 1 ? 0 : S.frame + 1, vf = vfIndex(next);
+    if (vf !== vfIndex(S.frame) && !frameReady(vf)) {
+      if (!BUFFERING) { BUFFERING = true; pump(); }
+      prefetch(S.frame); playTimer = setTimeout(step, 25); return;
+    }
+    if (BUFFERING) { BUFFERING = false; pump(); }
+    setFrame(next);
+    const now = performance.now(), dt = 1000 / S.fps; due = Math.max(due + dt, now - dt / 2);
+    playTimer = setTimeout(step, Math.max(0, due - now));
+  };
+  step();
 }
 function drawColorbar() {
   const fill = S.fillMetric && C[S.fillMetric];
@@ -31,6 +47,7 @@ function initControls() {
   $("title").textContent = D.name; document.title = `${D.name} · FAST-HIPPOS`; $("ver").textContent = `fast-hippos ${D.version}`;
   const fr = $("frame"); fr.max = T - 1; fr.oninput = () => setFrame(+fr.value);
   $("play").onclick = togglePlay;
+  $("fps").value = String(S.fps); $("fps").onchange = () => { S.fps = +$("fps").value; };
   const lut = $("lut"); Object.keys(LUTS).forEach(k => lut.add(new Option(k, k))); lut.value = S.lut;
   lut.onchange = () => { S.lut = lut.value; imageChanged(); invalidate("kymo", "hist"); drawColorbar(); };
   $("rangeName").textContent = D.is_lifetime ? "Lifetime (ns)" : D.unit;
@@ -74,3 +91,5 @@ function cellFromHash() {
   if (m) { const i = C.cell.indexOf(+m[1]); if (i >= 0) { select(i); setTimeout(() => zoomTo([i]), 200); } }
 }
 cellFromHash(); window.addEventListener("hashchange", cellFromHash);
+// in the background, when it fits in a third of the memory budget: all overview frames, for scrubbing through the movie
+if (V.frames_path && VW * VH * 2 * NVF < RAW_BUDGET / 3) setTimeout(() => { for (let i = 1; i < NVF; i++) request(frameKey({ L: null }, i), [], 50 + i); }, 300);

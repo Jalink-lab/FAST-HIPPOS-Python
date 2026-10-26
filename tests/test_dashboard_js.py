@@ -202,11 +202,7 @@ def test_image_smoothing_matches_python(r, nt):
     codes = rng.integers(1, 256, (nt, h, w))
     codes[rng.random((nt, h, w)) < 0.3] = 0  # no value
     codes[:, 5:15, 10:25] = 0  # a hole
-    frames = []
-    for c in codes:
-        rgba = np.zeros((h, w, 4), int)
-        rgba[..., 0] = c
-        frames.append({"w": w, "h": h, "data": rgba.ravel().tolist()})
+    frames = [{"w": w, "h": h, "c": c.ravel().tolist()} for c in codes]  # the decoded lifetime codes (viewer.js)
     own = nt // 2
     got = np.array(ctx.eval(f"Array.from(smoothCodes({json.dumps(frames)}, {r}, {own}))")).reshape(h, w)
     ref = _nan_box(np.where(codes > 0, codes, np.nan).astype(np.float32), r, nt // 2)[own]

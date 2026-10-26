@@ -15,7 +15,7 @@
   <div class="htext"><h1 id="title"></h1><div class="chips" id="chips"></div></div>
 </header>
 <div class="toolbar" data-help-scope="guide/dashboard#the-top-bar">
-  <span class="group"><button id="play" title="Play or pause the time-lapse (Space)">▶</button>
+  <span class="group"><button id="play" title="Play or pause the time-lapse (Space). It waits for each frame to be loaded, so that it never shows half a frame">▶</button><select id="fps" title="Playing speed: frames per second (as fast as the frames load)"><option value="2">2/s</option><option value="5">5/s</option><option value="10">10/s</option><option value="20">20/s</option></select>
     <input id="frame" type="range" min="0" value="0" step="1" title="Frame shown in the image (← / → step one frame)"><span id="tlabel"></span></span>
   <label title="Colour scale of the lifetime (or ratio) image and plots">LUT <select id="lut"></select></label>
   <label title="Range of the colour scale and of the lifetime axes: values below the minimum get the first colour, above the maximum the last"><span id="rangeName">Lifetime</span> <input id="dmin" type="number" step="any"> – <input id="dmax" type="number" step="any"></label>

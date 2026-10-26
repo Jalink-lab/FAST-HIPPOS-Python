@@ -16,7 +16,7 @@ from matplotlib import colormaps
 from . import __version__
 from .config import METRICS
 from .screening import timed_window
-from .viewer_data import ViewerData, float_b64, frame_urls, labels_url, png_data_url
+from .viewer_data import FRAMES_DIR, ViewerData, float_b64, frame_urls, labels_url, png_data_url, write_frames
 
 if TYPE_CHECKING:
     from .config import Settings
@@ -136,7 +136,8 @@ def _axis(name: str) -> str:
     return SCATTER_AT_FRAME.get(name, name)
 
 
-def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> dict:
+def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings, route=None,
+                     folder: Path | None = None) -> dict:
     ev = result.events
     sc = settings.screening
     cells = result.cells
@@ -171,7 +172,9 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
             "frames": viewer.frames.tolist(),
             "lo": viewer.lo,
             "hi": viewer.hi,
-            "images": frame_urls(viewer),
+            # with a folder: the frames are files of their own next to the dashboard (only the first one is in it)
+            "images": [write_frames(viewer, folder)] if folder is not None else frame_urls(viewer),
+            "frames_path": FRAMES_DIR if folder is not None else None,
             "projection": png_data_url(viewer.projection8),
             "labels": labels_url(viewer.labels),
             "size": [int(viewer.labels.shape[1]), int(viewer.labels.shape[0])],
@@ -233,5 +236,6 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
 
 def write_image_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> Path:
     path = result.out_dir / "dashboard.html"
-    path.write_text(_embed(_dashboard_template(), build_image_data(result, viewer, settings, route)), encoding="utf-8")
+    data = build_image_data(result, viewer, settings, route, folder=result.out_dir)
+    path.write_text(_embed(_dashboard_template(), data), encoding="utf-8")
     return path

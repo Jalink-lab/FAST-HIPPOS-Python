@@ -22,3 +22,22 @@ def test_pyramid_tiles(tmp_path):
     v.save(tmp_path / "viewer.npz")
     w = ViewerData.load(tmp_path / "viewer.npz")
     assert w.tiles == v.tiles and w.factor == 4 and np.array_equal(w.labels, v.labels) and w.smoothed_xy == 0
+
+
+def test_frames_are_files_next_to_the_dashboard(tmp_path):
+    """write_frames: one frames/t<i>.js per frame (FHTile("O/t<i>", url)); the first frame is returned for the page."""
+    import numpy as np
+
+    from fast_hippos.viewer_data import FRAMES_DIR, prepare, write_frames
+
+    rng = np.random.default_rng(1)
+    t, h, w = 3, 20, 24
+    v = prepare(rng.random((t, h, w)).astype(np.float32), rng.random((t, h, w)).astype(np.float32) + 2,
+                rng.random((h, w)).astype(np.float32), np.ones((h, w), np.int32), (2.0, 3.0))
+    first = write_frames(v, tmp_path)
+    files = sorted((tmp_path / FRAMES_DIR).glob("t*.js"))
+    assert [f.name for f in files] == ["t0.js", "t1.js", "t2.js"]
+    assert first.startswith("data:image/png;base64,")
+    assert (tmp_path / FRAMES_DIR / "t1.js").read_text().startswith('FHTile("O/t1","data:image/png;base64,')
+    write_frames(v, tmp_path)  # again: the old files are replaced, not added to
+    assert len(list((tmp_path / FRAMES_DIR).iterdir())) == 3

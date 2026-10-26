@@ -13,23 +13,71 @@ function lru(max) {
   return { get(k) { const v = m.get(k); if (v !== undefined) { m.delete(k); m.set(k, v); } return v; },
     set(k, v) { m.set(k, v); while (m.size > max) m.delete(m.keys().next().value); }, has: (k) => m.has(k), clear: () => m.clear() };
 }
-const rawCache = lru(150), labCache = lru(120), compCache = lru(100), outCache = lru(100), fillCache = lru(60), lastComp = new Map();  // ~1 MB per 512² tile
+// the decoded frames and tiles: limited by memory (bytes), not by number, so that a whole movie at full screen can stay
+// loaded (a 512² tile is 0.5 MB: its lifetime codes and intensities); about an eighth of the computer's memory, 0.5-1.5 GB
+const RAW_BUDGET = Math.min(1.5e9, Math.max(0.5e9, ((navigator.deviceMemory || 8) * 1e9) / 8));
+function lruBytes(max, size) {
+  const m = new Map(); let total = 0;
+  return { get(k) { const v = m.get(k); if (v !== undefined) { m.delete(k); m.set(k, v); } return v; },
+    set(k, v) { if (m.has(k)) total -= size(m.get(k)); m.set(k, v); total += size(v);
+      while (total > max && m.size > 1) { const [k0, v0] = m.entries().next().value; m.delete(k0); total -= size(v0); } },
+    has: (k) => m.has(k), clear: () => { m.clear(); total = 0; }, bytes: () => total };
+}
+const rawCache = lruBytes(RAW_BUDGET, (e) => e.c.length * 2), labCache = lru(120), compCache = lru(100), outCache = lru(100), fillCache = lru(60), lastComp = new Map();
 let fillVersion = 0, fillRange = [0, 1];
-const inflight = new Set(); let active = 0; const queue = [];
+const inflight = new Map(); let active = 0; const queue = [];  // inflight: key -> priority (0 = needed on screen now)
 
-function decodeURL(url) {
+// Decoding the PNGs (lifetime code in R, intensity in G; labels as R + 256 G + 65536 B) in background workers, so
+// that playing and panning stay smooth while frames load; in the page itself where workers are not available.
+const WORKER_SRC = `self.onmessage = async (e) => {
+  const { id, url, lab } = e.data;
+  try {
+    const bmp = await createImageBitmap(await (await fetch(url)).blob(), { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+    const w = bmp.width, h = bmp.height, c = new OffscreenCanvas(w, h), x = c.getContext("2d", { willReadFrequently: true });
+    x.drawImage(bmp, 0, 0); bmp.close(); const d = x.getImageData(0, 0, w, h).data;
+    if (lab) { self.postMessage({ id, w, h, rgba: d.buffer }, [d.buffer]); return; }
+    const n = w * h, cc = new Uint8Array(n), g = new Uint8Array(n);
+    for (let p = 0, q = 0; p < n; p++, q += 4) { cc[p] = d[q]; g[p] = d[q + 1]; }
+    self.postMessage({ id, w, h, c: cc.buffer, g: g.buffer }, [cc.buffer, g.buffer]);
+  } catch (err) { self.postMessage({ id, error: String(err) }); }
+};`;
+const DECODERS = (() => {
+  try {
+    if (typeof OffscreenCanvas === "undefined" || typeof createImageBitmap === "undefined") return [];
+    const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+    return Array.from({ length: Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 4) - 1)) }, () => new Worker(url));
+  } catch { return []; }  // e.g. a browser that does not allow workers for pages opened from disk
+})();
+const decodeWaiters = new Map(); let decodeId = 0, decodeNext = 0;
+DECODERS.forEach(w => { w.onmessage = (e) => { const r = decodeWaiters.get(e.data.id); decodeWaiters.delete(e.data.id); if (r) r(e.data); }; });
+function splitRGBA(d, w, h) {  // the two channels that are used: lifetime code (R) and intensity (G)
+  const n = w * h, c = new Uint8Array(n), g = new Uint8Array(n);
+  for (let p = 0, q = 0; p < n; p++, q += 4) { c[p] = d[q]; g[p] = d[q + 1]; }
+  return { c, g, w, h };
+}
+function decodeInPage(url) {
   return new Promise((res, rej) => { const im = new Image(); im.onload = () => {
     const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
     const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(im, 0, 0);
     res({ data: x.getImageData(0, 0, im.width, im.height).data, w: im.width, h: im.height }); }; im.onerror = rej; im.src = url; });
 }
-// tiles are .js files calling FHTile(key, dataURL): works from file:// where fetch() is blocked
+// a decoded image: { c, g, w, h } (frames, tiles, projection) or { data, w, h } with RGBA (labels, for labelEntry)
+async function decodeURL(url, isLab) {
+  if (DECODERS.length) {
+    const r = await new Promise((res) => { const id = ++decodeId; decodeWaiters.set(id, res);
+      DECODERS[decodeNext++ % DECODERS.length].postMessage({ id, url, lab: isLab }); });
+    if (!r.error) return isLab ? { data: new Uint8ClampedArray(r.rgba), w: r.w, h: r.h } : { c: new Uint8Array(r.c), g: new Uint8Array(r.g), w: r.w, h: r.h };
+  }
+  const img = await decodeInPage(url);  // no workers, or the worker could not decode it
+  return isLab ? img : splitRGBA(img.data, img.w, img.h);
+}
+// tiles and frames are .js files calling FHTile(key, dataURL): works from file:// where fetch() is blocked
 const tileWaiters = new Map();
 window.FHTile = (key, url) => { const r = tileWaiters.get(key); if (r) { tileWaiters.delete(key); r(url); } };
-function loadTileURL(key) {
+function loadScriptURL(key, src) {
   return new Promise((resolve) => {
     tileWaiters.set(key, resolve);
-    const s = document.createElement("script"); s.src = `${V.tiles.path}/${key}.js`;
+    const s = document.createElement("script"); s.src = src;
     s.onload = () => s.remove(); s.onerror = () => { s.remove(); tileWaiters.delete(key); resolve(null); };
     document.head.appendChild(s);
   });
@@ -37,27 +85,39 @@ function loadTileURL(key) {
 function sourceURL(key) {
   if (key === "O/lab") return Promise.resolve(V.labels);
   if (key === "O/p") return Promise.resolve(V.projection);
-  if (key.startsWith("O/t")) return Promise.resolve(V.images[+key.slice(3)]);
-  return loadTileURL(key);
+  if (key.startsWith("O/t")) {  // overview frames: in the page (older dashboards: all; now the first), else frames/t<i>.js
+    const i = +key.slice(3);
+    return V.images[i] ? Promise.resolve(V.images[i]) : V.frames_path ? loadScriptURL(key, `${V.frames_path}/t${i}.js`) : Promise.resolve(null);
+  }
+  return loadScriptURL(key, `${V.tiles.path}/${key}.js`);
 }
-// request(key): cached entry or null (and starts loading); `then` layers are redrawn when it arrives
-function request(key, then = ["viewer", "viewerSel", "cell"]) {
+// request(key, then, prio): cached entry, or null (and starts loading); `then` layers are redrawn when it arrives.
+// prio: 0 = needed on screen now; k = needed k frames from now (playing); higher = loaded in the background
+function request(key, then = ["viewer", "viewerSel", "cell"], prio = 0) {
   const isLab = key.endsWith("lab") || key.includes("/lab_");
   const hit = (isLab ? labCache : rawCache).get(key);
   if (hit) return hit;
-  if (!inflight.has(key)) { inflight.add(key); queue.push([key, isLab, then]); pump(); }
+  const was = inflight.get(key);
+  if (was === undefined) { inflight.set(key, prio); queue.push({ key, isLab, then, prio }); pump(); }
+  else if (prio < was) {  // needed sooner than asked before
+    inflight.set(key, prio); const q = queue.find(e => e.key === key); if (q) { q.prio = prio; q.then = then; }
+  }
   return null;
 }
+const MAX_ACTIVE = 8;
 function pump() {
-  while (active < 6 && queue.length) {
-    const [key, isLab, then] = queue.pop();  // newest first: what is on screen now
+  while (active < MAX_ACTIVE && queue.length) {
+    let bi = 0; for (let i = 1; i < queue.length; i++) if (queue[i].prio < queue[bi].prio || (queue[i].prio === queue[bi].prio && i > bi)) bi = i;
+    const { key, isLab, then } = queue.splice(bi, 1)[0];  // the most urgent; among equals the newest (on screen now)
     active++;
-    sourceURL(key).then(url => url ? decodeURL(url) : null).then(img => {
+    sourceURL(key).then(url => url ? decodeURL(url, isLab) : null).then(img => {
       if (img) (isLab ? labCache : rawCache).set(key, isLab ? labelEntry(img) : img);
     }).catch(() => {}).finally(() => { active--; inflight.delete(key); invalidate(...then); pump(); });
   }
-  const n = queue.length + active; $("loading").textContent = n ? `loading ${n} tile${n > 1 ? "s" : ""}…` : "";
+  const n = [...inflight.values()].filter(p => p <= 1).length;  // what is (almost) on screen; the look-ahead is silent
+  $("loading").textContent = BUFFERING ? "buffering…" : n ? `loading ${n} tile${n > 1 ? "s" : ""}…` : "";
 }
+let BUFFERING = false;  // playing waits for the next frame to be complete (set by the play loop in main.js)
 function labelEntry(img) {
   const { data, w, h } = img, lab = new Int32Array(w * h), bnd = [];
   for (let p = 0; p < w * h; p++) lab[p] = data[4 * p] + 256 * data[4 * p + 1] + 65536 * data[4 * p + 2];
@@ -106,9 +166,9 @@ let LT = null;
 // `frs` (the frame itself and its neighbours), as viewer_data._nan_box did: no value where less than 20 % of the
 // box has one (or 50 % at a pixel without a value of its own; `own` = the index of the frame itself in frs)
 function smoothCodes(frs, r, own = 0) {
-  const { w, h } = frs[0], n = w * h, data = frs[own].data, sum = new Float32Array(n), cnt = new Float32Array(n);
+  const { w, h } = frs[0], n = w * h, data = frs[own].c, sum = new Float32Array(n), cnt = new Float32Array(n);
   const hs = new Float32Array(n), hc = new Float32Array(n), out = new Uint8Array(n);
-  for (const fr of frs) { const d = fr.data; for (let p = 0; p < n; p++) { const v = d[4 * p]; if (v) { sum[p] += v; cnt[p]++; } } }
+  for (const fr of frs) { const d = fr.c; for (let p = 0; p < n; p++) { const v = d[p]; if (v) { sum[p] += v; cnt[p]++; } } }
   for (let y = 0; y < h; y++) {  // running sums along x, then y (edges: the nearest pixel, as mode="nearest")
     const o = y * w; let s = 0, c = 0;
     for (let i = -r - 1; i < r; i++) { const p = o + Math.min(w - 1, Math.max(0, i)); s += sum[p]; c += cnt[p]; }
@@ -125,7 +185,7 @@ function smoothCodes(frs, r, own = 0) {
       const a = Math.min(h - 1, y + r) * w + x, b = Math.max(0, y - r - 1) * w + x;
       s += hs[a] - hs[b]; c += hc[a] - hc[b];
       const p = y * w + x, frac = c / area;
-      out[p] = frac <= 0.2 || (!data[4 * p] && frac <= 0.5) ? 0 : Math.round(s / c);
+      out[p] = frac <= 0.2 || (!data[p] && frac <= 0.5) ? 0 : Math.round(s / c);
     }
   }
   return out;
@@ -140,10 +200,10 @@ const timeRadius = () => (V.smoothed_xy === null || V.smoothed_xy === undefined 
   : Math.round(Math.floor(SCR.params.smooth_traces || 0) / VSTRIDE));
 function composite(frs, pr, f = 1, own = 0) {
   const fr = frs[own], c = document.createElement("canvas"); c.width = fr.w; c.height = fr.h;
-  const x = c.getContext("2d"), img = x.createImageData(fr.w, fr.h), out = img.data, d = fr.data, { tauIdx, gain, L } = LT;
+  const x = c.getContext("2d"), img = x.createImageData(fr.w, fr.h), out = img.data, dc = fr.c, dg = fr.g, { tauIdx, gain, L } = LT;
   const useProj = !!pr, r = smoothRadius(f), sm = r > 0 || frs.length > 1 ? smoothCodes(frs, r, own) : null;
-  for (let q = 0; q < out.length; q += 4) {
-    const k = tauIdx[sm ? sm[q >> 2] : d[q]], g = gain[useProj ? pr.data[q] : d[q + 1]];
+  for (let q = 0, p = 0; q < out.length; q += 4, p++) {
+    const k = tauIdx[sm ? sm[p] : dc[p]], g = gain[useProj ? pr.c[p] : dg[p]];
     if (k < 0) { const v = g * 140; out[q] = out[q + 1] = out[q + 2] = v; }
     else { out[q] = L[k] * g; out[q + 1] = L[k + 1] * g; out[q + 2] = L[k + 2] * g; }
     out[q + 3] = 255;
@@ -210,13 +270,18 @@ function fillsChanged() {
 // generic renderer (used for the main view and for the cell card crop)
 function renderImage(ctx, cw, ch, vw, then) {
   const vf = vfIndex(S.frame), L = chooseLevel(vw.s);
-  ctx.imageSmoothingEnabled = vw.s * F0 < 1;
-  const ov = tileImage({ L: null }, vf, then);
-  if (ov) ctx.drawImage(ov, vw.tx, vw.ty, VW * F0 * vw.s, VH * F0 * vw.s);
-  if (L === OVERVIEW) return;
+  const drawOverview = () => {
+    ctx.imageSmoothingEnabled = vw.s * F0 < 1;
+    const ov = tileImage({ L: null }, vf, then);
+    if (ov) ctx.drawImage(ov, vw.tx, vw.ty, VW * F0 * vw.s, VH * F0 * vw.s);
+  };
+  if (L === OVERVIEW) { drawOverview(); return; }
+  // the tiles of this frame; the overview underneath only where a tile is missing (it costs as much as several tiles)
+  const tiles = tilesInView(L, cw, ch, vw).map(t => [t, tileImage(t, vf, then)]);
+  if (tiles.some(([, c]) => !c)) drawOverview();
   ctx.imageSmoothingEnabled = vw.s * L.factor < 1;
-  for (const t of tilesInView(L, cw, ch, vw)) {
-    let c = tileImage(t, vf, then);
+  for (const [t, c0] of tiles) {
+    let c = c0;
     if (c) lastComp.set(t.pos, c); else c = lastComp.get(t.pos);  // previous frame while loading
     if (c) ctx.drawImage(c, vw.tx + t.x * t.f * vw.s, vw.ty + t.y * t.f * vw.s, c.width * t.f * vw.s, c.height * t.f * vw.s);
   }
@@ -255,11 +320,22 @@ function drawViewer() {
   $("vinfo").textContent = `${W0}×${H0} px · ${L === OVERVIEW ? (F0 > 1 ? `overview 1:${F0}` : "full resolution") : (L.factor > 1 ? `tiles 1:${L.factor}` : "full resolution")}` + (NVF < T ? ` · ${NVF} of ${T} frames` : "");
   invalidate("viewerSel", "viewerHov");
 }
-function prefetch() {
-  const next = vfIndex(Math.min(T - 1, S.frame + 1)), L = chooseLevel(view.s);
-  const r = vwrap.getBoundingClientRect();
-  if (L === OVERVIEW) request(frameKey({ L: null }, next), []);
-  else for (const t of tilesInView(L, r.width, r.height, view)) request(frameKey(t, next), []);
+// the decoded frames that the view needs for viewer frame vf: the tiles (or the overview) in view, with the neighbouring
+// frames of the time smoothing
+function viewKeys(vf) {
+  const L = chooseLevel(view.s), r = vwrap.getBoundingClientRect(), rt = timeRadius(), keys = [];
+  const tiles = L === OVERVIEW ? [{ L: null }] : tilesInView(L, r.width, r.height, view);
+  for (const t of tiles) for (let k = -rt; k <= rt; k++) keys.push(frameKey(t, Math.min(NVF - 1, Math.max(0, vf + k))));
+  return keys;
+}
+const frameReady = (vf) => viewKeys(vf).every(k => rawCache.has(k));
+// playing: the frames ahead in the current view are loaded in advance, the nearest first, as many as fit in half the
+// memory budget (all of them for most movies, so that the second loop plays from memory)
+function prefetch(from = S.frame) {
+  const cur = vfIndex(from), keys = viewKeys(cur), L = chooseLevel(view.s);
+  const bytes = keys.length * 2 * (L === OVERVIEW ? VW * VH : TSIZE * TSIZE);
+  const ahead = Math.max(2, Math.min(NVF - 1, Math.floor(RAW_BUDGET / 2 / Math.max(1, bytes))));
+  for (let k = 1; k <= ahead; k++) for (const key of viewKeys((cur + k) % NVF)) request(key, [], k);
 }
 function drawViewerSel() {
   const [x, w, h] = canvasSize(vsel);

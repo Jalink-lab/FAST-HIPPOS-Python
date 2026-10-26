@@ -16,6 +16,7 @@ import json
 import logging
 import math
 import os
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -261,6 +262,27 @@ def frame_urls(v: ViewerData) -> list[str]:
     """One RGB PNG per frame: R = lifetime code, G = intensity, B = 0."""
     zeros = np.zeros_like(v.lifetime8[0])
     return _map(lambda i: png_data_url(np.dstack([v.lifetime8[i], v.intensity8[i], zeros])), range(len(v.frames)))
+
+
+FRAMES_DIR = "frames"  # next to the dashboard: one file per frame, loaded by the page when it needs it
+
+
+def write_frames(v: ViewerData, folder: Path) -> str:
+    """The frames as files in <folder>/frames (t<i>.js calling FHTile("O/t<i>", dataURL), as the tiles), so that the
+    dashboard itself stays small and opens at once; it loads the frames as it needs them. Returns the first frame,
+    which the dashboard holds itself (shown immediately)."""
+    d = Path(folder) / FRAMES_DIR
+    if d.exists():
+        shutil.rmtree(d)
+    d.mkdir(parents=True)
+    zeros = np.zeros_like(v.lifetime8[0])
+
+    def one(i: int) -> str:
+        url = png_data_url(np.dstack([v.lifetime8[i], v.intensity8[i], zeros]))
+        (d / f"t{i}.js").write_text(f'FHTile("O/t{i}","{url}");', encoding="ascii")
+        return url
+
+    return _map(one, range(len(v.frames)))[0]
 
 
 def labels_url(labels: np.ndarray) -> str:

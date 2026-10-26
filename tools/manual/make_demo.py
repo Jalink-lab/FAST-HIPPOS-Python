@@ -16,7 +16,8 @@ DEMO = Path(__file__).resolve().parents[2] / "manual" / "demo"
 def main(run: Path, zip_path: Path | None) -> None:
     shutil.rmtree(DEMO, ignore_errors=True)
     files = [run / "index.html", *sorted(run.glob("*/index.html")), *sorted(run.glob("*/*/dashboard.html")),
-             *sorted(run.glob("*/dashboard.html"))]
+             *sorted(run.glob("*/dashboard.html")),
+             *sorted(run.glob("*/*/frames/*.js")), *sorted(run.glob("*/frames/*.js"))]  # the frames of the dashboards
     for f in files:
         target = DEMO / run.name / f.relative_to(run)
         target.parent.mkdir(parents=True, exist_ok=True)
