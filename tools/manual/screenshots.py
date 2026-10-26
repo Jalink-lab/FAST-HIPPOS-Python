@@ -166,11 +166,11 @@ def main(example: Path, only: list[str]) -> None:
             page = browser.new_page(viewport=VIEW, device_scale_factor=SCALE, color_scheme="light")
             out = gui_shots(page, url, want)
             dashboard_shots(page, url, out, want)
-            overview_shots(page, url, out, want)
+            overview_shots(page, url, out.parent, want)  # the experiment overview: the three samples
             if any(want(n) for n in ("gui_experiment", "gui_run_experiment", "experiment")):
                 if not (example / "experiment" / "index.html").exists():
                     sys.exit("No example experiment: run tools/manual/make_example_experiment.py first")
-                proc2, url2 = start(example, 8768, "sample_3.toml")
+                proc2, url2 = start(example, 8768)
                 try:
                     time.sleep(2)
                     experiment_shots(page, url2, example, want)

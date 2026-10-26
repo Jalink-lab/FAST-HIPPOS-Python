@@ -1,25 +1,23 @@
 # A screen of several samples
 
-A run analyzes its images together: they are screened with one set of hit criteria, and the overview compares them.
-That fits a scan of several areas of one sample. A screen often goes differently: **one (stitched) image per
-sample**, every sample analyzed in its own run as soon as it has been imaged, its hits photoactivated on the
-microscope, and then the next sample. Afterwards, or while the screen goes on, you want to compare all samples.
+A screen usually goes like this: **one (stitched) image per sample**, every sample analyzed as soon as it has been
+imaged, its hits photoactivated on the microscope, and then the next sample. Afterwards, or while the screen goes
+on, you want to compare all samples.
 
-For that, FAST-HIPPOS has the **experiment folder**: one folder for the whole screen, with one output folder (one run)
-per sample inside it. The experiment folder gets an overview of all samples, which is updated after every run.
+That is how FAST-HIPPOS works: **every image is a sample**, analyzed in a run of its own, in a folder of its own inside
+the **experiment folder**. The experiment folder gets an overview of all samples, which is updated after every run.
 
 ## Setting it up
 
 1. In the *Images* card, choose an **Experiment folder** (e.g. `D:\screens\ADRB2 screen`). It may be empty.
-2. Add the images of the first sample. Its **Sample folder** becomes `<experiment folder>\<image name>` (with a
-   number added when a sample of that name exists already); type another name to change it. Give the sample a **Sample label** if you
-   like: its condition, plate or library part. The label shows in the experiment overview.
-3. **▶ Run analysis**. When the run is done, the `.rgn` files of this sample are in its output folder; see
+2. Add the image of the first sample (or several images: each is a sample). Each sample gets a row with its name,
+   its folder `<experiment folder>\<name>` (the image name; type another to change it), and a **label** if you like:
+   its condition, plate or library part. The label shows in the experiment overview.
+3. **▶ Run analysis**. When the run is done, the `.rgn` files of the sample are in its folder; see
    [Back to the microscope](microscope.md).
 4. For the next sample, click **＋ New sample** (top right of the window, or in the sample menu of the top bar).
-   This keeps all settings, but empties the image list, the sample folder, the sample label, the
-   [settings of single images](own-settings.md) and a file of hand-picked hits. Add the images of the next sample,
-   and the sample folder is set for you again. Run.
+   This keeps all settings, but empties the image list, the [settings of single images](own-settings.md) and a
+   file of hand-picked hits. Add the image of the next sample, and run.
 
 The bar at the top of the window shows where you are: **Experiment** (all samples), **Sample** (one sample, with a
 menu of all samples and their hits) and **Image** (a dashboard). Choosing another sample in the menu, or clicking a

@@ -13,12 +13,12 @@ stimulated with isoproterenol; the hits are the cells that hardly respond, i.e. 
 Go to frame 15 in a dashboard and look at the scatter plot: most hits carry the marker of the knock-out cells.
 See [what the experiment is about](first-analysis.md#what-the-experiment-is-about).
 
-=== "Overview of the run"
+=== "Overview of the experiment"
 
     <div class="fh-demo-bar" markdown>
-    [Open in a new tab :material-open-in-new:](../demo/example_run/index.html){ .md-button target="_blank" }
+    [Open in a new tab :material-open-in-new:](../demo/experiment/index.html){ .md-button target="_blank" }
     </div>
-    <iframe class="fh-demo" src="../../demo/example_run/index.html" loading="lazy" title="Overview of the example run"></iframe>
+    <iframe class="fh-demo" src="../../demo/experiment/index.html" loading="lazy" title="Overview of the example experiment"></iframe>
 
     Select images in the table to compare them, switch between *distribution* and *scatter*, hover over a hit in
     the maps. The image names link to the dashboards. See [the run overview](../guide/overview.md).
@@ -26,9 +26,9 @@ See [what the experiment is about](first-analysis.md#what-the-experiment-is-abou
 === "Dashboard of one image"
 
     <div class="fh-demo-bar" markdown>
-    [Open in a new tab :material-open-in-new:](../demo/example_run/example_screen_1/dashboard.html){ .md-button target="_blank" }
+    [Open in a new tab :material-open-in-new:](../demo/experiment/example_screen_1/example_screen_1/dashboard.html){ .md-button target="_blank" }
     </div>
-    <iframe class="fh-demo" src="../../demo/example_run/example_screen_1/dashboard.html" loading="lazy" title="Dashboard of example_screen_1"></iframe>
+    <iframe class="fh-demo" src="../../demo/experiment/example_screen_1/example_screen_1/dashboard.html" loading="lazy" title="Dashboard of example_screen_1"></iframe>
 
     Try this:
 

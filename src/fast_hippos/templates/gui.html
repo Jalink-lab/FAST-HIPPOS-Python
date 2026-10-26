@@ -821,7 +821,8 @@ function autoName(file, seriesName, n) {
 }
 function sampleRows() {
   if (!S) return [];
-  const rows = [], taken = new Set();
+  const rows = [], taken = new Set(), x = S.input.experiment ? experimentState() : null;
+  const known = (n) => ((x && x.samples) || []).find(s => sameName(s.name, n));  // a sample of that name has results
   for (const f of S.input.files || []) {
     const lif = /\.lif$/i.test(f), names = (lif && INFO[f] && INFO[f].series_names) || [null];
     names.forEach((sn, i) => {
@@ -830,7 +831,7 @@ function sampleRows() {
       let name = own.name || autoName(f, sn, names.length);
       if (!own.name) for (let k = 2, b = name; taken.has(name.toLowerCase()); k++) name = `${b} ${k}`;
       taken.add(name.toLowerCase());
-      rows.push({ key, file: f, series: lif ? i : null, name, label: own.label || "" });
+      rows.push({ key, file: f, series: lif ? i : null, name, label: own.label ?? ((known(name) && known(name).label) || "") });
     });
   }
   return rows;

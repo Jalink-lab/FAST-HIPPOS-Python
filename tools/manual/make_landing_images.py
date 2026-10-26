@@ -65,10 +65,10 @@ def best_window(hits: pd.DataFrame, shape) -> tuple[int, int]:
 
 
 def main(example: Path) -> None:
-    run = example / "example_run" / "example_screen_1"
+    run = example / "experiment" / "example_screen_1" / "example_screen_1"
     v = ViewerData.load(run / "viewer.npz")
     assert v.factor == 1 and v.smoothed_xy == 0, "needs a run made with the current version (full resolution, unsmoothed)"
-    settings = json.loads((example / "example_run" / "settings_used.json").read_text())
+    settings = json.loads((example / "experiment" / "example_screen_1" / "settings_used.json").read_text())
     dmin, dmax = settings["display"]["min_lifetime"], settings["display"]["max_lifetime"]
     lut = np.frombuffer(base64.b64decode(_luts()[settings["display"].get("lut") or "turbo"]), np.uint8).reshape(256, 3)
     events = json.loads((run / "events.json").read_text())

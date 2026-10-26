@@ -1,8 +1,8 @@
-"""The live demo of the manual: the overview and the dashboards of the example run (example.toml), copied into
+"""The live demo of the manual: the overviews and the dashboards of the example experiment (example.toml), copied into
 manual/demo (not in git, ~75 MB) and zipped as manual-demo.zip for the release with the example data, from which the
 site build takes it. The example images (1000 x 700 px) fit in the dashboards at full resolution, without tiles.
 
-    python tools/manual/make_demo.py <output folder of the demo run> [zip file]
+    python tools/manual/make_demo.py <experiment folder of the example> [zip file]
 """
 
 import shutil
@@ -15,7 +15,8 @@ DEMO = Path(__file__).resolve().parents[2] / "manual" / "demo"
 
 def main(run: Path, zip_path: Path | None) -> None:
     shutil.rmtree(DEMO, ignore_errors=True)
-    files = [run / "index.html", *sorted(run.glob("*/dashboard.html"))]
+    files = [run / "index.html", *sorted(run.glob("*/index.html")), *sorted(run.glob("*/*/dashboard.html")),
+             *sorted(run.glob("*/dashboard.html"))]
     for f in files:
         target = DEMO / run.name / f.relative_to(run)
         target.parent.mkdir(parents=True, exist_ok=True)

@@ -1,17 +1,19 @@
 # The output folder
 
-Each run writes its results in the output folder you choose in the *Images* card. **One output folder holds one
-run**: the images analyzed together, with one combined hit list.
+Every image is a sample, and every sample gets a folder of its own inside the experiment folder that you choose in
+the *Images* card: **one folder holds one run** of one image, with its hit list and `.rgn` files. (A run of several
+images in one folder, with one combined hit list, can still be made with a settings file on the
+[command line](../reference/command-line.md).)
 
 ## What is in it
 
 ```text
-example_run/
-├── index.html                 the run overview
-├── HITS_example_run.rgn       stage positions of all hits
-├── HITS_example_run_1-75.rgn  … in files of at most 1000 positions, each with its route
+example_screen_1/               one sample: its folder in the experiment folder
+├── index.html                 the overview of the sample
+├── HITS_example_screen_1.rgn  stage positions of all its hits
+├── HITS_example_screen_1_1-24.rgn  … in files of at most 1000 positions, each with its route
 ├── hits.tsv                   the hit list
-├── hits_1-75.tsv              … per .rgn file, in visiting order
+├── hits_1-24.tsv              … per .rgn file, in visiting order
 ├── cell_coordinates.tsv       positions of all cells
 ├── run_summary.tsv            the images table of the overview
 ├── hit_positions.png          a map of the hits and their routes
@@ -19,7 +21,7 @@ example_run/
 ├── fast_hippos_settings.toml  the settings of the run, to open in the window or use on the command line
 ├── settings_used.json         the same, as the program used them
 ├── run.json, hit_chunks.json  bookkeeping of the run (which files it wrote; the hits per .rgn file)
-├── example_screen_1/          one folder per image
+├── example_screen_1/          the image: its dashboard and tables
 │   ├── dashboard.html         the dashboard
 │   ├── cells.tsv              all cells: position, size, values, gates, hit or not
 │   ├── lifetime_traces.tsv    the trace of every cell (and additional_traces.tsv)
@@ -28,7 +30,6 @@ example_run/
 │   ├── intensity_projection.tif
 │   ├── kymograph*.tif, traces.png
 │   └── tiles/                 full-resolution parts of large images, for the dashboard
-├── example_screen_2/
 └── …
 ```
 

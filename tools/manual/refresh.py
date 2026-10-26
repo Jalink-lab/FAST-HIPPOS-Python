@@ -1,6 +1,6 @@
 """Refresh everything of the user manual that is made from the program, in one go (locally; nothing is published):
 
-1. re-apply the example run (example.toml in the example folder), so that its dashboards and overview are made with the
+1. re-apply the example experiment (example.toml in the example folder), so that its dashboards and overview are made with the
    current code;
 2. retake the screenshots (manual/images; all, or only those named with --shots), and the images of the home page
    (make_landing_images.py: the lifetime movie and a close-up of the experiment overview);
@@ -47,7 +47,8 @@ def main() -> None:
         sys.exit(f"No example.toml in {example}: see the docstring of tools/manual/make_example_data.py")
 
     if "reapply" not in skip:
-        step("Re-apply the example run", [py, "-m", "fast_hippos.cli", "reapply", "example.toml"], cwd=example)
+        step("Re-apply the example experiment", [py, "-m", "fast_hippos.cli", "experiment", "experiment", "--reapply",
+                                                  "example.toml"], cwd=example)
     if "screenshots" not in skip:  # (re-applies once more inside its own FAST-HIPPOS window)
         step("Screenshots", [py, TOOLS / "screenshots.py", example, *args.shots])
         step("Home page images", [py, TOOLS / "make_landing_images.py", example])
@@ -55,7 +56,7 @@ def main() -> None:
         step("Reference pages", [py, TOOLS / "gen_reference.py"])
     step("Context help of the pages (from the manual)", [py, TOOLS / "make_help.py"])
     if "demo" not in skip:
-        step("Live demo", [py, TOOLS / "make_demo.py", example / "example_run", example / "manual-demo.zip"])
+        step("Live demo", [py, TOOLS / "make_demo.py", example / "experiment", example / "manual-demo.zip"])
     if "build" not in skip:
         with tempfile.TemporaryDirectory() as site:  # not in the (synchronized) project folder
             step("Site build (strict)", [py, "-m", "mkdocs", "build", "--strict", "-q", "-d", site])

@@ -55,22 +55,21 @@ folded, and also the light or dark look (◐).
 
 ### Images
 
-The images to analyze and where the results go. All images of a run are analyzed with the same settings, and screened
-together.
+The images to analyze and where the results go. **Every image is a sample**: it is analyzed in a run of its own,
+with the settings of the window, and gets its own folder, overview, hit list and `.rgn` files.
 
-- **Add images…**: time-lapse `.tif` files (ImageJ hyperstacks) or Leica `.lif` files. A `.lif` file can hold many
-  images; they are all analyzed, unless you choose some under *Advanced → .lif series*.
-- **Add tile folder…**: a folder of tiles exported from LAS X, which FAST-HIPPOS stitches by their stage positions;
-  see [Back to the microscope](microscope.md#tile-scans).
+- **Experiment folder**: the folder that holds one folder per sample, and the overview of all samples. Adding images
+  without one proposes a folder *FAST-HIPPOS* next to the images. See [A screen of several samples](screen.md).
+- **Add images…**: time-lapse `.tif` files (ImageJ hyperstacks) or Leica `.lif` files. Every series of a `.lif` file
+  is a sample of its own, unless you choose some under *Advanced → .lif series*.
+- **Add tile folder…**: a folder of tiles exported from LAS X, which FAST-HIPPOS stitches by their stage positions into
+  one image (one sample); see [Back to the microscope](microscope.md#tile-scans).
 - Every image shows what was read from it: size, frames, channels, pixel size, frame interval, and whether it holds
   stage positions.
-- **Experiment folder** (optional): for a screen with one run per sample, the folder that holds the output folders
-  of all samples, and their joint overview. Empty for a single run. See [A screen of several samples](screen.md).
-- **Output folder**: one folder per run. See [the output folder](output-folder.md). With an experiment folder it is
-  the **Sample folder**, shown as *experiment folder* \ *name*: a folder inside the experiment folder, named after
-  the first image (type another name to change it). The card then starts with the experiment folder, the sample
-  folder and the sample label.
-- **Sample label** (with an experiment folder): a short description of the sample, shown in the experiment overview.
+- Below the images, **one row per sample**: its name (its folder in the experiment folder; the image name, which you
+  can change) and an optional **label**, e.g. the condition, shown in the overviews. A row says *has results:
+  replaced* when the experiment already holds a sample of that name. **▶ Run analysis** analyzes the rows one after
+  the other.
 - **Image type**: what the pixel values mean, and so how the value per cell is computed: two-component TCSPC fits
   (with τ₁ and τ₂), Fast FLIM, TauContrast, frequency-domain FLIM, ratio imaging, or intensity only.
 - **Additional channel**: optionally a channel whose intensity is measured per cell, e.g. a transfection marker.
@@ -131,8 +130,9 @@ analysis and disable *Run analysis*: no images, frames beyond the end of the mov
 stimulation, Cellpose not found. Orange warnings point out surprises: images without stage positions get no `.rgn`
 files, the output folder already holds results, Cellpose will run without GPU.
 
-**▶ Run analysis** analyzes all images: segmentation, traces, stimulation detection, screening, dashboards. If the
-output folder already holds a run, FAST-HIPPOS first tells you exactly which results will be replaced.
+**▶ Run analysis** analyzes the samples of the Images list, one after the other: segmentation, traces, stimulation
+detection, screening, dashboards; then it updates the experiment overview. If samples of the same name already
+have results, FAST-HIPPOS first tells you which will be replaced.
 
 **↻ Re-apply screening** (*Re-apply this sample* with an experiment folder) redoes only the part after the segmentation and the traces (stimulation detection,
 screening, hit lists, `.rgn` files, dashboards) for the images of the run in the output folder, with the current
