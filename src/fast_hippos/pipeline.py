@@ -189,6 +189,75 @@ def update_experiment(out: Path, experiment: Path | None) -> None:
         log.warning("The experiment overview could not be updated: %s", e)
 
 
+def sample_name(path: str | Path, series_name: str | None = None, n_series: int = 1) -> str:
+    """The folder name of a sample: the name of its image file or tile folder; for a .lif with several series also
+    the name of the series (the window names its rows the same way)."""
+    p = Path(path)
+    base = p.name if p.is_dir() else re.sub(r"\.(ome\.)?(tiff?|lif)$", "", p.name, flags=re.IGNORECASE)
+    name = f"{base} - {series_name}" if series_name and n_series > 1 else base
+    return re.sub(r'[\\/:*?"<>|]', "_", name).strip() or "sample"
+
+
+def sample_list(settings: Settings) -> list[dict]:
+    """One sample per image of the settings: a .tif, a folder of tiles, or one series of a .lif (input.series chooses
+    series). Names repeated within the list get a number."""
+    from .io import image_info
+
+    samples, taken = [], set()
+    for f in settings.input.files:
+        p = Path(f)
+        infos = image_info(p) if p.suffix.lower() == ".lif" else [{"name": None}]
+        for i, info in enumerate(infos):
+            lif = p.suffix.lower() == ".lif"
+            if lif and settings.input.series and i not in settings.input.series:
+                continue
+            name = base = sample_name(p, info.get("name"), len(infos))
+            for k in range(2, 1000):
+                if name.lower() not in taken:
+                    break
+                name = f"{base} {k}"
+            taken.add(name.lower())
+            samples.append({"file": str(p), "series": i if lif else None, "name": name, "label": settings.input.sample_label})
+    return samples
+
+
+def run_samples(settings: Settings, samples: list[dict] | None = None) -> list[str]:
+    """Every image a sample: each one analyzed in a run of its own, in <experiment folder>/<sample name> (a sample of
+    that name is replaced), then the experiment overview once. samples: [{file, series, name, label}] (default: one per
+    image, sample_list). Returns the samples that failed."""
+    import copy
+
+    from .experiment import LOG_FILE, write_experiment_overview
+
+    if not settings.input.experiment:
+        raise ValueError("No experiment folder: set [input] experiment, the folder that holds one folder per sample")
+    experiment = Path(settings.input.experiment).resolve()
+    samples = samples if samples is not None else sample_list(settings)
+    if not samples:
+        raise ValueError("No images: add them to [input] files")
+    base = settings.to_dict()
+    failed = []
+    for k, s in enumerate(samples, 1):
+        print(f"=== Sample {k} of {len(samples)}: {s['name']}", flush=True)  # the run logs go to their own folders
+        d = copy.deepcopy(base)
+        d["input"] |= {"files": [s["file"]], "series": None if s.get("series") is None else [int(s["series"])],
+                       "output": str(experiment / s["name"]), "sample_label": s.get("label") or None,
+                       "experiment": str(experiment)}
+        try:
+            if not run(Settings.from_dict(d), experiment_overview=False):
+                failed.append(s["name"])
+        except Exception as e:  # noqa: BLE001 - the other samples go on
+            print(f"Sample {s['name']} failed: {e}", flush=True)
+            failed.append(s["name"])
+    _setup_logging(experiment / LOG_FILE)
+    write_experiment_overview(experiment, failed)
+    if failed:
+        log.error("Not analyzed: %s (see the run_log.txt in their folders)", ", ".join(failed))
+    log.info("Done. %d of %d samples analyzed; experiment overview in %s", len(samples) - len(failed), len(samples),
+             experiment / "index.html")
+    return failed
+
+
 def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
     """Re-apply the event, screening and display settings of `changes` to every sample of the experiment folder
     (each keeps the own settings of its single images), then update the experiment overview once. Returns the

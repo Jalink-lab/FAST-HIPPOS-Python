@@ -30,7 +30,7 @@ def test_layout_has_every_setting_once():
     placed = [k for card in gui.LAYOUT for k in card["basic"] + [k for a in card["advanced"] for k in a[1] if k != "|"]]
     keys = {f"{s}.{k}" for s, v in Settings().to_dict().items() for k in v}
     assert len(placed) == len(set(placed)), "a setting appears twice"
-    assert set(placed) == keys
+    assert set(placed) | set(gui.PER_SAMPLE) == keys and not set(placed) & set(gui.PER_SAMPLE)
 
 
 def test_toml_round_trip(tmp_path):

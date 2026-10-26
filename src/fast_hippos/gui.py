@@ -69,11 +69,13 @@ FIELDS: dict[str, dict] = {
     # ---- input
     "input.files": {"label": "Images", "widget": "files",
         "help": "Time-lapse images: .tif (ImageJ hyperstack) or .lif, or a folder of tiles exported from LAS X "
-        "(stitched by the stage positions of the tiles). Several are analyzed in one run."},
-    "input.output": {"label": "Output folder", "widget": "folder"},
-    "input.experiment": {"label": "Experiment folder (optional)", "widget": "folder",
-        "placeholder": "none — a single run", "help": "For a screen of several samples: one output folder per sample "
-        "inside it, and an overview of all samples"},
+        "(stitched by the stage positions of the tiles). Each image is a sample of its own, and so is each series of a "
+        ".lif file: Run analysis analyzes them one after the other."},
+    "input.output": {"label": "Output folder", "widget": "folder",
+        "help": "The folder of one sample (one run); the window sets it per sample: <experiment folder>/<sample name>"},
+    "input.experiment": {"label": "Experiment folder", "widget": "folder",
+        "placeholder": "proposed when you add images", "help": "One folder per sample inside it (each image is a "
+        "sample), and an overview of all samples"},
     "input.sample_label": {"label": "Sample label", "wide": True, "show": {"input.experiment": {"set": True}},
         "placeholder": "e.g. the condition or library of this sample",
         "help": "Shown in the experiment overview, to tell or group the samples"},
@@ -427,8 +429,10 @@ FD = {"input.modality": ["fd_flim"]}
 # Cards of the form: the basic settings, then the advanced ones under subheadings (an expanding pane).
 # Every setting appears exactly once (checked by the tests).
 # "|" in a group starts a new row, so that only related settings are next to each other
+# set per sample by the rows of the Images list (each image a sample), not as fields of their own
+PER_SAMPLE = ["input.output", "input.sample_label"]
 LAYOUT = [
-    {"title": "Images", "basic": ["input.files", "input.experiment", "input.output", "input.sample_label", "input.modality", "input.tau1", "input.tau2",
+    {"title": "Images", "basic": ["input.experiment", "input.files", "input.modality", "input.tau1", "input.tau2",
                                   "input.additional_channel"],
      "advanced": [
          ("Channels and metadata", ["input.intensity_channel", "input.series", "|", "input.pixel_size",
@@ -683,6 +687,8 @@ def inspect_file(path: Path) -> dict:
         out |= first
         if len(infos) > 1:
             out |= {"series": len(infos), "channels": min(i["channels"] for i in infos), "frames": min(i["frames"] for i in infos)}
+        if path.suffix.lower() == ".lif":  # every series becomes a sample of its own
+            out["series_names"] = [i.get("name") or f"series {k}" for k, i in enumerate(infos)]
     except Exception as e:  # noqa: BLE001 - shown to the user
         out["error"] = f"{type(e).__name__}: {e}"
     return out
@@ -888,14 +894,14 @@ class Job:
         self.lock = threading.Lock()
 
     def start(self, settings: dict, reapply: bool, source: str = "gui", remember: dict | None = None,
-              experiment: str | None = None) -> int:
+              experiment: str | None = None, samples: list[dict] | None = None) -> int:
         """Run (or re-apply) with these settings, in a subprocess. remember: settings of the page, kept for the next
         start of the GUI (None: leave them, e.g. for 'Apply to run' from a dashboard). experiment: re-apply to all
         samples of this experiment folder instead (cli experiment --reapply)."""
         if self.state == "running":
             raise ValueError("A run is already in progress")
         settings_from_plain(settings)  # validate before starting
-        out = Path(experiment or settings["input"]["output"])
+        out = Path(experiment or (settings["input"]["experiment"] if samples else settings["input"]["output"]))
         out.mkdir(parents=True, exist_ok=True)
         # the run itself writes fast_hippos_settings.toml into the output folder, after moving the previous run away
         STATE_DIR.mkdir(exist_ok=True)
@@ -907,6 +913,10 @@ class Job:
         cmd = [_python(), "-u", "-m", "fast_hippos.cli", "reapply" if reapply else "run", str(toml)]
         if experiment:
             cmd = [*cmd[:4], "experiment", str(out), "--reapply", str(toml)]
+        elif samples:  # every image a sample (the window's Run analysis)
+            plan = STATE_DIR / "run_samples.json"
+            plan.write_text(json.dumps(samples), encoding="utf-8")
+            cmd = [*cmd[:4], "run-samples", str(toml), "--samples", str(plan)]
         if source == "gui":  # the page sends its complete own settings of single images
             self.removed.pop(_key(out), None)
             self.applied = ""
@@ -1151,7 +1161,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "check": lambda q: {"problems": _check(q["settings"])},
         "run": lambda q: {"run_id": start_reapply_experiment(job, q["settings"]) if q.get("experiment")
                           else start_reapply(job, q["settings"]) if q.get("reapply")
-                          else job.start(q["settings"], False, remember=q["settings"])},
+                          else job.start(q["settings"], False, remember=q["settings"], samples=q.get("samples"))},
         # the run that 'Apply to run' in a dashboard would process (<output>/<image>/dashboard.html)
         "runinfo": lambda q: output_info(str(Path(q["dashboard"]).parent.parent)),
         "apply": lambda q: {"run_id": apply_from_dashboard(job, q["dashboard"], q["toml"], q.get("manual_tsv"), q.get("image"),

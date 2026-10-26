@@ -179,3 +179,26 @@ def test_samples_in_natural_order_and_tables_with_the_image_names(experiment, tm
     summary = (exp / "experiment_summary.tsv").read_text().splitlines()
     assert len({line.split("\t")[2] for line in summary[1:]}) == 1  # the image column: its own name in both samples
     assert "Not re-applied" in data["notes"][0] and "plate 10" in data["notes"][0]
+
+
+def test_run_samples_makes_every_image_a_sample(tmp_path):
+    """run_samples (the window's Run analysis): each image a run of its own in the experiment folder, named after it
+    (or as given), with its label; then the experiment overview."""
+    from fast_hippos.pipeline import run_samples, sample_list
+
+    files = [save_tiff(make_timelapse(seed=k)[0], tmp_path / f"plate {k}.tif") for k in (1, 2)]
+    s = Settings()
+    s.input.files = files
+    s.input.experiment = tmp_path / "screen"
+    s.segmentation.method = "threshold"
+    s.segmentation.diameter = 18
+    s.segmentation.min_cell_size = 30
+    assert [x["name"] for x in sample_list(s)] == ["plate 1", "plate 2"]
+    samples = [{"file": str(files[0]), "series": None, "name": "first", "label": "control"},
+               {"file": str(files[1]), "series": None, "name": "second", "label": None}]
+    assert run_samples(s, samples) == []
+    exp = tmp_path / "screen"
+    assert [f.name for f in run_folders(exp)] == ["first", "second"]
+    data = read_overview_data(exp / "index.html")
+    assert [(r["name"], r["label"]) for r in data["runs"]] == [("first", "control"), ("second", "")]
+    assert all(len(json.loads((exp / n / "run.json").read_text())["images"]) == 1 for n in ("first", "second"))

@@ -17,6 +17,10 @@ def main(argv: list[str] | None = None) -> int:
 
     r = sub.add_parser("run", help="analyze the images listed in a config file")
     r.add_argument("config", type=Path)
+    rs = sub.add_parser("run-samples", help="analyze every image of a config file as a sample of its own (a .lif: every "
+                        "series), in <experiment>/<sample name>, then update the experiment overview")
+    rs.add_argument("config", type=Path)
+    rs.add_argument("--samples", type=Path, help=argparse.SUPPRESS)  # JSON [{file, series, name, label}] (the window)
     a = sub.add_parser("reapply", help="redo stimulation detection, screening and dashboards for the images of the run in "
                        "the output folder (no segmentation), with the [events], [screening] and [display] settings of the config")
     a.add_argument("config", type=Path)
@@ -52,6 +56,21 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     if args.command is None:  # default: the GUI
         args = p.parse_args(["gui"])
+
+    if args.command == "run-samples":
+        import json
+
+        from .config import Settings
+        from .pipeline import run_samples
+
+        try:
+            settings = Settings.from_toml(args.config)
+            samples = json.loads(args.samples.read_text(encoding="utf-8")) if args.samples else None
+            failed = run_samples(settings, samples)
+        except ValueError as e:
+            print(f"Not started: {e}", file=sys.stderr)
+            return 2
+        return 1 if failed else 0
 
     if args.command in ("run", "reapply"):
         import tomllib

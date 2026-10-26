@@ -134,7 +134,10 @@ body.pages header { margin-bottom: 0; }
 #viewPages iframe { border: 0; width: 100%; height: calc(100vh - var(--hdr, 60px)); display: none; background: var(--bg); }
 #viewPages iframe.on { display: block; }
 .setupOnly { display: contents; }
-.sfolder .prefix { color: var(--muted); white-space: nowrap; }
+.samples { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.samples-h { color: var(--muted); font-size: 11.5px; }
+.srow { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) auto; gap: 6px; align-items: center; }
+.srow .st { font-size: 11.5px; white-space: nowrap; } .srow .st.done { color: var(--warn); }
 .results .grp { color: var(--muted); margin-top: 6px; }
 /*__HELP_CSS__*/
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 8px; display: none; z-index: 10; }
@@ -301,9 +304,6 @@ function cpStatus() {
 // ---------------------------------------------------------------- widgets
 function widget(f) {
   const v = get(f.key), id = "f_" + f.key.replace(".", "_");
-  // the sample folder as <experiment folder> \ name (a folder elsewhere is shown in full, with a warning in the Run card)
-  if (f.key === "input.output" && S.input.experiment && (!v || samePath(parentPath(v), S.input.experiment)))
-    return `<div class="row sfolder"><span class="prefix" title="${esc(S.input.experiment)}">${esc(baseName(S.input.experiment))} \\</span><input id="${id}" type="text" data-samplename value="${esc(v ? baseName(v) : "")}" placeholder="proposed when you add the images"><button class="small" data-browse="${f.key}" data-kind="folder" title="Choose another folder with a file dialog">Browse…</button></div>`;
   const num = (step) => `<input id="${id}" type="number" step="${step}" value="${v ?? ""}" placeholder="${esc(f.placeholder || (f.optional ? "—" : ""))}" data-num="${step === "1" ? "int" : "float"}">`;
   switch (f.kind) {
     case "bool": return `<input id="${id}" type="checkbox" ${v ? "checked" : ""}>`;
@@ -340,7 +340,7 @@ function widget(f) {
       const files = v || [];
       return `<div class="files">${files.map((p, i) => `<div class="file"><span class="name" title="${esc(p)}">${esc(p.split(/[\\/]/).pop())}</span>
           <span class="meta">${fileMeta(INFO[p])}</span><button class="small" data-remove="${i}" title="Remove">✕</button></div>`).join("")}
-        <div class="row"><button data-browse="${f.key}" data-kind="files" title="Add .tif or .lif files to the list (several at once is possible)">Add images…</button><button data-browse="${f.key}" data-kind="tiles" title="A folder with one TIFF per tile, exported from LAS X: stitched by the stage positions of the tiles">Add tile folder…</button>${files.length ? `<button class="link" data-clearfiles title="Remove all images from the list">clear</button>` : `<span class="muted">no images selected</span>`}</div></div>`;
+        <div class="row"><button data-browse="${f.key}" data-kind="files" title="Add .tif or .lif files to the list (several at once is possible)">Add images…</button><button data-browse="${f.key}" data-kind="tiles" title="A folder with one TIFF per tile, exported from LAS X: stitched by the stage positions of the tiles">Add tile folder…</button>${files.length ? `<button class="link" data-clearfiles title="Remove all images from the list">clear</button>` : `<span class="muted">no images selected</span>`}</div>${samplesHTML()}</div>`;
     }
     case "criteria": {
       const crit = v || [], metrics = Object.keys(SCHEMA.metrics);
@@ -367,9 +367,7 @@ function fieldHTML(f) {
 function fieldHTMLRaw(f) {
   const wide = f.wide || ["files", "criteria", "model"].includes(f.kind) || ["file", "python", "folder"].includes(f.kind);
   const cls = ["field", f.kind === "bool" ? "check" : "", wide ? "wide" : "", isChanged(f) && f.level !== "basic" ? "changed" : ""].join(" ");
-  const sampleFolder = f.key === "input.output" && S.input.experiment;  // in an experiment: the folder of this sample
-  const label = `<label for="f_${f.key.replace(".", "_")}">${esc(sampleFolder ? "Sample folder" : f.label)}</label>`;
-  if (sampleFolder) f = { ...f, help: "One folder per sample, inside the experiment folder; proposed from the name of the first image" };
+  const label = `<label for="f_${f.key.replace(".", "_")}">${esc(f.label)}</label>`;
   // hover text: the fuller explanation, and the name of the setting in settings files
   const tip = esc((f.tip || f.help || "") + "\n\nSetting: " + f.key).replace(/\n/g, "&#10;");
   const hint = hintFor(f);
@@ -404,9 +402,7 @@ function render() {
   const active = document.activeElement?.id;
   let html = "", hidden = 0;
   for (const card of SCHEMA.layout) {
-    const first = ["input.experiment", "input.output", "input.sample_label", "input.files"];
-    const keys = card.title === "Images" && S.input.experiment ? [...first, ...card.basic.filter(k => !first.includes(k))] : card.basic;
-    const basic = keys.map(k => FIELD[k]).filter(f => shown(f.show));
+    const basic = card.basic.map(k => FIELD[k]).filter(f => shown(f.show));
     // a group's rows ("|" starts a new one), each with the fields that are shown
     const rowsOf = (keys) => keys.join(" ").split("|").map(r => r.trim().split(/\s+/).filter(Boolean).map(k => FIELD[k]).filter(f => shown(f.show))).filter(r => r.length);
     const subs = card.advanced.filter(a => shown(a.show)).map(a => { const rows = rowsOf(a.keys); return { title: a.title, column: a.column, rows, fs: rows.flat() }; }).filter(a => a.fs.length);
@@ -501,7 +497,8 @@ function serverCheck() {
   SRV.key = key; SRV.inputs = inputsKey(); clearTimeout(serverCheck.t);
   const inputs = SRV.inputs;
   serverCheck.t = setTimeout(async () => {
-    let problems; try { problems = (await api("check", { settings: S })).problems; } catch (e) { problems = [e.message]; }
+    const rows = sampleRows(), chk = { ...S, input: { ...S.input, output: S.input.experiment ? joinP(S.input.experiment, rows.length ? rows[0].name : "sample") : "" } };
+    let problems; try { problems = (await api("check", { settings: chk })).problems; } catch (e) { problems = [e.message]; }
     if (SRV.key === key) { SRV.problems = problems; SRV.checkedInputs = inputs; renderChecks(); }
   }, 350);
 }
@@ -511,7 +508,11 @@ function checks() {
   const out = [], ff = fileFacts(), add = (level, msg, input = false) => out.push([level, msg, input]);
   serverCheck();
   SRV.problems.forEach(m => add("err", m, true));  // images, channels, frames, files
-  if (!S.input.output) add("err", S.input.experiment ? "Add the images of the sample: its folder is then proposed" : "Choose an output folder", true);
+  const rows = sampleRows();
+  if (!S.input.experiment) add("err", "Choose an experiment folder (adding images proposes one)", true);
+  if (!rows.length) add("err", "Add the images to analyze: each image is a sample", true);
+  const dup = rows.map(r => r.name.toLowerCase()).filter((n, i, a) => a.indexOf(n) !== i);
+  if (dup.length) add("err", `Two samples have the same name (${dup.join(", ")}): give each its own name`, true);
   const o = outputState(), imgs = runImages(o);
   if (imgs.length) {
     add("info", `${S.input.experiment ? "The sample folder" : "The output folder"} holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
@@ -521,21 +522,17 @@ function checks() {
     const normPath = (p) => p ? String(p).replace(/\\/g, "/").toLowerCase() : "";
     if (normPath(o.run.stage_positions_file) !== normPath(S.screening.stage_positions_file) && S.screening.enabled)
       add("warn", "The stage positions file differs from that of the run in the output folder: only Run analysis uses it (Re-apply screening keeps the run's positions)");
-    if (S.input.experiment && (o.run.sample_label || "") !== (S.input.sample_label || ""))
-      add("warn", `The sample label differs from that of the run in the output folder (${o.run.sample_label ? `“${o.run.sample_label}”` : "none"}): Run analysis and Re-apply screening give this sample the label of this window`);
-    if (runDiffersFromList(o)) add("warn", "The Images list differs from the images of that run: Re-apply screening processes the run's images, not the list");
   }
   else if (Object.keys(S.image || {}).length && S.input.output && o)
     add("warn", `Own settings of single images (${Object.keys(S.image).join(", ")}) will be used by Run analysis: remove them under Stimulation and calibration if they belong to another experiment`);
   if (S.input.experiment) {
     const x = experimentState();
-    if (S.input.output && samePath(S.input.output, S.input.experiment)) add("err", "The output folder is the experiment folder: give each sample its own output folder inside it (New sample proposes one)", true);
-    else if (S.input.output && !samePath(parentPath(S.input.output), S.input.experiment))
-      add("warn", "The output folder is not directly inside the experiment folder, so this run is not a sample of the experiment (its overview is not updated)");
     if (x && x.samples.length) {
       const others = x.samples.filter(s => !samePath(S.input.experiment.replace(/[\\/]+$/, "") + "/" + s.name, S.input.output)).length;
       add("info", `The experiment folder holds ${plural(x.samples.length, "sample")}: ${x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")).join(", ")}`
         + (others < x.samples.length ? "; the sample in the window is one of them" : ""));
+      const again = rows.filter(r => x.samples.some(s => sameName(s.name, r.name))).map(r => r.name);
+      if (again.length) add("warn", `Run analysis replaces the results of ${again.join(", ")} (samples of the same name)`);
       const diff = Object.entries(x.differs || {});
       const groups = {};  // samples that differ in the same settings, together
       const nameOf = (k) => (FIELD[k] ? FIELD[k].label : k);
@@ -570,9 +567,10 @@ function renderChecks() {
   // re-applying uses the saved results, not the images: only problems with the other settings block it
   const blockedReapply = cs.some(c => c[0] === "err" && !c[2]) || JOB.state === "running";
   const imgs = runImages(o), wait = busy();
-  $("bRun").disabled = blocked || wait; $("bReapply").disabled = blockedReapply || !imgs.length || wait;
+  $("bRun").disabled = blocked || wait; $("bReapply").disabled = blockedReapply || !imgs.length || wait || !S.input.output;
   $("bRun").title = wait ? "Wait: the output folder is being read and the images are being checked"
-    : "Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.";
+    : "Analyze every sample in the Images list (one after the other): segmentation, traces, screening and dashboards. The checks above must show no errors.";
+  const nr = sampleRows().length; $("bRun").textContent = nr > 1 ? `▶ Run analysis (${nr} samples)` : "▶ Run analysis";
   const what = S.input.experiment ? "↻ Re-apply this sample" : "↻ Re-apply screening";
   $("bReapply").textContent = imgs.length ? `${what} (${plural(imgs.length, "image")})` : what;
   $("bReapply").title = imgs.length ? `Redo stimulation detection, screening and dashboards for the ${plural(imgs.length, "image")} of the run in the `
@@ -595,9 +593,6 @@ function renderChecks() {
 function readInput(el) {
   const fieldEl = el.closest("[data-key]"); if (!fieldEl) return;
   const f = FIELD[fieldEl.dataset.key];
-  if (el.dataset.samplename !== undefined) {  // the name of the sample folder, inside the experiment folder
-    const n = el.value.trim().replace(/[\\/:*?"<>|]/g, ""); set("input.output", n ? joinP(S.input.experiment, n) : ""); return;
-  }
   let v;
   if (f.kind === "bool") v = el.checked;
   else if (f.kind === "boolselect") v = el.value === "true";
@@ -613,6 +608,11 @@ function readInput(el) {
 }
 document.addEventListener("change", (e) => {
   const el = e.target;
+  if (el.dataset.srow !== undefined) {  // the name or label of a sample row
+    const r = sampleRows()[+el.dataset.srow], k = el.dataset.field;
+    ROWS[r.key] = { ...(ROWS[r.key] || {}), [k]: k === "name" ? safeName(el.value) : el.value.trim() };
+    render(); return;
+  }
   const crit = el.closest("[data-crit]");
   if (crit) {
     const c = S.screening.criteria[+crit.dataset.crit], k = el.dataset.c;
@@ -665,9 +665,7 @@ document.addEventListener("click", async (e) => {
     if (!r || (Array.isArray(r) && !r.length)) return;
     if (kind === "files" || kind === "tiles") {
       const added = kind === "tiles" ? [r] : r, files = [...new Set([...(cur || []), ...added])]; set(f.key, files);
-      if (S.input.experiment && (!S.input.output || S.input.output === "output" || !samePath(parentPath(S.input.output), S.input.experiment)))
-        set("input.output", sampleOutput(added[0]));
-      else if (!S.input.output || S.input.output === "output") set("input.output", added[0].replace(/[\\/][^\\/]*$/, "") + "/FAST-HIPPOS_output");
+      if (!S.input.experiment) set("input.experiment", joinP(parentPath(added[0]), "FAST-HIPPOS"));  // one folder per sample in it
       inspect(files);
     } else set(f.key, r);
     render(); return;
@@ -766,10 +764,23 @@ async function start(reapply) {
   let r; try { r = await api("run", { settings: S, reapply }); } catch (e) { toast(e.message, 6000); return; }
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 }
-$("bRun").onclick = () => start(false);
+$("bRun").onclick = startSamples;
+// Run analysis: every row of the Images list a sample, analyzed one after the other in <experiment folder>\<name>
+async function startSamples() {
+  const rows = sampleRows(), x = experimentState();
+  const again = rows.filter(r => ((x && x.samples) || []).some(s => sameName(s.name, r.name))).map(r => r.name);
+  if (!confirm(`Analyze ${plural(rows.length, "sample")} in\n${S.input.experiment}:\n\n`
+      + bulletList(rows.map(r => r.name + (r.label ? ` (${r.label})` : "")), 20)
+      + (again.length ? `\n\nThese have results already, which are replaced (kept in _previous_run in their folder until the new run is complete):\n${bulletList(again, 20)}` : "")
+      + "\n\nEach image is analyzed in a run of its own, then the experiment overview is updated.\n\nContinue?")) return;
+  const samples = rows.map(r => ({ file: r.file, series: r.series, name: r.name, label: r.label || null }));
+  S.input.output = joinP(S.input.experiment, rows[rows.length - 1].name);  // the sample shown afterwards
+  let r; try { r = await api("run", { settings: S, samples }); } catch (e) { toast(e.message, 6000); return; }
+  JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = ""; render();
+}
 function newSample() {
-  S.input.files = []; S.input.series = null; S.input.output = ""; S.input.sample_label = null; S.image = {};
-  S.screening.manual_hits = null; show("setup"); render();
+  S.input.files = []; S.input.series = null; S.input.sample_label = null; S.image = {};
+  S.screening.manual_hits = null; for (const k in ROWS) delete ROWS[k]; show("setup"); render();
   toast("New sample: add its images; the output folder becomes the experiment folder\\<image name>. All other settings are kept.", 5000);
 }
 $("bNewSample").onclick = newSample;
@@ -800,6 +811,40 @@ const joinP = (a, b) => { const sp = String(a).includes("\\") ? "\\" : "/"; retu
 const baseName = (p) => normP(p).split("/").pop();
 const pageURL = (path) => "/files/" + normP(path).split("/").map(encodeURIComponent).join("/");
 const FRAMES = ["experiment", "sample", "image"];
+// every image a sample: a .tif, a folder of tiles, or one series of a .lif (named as pipeline.sample_name); the names
+// and labels typed in the rows (key: file|series) are kept here until the next New sample
+const ROWS = {};
+const safeName = (s) => String(s || "").replace(/[\\/:*?"<>|]/g, "_").trim();
+function autoName(file, seriesName, n) {
+  const base = /[\\/]$/.test(file) || !/\.[a-z]+$/i.test(baseName(file)) ? baseName(file) : baseName(file).replace(/\.(ome\.)?(tiff?|lif)$/i, "");
+  return safeName(seriesName && n > 1 ? `${base} - ${seriesName}` : base) || "sample";
+}
+function sampleRows() {
+  if (!S) return [];
+  const rows = [], taken = new Set();
+  for (const f of S.input.files || []) {
+    const lif = /\.lif$/i.test(f), names = (lif && INFO[f] && INFO[f].series_names) || [null];
+    names.forEach((sn, i) => {
+      if (lif && S.input.series && S.input.series.length && !S.input.series.includes(i)) return;
+      const key = f + "|" + (lif ? i : ""), own = ROWS[key] || {};
+      let name = own.name || autoName(f, sn, names.length);
+      if (!own.name) for (let k = 2, b = name; taken.has(name.toLowerCase()); k++) name = `${b} ${k}`;
+      taken.add(name.toLowerCase());
+      rows.push({ key, file: f, series: lif ? i : null, name, label: own.label || "" });
+    });
+  }
+  return rows;
+}
+function samplesHTML() {
+  const rows = sampleRows(), x = S.input.experiment ? experimentState() : null;
+  if (!rows.length) return "";
+  const done = (n) => ((x && x.samples) || []).some(s => sameName(s.name, n));
+  return `<div class="samples"><div class="samples-h">Each image is a sample: its folder in the experiment folder, and a label for the overviews</div>`
+    + rows.map((r, i) => `<div class="srow"><input type="text" data-srow="${i}" data-field="name" value="${esc(r.name)}" title="The folder of this sample in the experiment folder (${esc(baseName(r.file))}${r.series !== null ? ", series " + r.series : ""})">`
+      + `<input type="text" data-srow="${i}" data-field="label" value="${esc(r.label)}" placeholder="label, e.g. the condition (optional)" title="Shown in the experiment overview, to tell or group the samples">`
+      + `<span class="st${done(r.name) ? " done" : ""}">${done(r.name) ? "has results: replaced" : "new"}</span></div>`).join("") + "</div>";
+}
+const inExperiment = (p) => !S.input.experiment || samePath(parentPath(p), S.input.experiment);  // a sample of it
 const sameName = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
 function viewTargets() {  // the page each view shows now (null: nothing to show)
   if (!S) return {};
@@ -807,8 +852,8 @@ function viewTargets() {  // the page each view shows now (null: nothing to show
   if (!imgs.includes(VIEW.image)) VIEW.image = imgs[0] || "";
   return {
     experiment: x && x.index ? joinP(S.input.experiment, "index.html") : null,
-    sample: S.input.output && o && o.index ? joinP(S.input.output, "index.html") : null,
-    image: VIEW.image ? joinP(joinP(S.input.output, VIEW.image), "dashboard.html") : null,
+    sample: S.input.output && o && o.index && inExperiment(S.input.output) ? joinP(S.input.output, "index.html") : null,
+    image: VIEW.image && inExperiment(S.input.output) ? joinP(joinP(S.input.output, VIEW.image), "dashboard.html") : null,
   };
 }
 function renderNav() {
@@ -824,7 +869,7 @@ function renderNav() {
     const known = samples.find(s => sameName(s.name, cur));
     const inside = S.input.output && samePath(parentPath(S.input.output), S.input.experiment);
     const opts = samples.map(s => `<option value="${esc(s.name)}">${esc(s.name)}${s.label ? " · " + esc(s.label) : ""}${s.hits != null ? ` · ${plural(s.hits, "hit")}` : ""}</option>`);
-    if (!known) opts.unshift(`<option value="">${inside ? esc(cur) + " (not analyzed yet)" : S.input.output ? "(folder outside the experiment)" : "(new sample)"}</option>`);
+    if (!known) opts.unshift(`<option value="">${inside ? esc(cur) + " (not analyzed yet)" : "(choose a sample)"}</option>`);
     opts.push(`<option value="__new">＋ New sample</option>`);
     const html = opts.join(""); if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
     sel.value = known ? known.name : "";
@@ -880,7 +925,9 @@ async function switchSample(name) {
         + `Switch to sample ${name} anyway? Its images then replace them in the Images list.`)) return false;
   const inp = o.run.input || {};
   S.input.output = out; S.input.files = inp.files || o.run.inputs || []; S.input.series = inp.series ?? null;
-  S.input.sample_label = inp.sample_label ?? null; S.image = structuredClone(o.run.image_settings || {});
+  S.input.sample_label = null; S.image = structuredClone(o.run.image_settings || {});
+  for (const k in ROWS) delete ROWS[k];
+  if (S.input.files.length === 1) ROWS[S.input.files[0] + "|" + (S.input.series ? S.input.series[0] : "")] = { name, label: inp.sample_label || "" };
   inspect(S.input.files); render(); api("remember", { settings: S }).catch(() => {});
   toast(`Sample ${name}: its images, folder and label are now in the window (the analysis settings stay)`, 4500);
   return true;
