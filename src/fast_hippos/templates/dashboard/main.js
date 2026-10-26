@@ -7,7 +7,7 @@ function updateChips() {
     ev.baseline_only ? `<span class="chip">baseline only</span>` :
       `<span class="chip" title="First frames of the stimulation and the calibration in the analysis run; (auto) = detected automatically, (set) = set in the settings of all images, (this image) = set for this image only">stim <b>${ev.stimulation ?? "–"}</b> · cal <b>${ev.calibration ?? "–"}</b>${ev.detected ? " (auto)" : D.own_settings && D.own_settings.events && ("stimulation_frame" in D.own_settings.events || "calibration_frame" in D.own_settings.events) ? " (this image)" : " (set)"}</span>`,
   ];
-  if (p.criteria.length || SCR.mode === "selection" || nh) ch.push(`<span class="chip hit" title="${SCR.mode === "selection" ? "hits chosen by hand" : p.criteria.map(c => `${c.logic} ${critText(c)}`).join("\n")}"><b>${nh}</b> hits${SCR.mode === "selection" ? " (manual)" : ""}</span>`);
+  if (SCR.on) ch.push(`<span class="chip hit" title="${SCR.mode === "selection" ? "hits chosen by hand" : p.criteria.map(c => `${c.logic} ${critText(c)}`).join("\n")}"><b>${nh}</b> hits${SCR.mode === "selection" ? " (manual)" : ""}</span>`);
   if (S.sel.size) ch.push(`<span class="chip"><b>${S.sel.size}</b> selected</span>`);
   if (D.own_settings) ch.push(`<span class="chip own" title="This image has its own settings, different from the other images: ${describeOwn(D.own_settings).join(", ")}. Remove them in the FAST-HIPPOS window (Stimulation and calibration).">own settings</span>`);
   $("chips").innerHTML = ch.join("");
@@ -47,6 +47,12 @@ function initControls() {
   $("title").textContent = D.name; document.title = `${D.name} · FAST-HIPPOS`; $("ver").textContent = `fast-hippos ${D.version}`;
   const fr = $("frame"); fr.max = T - 1; fr.oninput = () => setFrame(+fr.value);
   $("play").onclick = togglePlay;
+  if (D.overview_href) $("ovlink").href = D.overview_href;
+  // the files of the run of this image (tables, .rgn files, plots, log), grouped
+  const groups = [["Tables", /\.tsv$/i], ["Stage positions (.rgn)", /\.rgn$/i], ["Plots", /\.png$/i], ["Logs and settings", /\.(txt|toml)$/i]];
+  $("filesMenu").innerHTML = groups.map(([g, re]) => { const fs = (D.files || []).filter(f => re.test(f)); return fs.length ? `<div class="grp">${g}</div>`
+    + fs.map(f => `<a href="${encodeURI(f)}" target="_blank" title="${esc(f.startsWith("../") ? "In the folder of the run: " + f.slice(3) : "In the folder of this image: " + f)}">${esc(f.replace(/^\.\.\//, ""))}</a>`).join("") : ""; }).join("")
+    || '<div class="grp">No files</div>';
   $("fps").value = String(S.fps); $("fps").onchange = () => { S.fps = +$("fps").value; };
   const lut = $("lut"); Object.keys(LUTS).forEach(k => lut.add(new Option(k, k))); lut.value = S.lut;
   lut.onchange = () => { S.lut = lut.value; imageChanged(); invalidate("kymo", "hist"); drawColorbar(); };

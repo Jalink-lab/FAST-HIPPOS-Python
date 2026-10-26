@@ -59,10 +59,10 @@ function initExports() {
   if (!SCREEN) $("exportMenu").querySelectorAll('[data-x^="rgn"], [data-x="hitsTsv"]').forEach(b => b.remove());
   if (EXP) { // the samples are different specimens: one route through several of them makes no sense
     const b = $("exportMenu").querySelector('[data-x="rgnSelection"]'); if (b) b.remove();
-    $("filesBtn").textContent = "Samples ▾"; $("filesBtn").title = "The overviews of the samples (runs) in this experiment folder, and the files of the experiment";
+    $("filesBtn").textContent = "Files ▾"; $("filesBtn").title = "The files of the experiment (those of an image: Files in its dashboard)";
   }
   // the files of the run, grouped
   const groups = [["Tables", /\.tsv$/i], ["Stage positions (.rgn)", /\.rgn$/i], ["Plots", /\.png$/i], ["Stitched images", /\.tif$/i], ["Logs and settings", /\.(txt|json|toml)$/i]];
-  const samples = EXP ? '<div class="grp">Samples</div>' + RUNS.map(r => `<a href="${esc(encPath(r.href))}" target="_blank" title="The overview of this run">${esc(r.name)}${r.label ? ` <span class="muted">· ${esc(r.label)}</span>` : ""}</a>`).join("") : "";
+  const samples = "";  // (the files of an image: Files in its dashboard)
   $("filesMenu").innerHTML = samples + groups.map(([g, re]) => { const fs = D.files.filter(f => re.test(f)); return fs.length ? `<div class="grp">${g}</div>` + fs.map(f => `<a href="${encodeURIComponent(f)}" target="_blank">${esc(f)}</a>`).join("") : ""; }).join("") || samples || '<div class="grp">No files</div>';
 }

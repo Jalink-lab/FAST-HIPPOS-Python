@@ -15,11 +15,12 @@ const frameTag = (im, key) => (im.own && im.own.events && key in im.own.events ?
 const shortMetric = (m) => m.replace("response_", "resp. ").replace("_diff", " Δ").replace("_abs", "").replace("_", " ");
 
 // columns: key, label, tip, value (for sorting), cell (html), optional condition; QC flags tint the cell they concern
+// the folder an image was read from (without the series of a .lif); the hit columns of images that were not screened
+const sourceDir = (im) => String(im.source || "").replace(/ \(series \d+\)$/, "").replace(/[\\/][^\\/]*$/, "");
+const HIT_COLS = new Set(["hits", "hitpct", "hitresp"]);
 const COLS = [
   { key: "index", label: "#", tip: "Number of the image in the run (the order in which they were analyzed)", v: im => im.index, cell: im => im.index + 1 },
-  { key: "sample", label: "Sample", l: true, if: EXP, tip: "The sample (run, an output folder in the experiment folder) of the image; click it to open the overview of that run",
-    v: im => im.sample.toLowerCase(), cell: im => `<a href="${esc(encPath(im.sample + "/index.html"))}" target="_blank" title="Open the overview of the run ${esc(im.sample)}">${esc(im.sample)}</a>` },
-  { key: "label", label: "Label", l: true, if: EXP && HAS_LABEL, tip: "The sample label: the 'Sample label' setting of its run (e.g. its condition)",
+  { key: "label", label: "Label", l: true, if: EXP && HAS_LABEL, tip: "The label of the image, given in the FAST-HIPPOS window (e.g. its condition)",
     v: im => (im.label || "").toLowerCase(), cell: im => esc(im.label || "") },
   { key: "name", label: "Image", l: true, tip: "Name of the image; click it to open its dashboard (cells, traces, kymograph and hits of this image)",
     v: im => im.name.toLowerCase(),
@@ -27,6 +28,8 @@ const COLS = [
       (im.href ? `<a href="${esc(encPath(im.href))}" target="_blank" title="Open the dashboard of ${esc(im.name)}">${esc(im.name)}</a>`
         : `<span class="nolink" title="No dashboard was written for this image (display.dashboard is off)">${esc(im.name)}</span>`) +
       (im.own ? ` <span class="ownbadge" title="${esc("This image has its own settings: " + ownList(im).join(", ") + ". Set in its dashboard with 'Apply to this image only'; remove them in the FAST-HIPPOS window (Stimulation and calibration).")}">own settings</span>` : "") },
+  { key: "source", label: "Source", l: true, if: EXP, tip: "The folder the image was read from (hover for the full path)",
+    v: im => sourceDir(im).toLowerCase(), cell: im => `<span title="${esc(im.source || "")}">${esc(sourceDir(im).split(/[\\/]/).slice(-2).join("/"))}</span>` },
   { key: "qc", label: "QC", tip: "Quality flags of the image (warnings only; nothing is filtered). Hover the dot for the flags and their thresholds; the chips below the table select the images with a flag",
     v: im => LEVEL_RANK[flagLevel(im)],
     cell: im => `<span class="qcdot ${flagLevel(im)}" title="${esc(im.flags.length ? im.flags.map(f => `${FLAG_LABEL[f.key]}: ${f.text}`).join("\n") : "No flags")}"></span>` },
@@ -68,7 +71,7 @@ function drawTable() {
     const im = IM[k];
     const tds = COLS.map(c => {
       const flags = [].concat(c.flag || []).map(f => flagOn(im, f)).filter(Boolean), lvl = flags.some(f => f.level === "bad") ? "bad" : flags.some(f => f.level === "warn") ? "warn" : "";
-      return `<td class="${c.l ? "l " : ""}${lvl}"${flags.length ? ` title="${esc(flags.map(f => f.text).join("\n"))}"` : ""}>${c.cell(im, k)}</td>`;
+      return `<td class="${c.l ? "l " : ""}${lvl}"${flags.length ? ` title="${esc(flags.map(f => f.text).join("\n"))}"` : ""}>${HIT_COLS.has(c.key) && im.screened === false ? '<span class="muted" title="Not screened">–</span>' : c.cell(im, k)}</td>`;
     }).join("");
     return `<tr class="r ${S.sel.has(k) ? "sel" : ""} ${S.hover === k ? "hov" : ""}" data-k="${k}"><td class="l"><input type="checkbox" ${S.sel.has(k) ? "checked" : ""} title="Select this image"> <span class="sw" style="background:${imgColor(k)}"></span></td>${tds}</tr>`;
   }).join("");

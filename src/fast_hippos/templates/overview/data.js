@@ -41,7 +41,6 @@ function showTip(html, ev) {
   tipEl.style.left = Math.min(ev.clientX + 14, innerWidth - tipEl.offsetWidth - 8) + "px";
   tipEl.style.top = Math.min(ev.clientY + 14, innerHeight - tipEl.offsetHeight - 8) + "px";
 }
-const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // a relative path as a link (folder names may hold '#', '%' or spaces)
 const encPath = (p) => String(p).split("/").map(encodeURIComponent).join("/");
 function openCell(im, cell) { if (im.href) openPage(`${encPath(im.href)}#cell=${cell}`); }

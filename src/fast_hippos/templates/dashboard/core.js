@@ -13,6 +13,7 @@ const POSX = Float64Array.from(C.pos_x_px, v => v ?? NaN), POSY = Float64Array.f
 const SCR = {
   events: structuredClone(D.screen.events), params: structuredClone(D.screen.params),
   mode: "criteria", manual: new Set(), pass: {}, route: null, routeBusy: false,
+  on: !!D.screening.enabled,  // screening for hits: off = no hits at all (switched on in the pane: try criteria)
 };
 SCR.params.criteria.forEach(c => { c.logic = (c.logic || SCR.params.logic || "OR").toUpperCase(); });
 const SCR0 = JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode });

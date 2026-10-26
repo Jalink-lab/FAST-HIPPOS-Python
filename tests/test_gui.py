@@ -234,7 +234,7 @@ def test_window_shows_the_pages_in_one_tab():
     from fast_hippos.dashboard import _dashboard_template
 
     page = gui._page("t").decode("utf-8")
-    for view in ("setup", "experiment", "sample", "image"):
+    for view in ("setup", "overview", "image"):
         assert f'data-view="{view}"' in page
-    assert 'id="fr-image"' in page and "window.FH_SHELL" in page
+    assert 'id="fr-overview"' in page and "window.FH_SHELL" in page and 'id="selImage"' in page
     assert "window.parent.FH_SHELL" in _dashboard_template()

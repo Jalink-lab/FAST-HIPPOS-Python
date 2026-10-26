@@ -771,7 +771,7 @@ def experiment_info(path: str, settings: dict | None = None, job: Job | None = N
             continue
         images = overview.get("images") or []
         samples.append({"name": run.name, "label": (used.get("input") or {}).get("sample_label") or "",
-                        "started": overview.get("started"), "images": len(images),
+                        "started": overview.get("started"), "images": [im.get("folder") for im in images],
                         "hits": sum(im.get("n_hits") or 0 for im in images) if overview.get("screening") else None})
         if page is not None:
             theirs = comparable_settings(used)
@@ -944,11 +944,13 @@ class Job:
             self.proc.terminate()
             from .pipeline import PREVIOUS_RUN
 
-            previous = Path(self.output) / PREVIOUS_RUN if self.output else None
-            if previous and previous.is_dir():
+            # the previous run of the folder that was being analyzed (with several images: of each image folder)
+            out = Path(self.output) if self.output else None
+            kept = [d for d in ([out / PREVIOUS_RUN, *out.glob(f"*/{PREVIOUS_RUN}")] if out else []) if d.is_dir()]
+            if kept:
                 with self.lock:
-                    self.lines.append(f"Stopped. The results of the previous run are kept in {previous}; "
-                                      "move them back to use them again.")
+                    self.lines.append("Stopped. The results of the previous run are kept in "
+                                      + ", ".join(str(d) for d in kept) + "; move them back to use them again.")
 
     def status(self, since: int) -> dict:
         with self.lock:

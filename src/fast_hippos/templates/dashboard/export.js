@@ -48,7 +48,7 @@ function screeningToml() {
   L.push(`# Screening settings from the FAST-HIPPOS dashboard of '${D.name}'.`, "# Use them for all images of the output folder with:", "#   fast-hippos-cli reapply <config.toml> --override <this file>", "");
   if (eventsTouched) { const t = timingSettings(); L.push("[events]", ...Object.entries(t).map(([k, v]) => `${k} = ${tomlValue(v)}`), ""); }
   else L.push("# [events] unchanged: the automatic or manual frames of each image are kept", "");
-  L.push("[display]", `smooth_traces = ${p.smooth_traces}`, "", "[screening]", "enabled = true", `logic = ${tomlValue(p.logic)}`,
+  L.push("[display]", `smooth_traces = ${p.smooth_traces}`, "", "[screening]", `enabled = ${SCR.on}`, `logic = ${tomlValue(p.logic)}`,
     `response_window = ${tomlValue(p.response_window)}`, `response_window_anchor = ${tomlValue(p.response_window_anchor)}`, `response_window_margin = ${p.response_window_margin}`,
     `baseline_calibration_diff = ${p.baseline_calibration_diff ? tomlValue(p.baseline_calibration_diff) : "[]"}`,
     `max_baseline_deviation = ${tomlValue(p.max_baseline_deviation)}`, `rise_time_fraction = ${p.rise_time_fraction}`,

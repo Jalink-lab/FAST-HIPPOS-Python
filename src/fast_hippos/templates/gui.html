@@ -124,7 +124,7 @@ pre.log { margin: 0; height: 330px; overflow: auto; background: var(--panel2); b
 pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
 .results { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .muted { color: var(--muted); }
-/* the top bar: Setup | Experiment | Sample | Image; the overviews and dashboards are shown inside the window */
+/* the top bar: Setup | Overview | Image; the overview and the dashboards are shown inside the window */
 .views { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .views button.v { border-radius: 999px; padding: 5px 14px; }
 .views button.v.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
@@ -133,12 +133,16 @@ pre.log .w { color: var(--warn); } pre.log .e { color: var(--err); }
 body.pages header { margin-bottom: 0; }
 #viewPages iframe { border: 0; width: 100%; height: calc(100vh - var(--hdr, 60px)); display: none; background: var(--bg); }
 #viewPages iframe.on { display: block; }
+.menu { position: relative; } .menu > summary { list-style: none; cursor: pointer; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu[open] > div { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; display: flex; flex-direction: column; gap: 4px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.menu summary.btnlike { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; }
 .setupOnly { display: contents; }
 .samples { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
 .samples-h { color: var(--muted); font-size: 11.5px; }
 .srow { display: grid; grid-template-columns: 16px minmax(120px, 1fr) minmax(120px, 1fr) auto; gap: 6px; align-items: center; }
 .srow.skip { opacity: .55; }
-.srow .st { font-size: 11.5px; white-space: nowrap; } .srow .st.done { color: var(--warn); }
+.srow .st { font-size: 11.5px; white-space: nowrap; } .srow .st.again { color: var(--warn); } .srow .st.ok { color: var(--ok); }
 .results .grp { color: var(--muted); margin-top: 6px; }
 /*__HELP_CSS__*/
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 8px; display: none; z-index: 10; }
@@ -150,19 +154,19 @@ body.pages header { margin-bottom: 0; }
   <div><h1>FAST-HIPPOS</h1><div class="sub"><span id="ver"></span> · <span id="from"></span></div></div>
   <nav class="views" id="views" data-help-scope="guide/window#finding-your-way">
     <button class="v on" data-view="setup" title="The settings, the checks and running the analysis">Setup</button>
-    <button class="v" data-view="experiment" hidden title="The overview of all samples of the experiment">Experiment</button>
-    <button class="v" data-view="sample" title="The overview of the run in the output folder: all its images, the hits and the .rgn files">Sample</button>
-    <select id="selSample" hidden title="The sample in the window: its images, folder and label. Choosing another one loads it (the analysis settings stay those of the window)"></select>
-    <button class="v" data-view="image" title="The dashboard of one image: cells, traces, kymograph and the screening">Image</button>
-    <select id="selImage" hidden title="The image whose dashboard is shown"></select>
+    <button class="v" data-view="overview" title="The overview of the experiment: all analyzed images compared">Overview</button>
+    <button class="v" data-view="image" title="The dashboard of the current image: cells, traces, kymograph and the screening">Image</button>
+    <select id="selImage" title="The current image: shown under Image and re-applied by 'Re-apply this image'. Every analyzed image of the experiment, with its label and hits"></select>
   </nav>
   <span class="sp"></span>
   <button id="popOut" hidden title="Open this page in a browser tab of its own (e.g. to see it next to another page)">↗</button>
   <span class="setupOnly">
-  <button id="bNewSample" hidden title="Start the next sample of the experiment: keeps all settings, empties the Images list, the output folder, the sample label and the own settings of single images. Adding images then proposes the output folder <experiment folder>\<image name>.">＋ New sample</button>
+  <button id="bNewSample" hidden title="Start with an empty Images list, for the next image(s) of the experiment: all settings are kept">＋ New image</button>
+  <details class="menu" data-help-scope="guide/window#settings-files"><summary class="btnlike" title="Open, save or reset the settings">Settings ▾</summary><div>
   <button id="bOpen" data-help-scope="guide/window#settings-files" title="Load settings from a .toml file (e.g. fast_hippos_settings.toml from an output folder)">Open settings…</button>
   <button id="bSave" data-help-scope="guide/window#settings-files" title="Save the settings as a .toml file">Save settings…</button>
   <button id="bReset" title="All settings back to the defaults">Defaults</button>
+  </div></details>
   </span>
   <button id="helpBtn" title="The manual of this window. ? or F1 over a section: the part about that section">? Help</button>
   <button id="bTheme" title="Light / dark">◐</button>
@@ -182,7 +186,7 @@ body.pages header { margin-bottom: 0; }
       <div class="runbtns">
         <button class="primary" id="bRun" title="Analyze all images with these settings: segmentation, traces, screening and dashboards. The checks above must show no errors.">▶ Run analysis</button>
         <button id="bReapply" title="Redo event detection, screening and dashboards on the saved output in the output folder, without segmentation (seconds instead of minutes)">↻ Re-apply screening</button>
-        <button id="bReapplyAll" hidden title="">↻ Re-apply all samples</button>
+        <button id="bReapplyAll" hidden title="">↻ Re-apply all images</button>
         <button id="bStop" disabled title="Stop the running analysis. Results of images that were already finished are kept.">■ Stop</button>
       </div>
       <div><span class="state" id="state">Ready</span> <span class="muted" id="stateInfo"></span></div>
@@ -192,7 +196,7 @@ body.pages header { margin-bottom: 0; }
     </div></div>
   </aside>
 </main>
-<div id="viewPages"><iframe id="fr-experiment" title="Experiment overview"></iframe><iframe id="fr-sample" title="Overview of the run"></iframe><iframe id="fr-image" title="Dashboard"></iframe></div>
+<div id="viewPages"><iframe id="fr-overview" title="Overview of the experiment"></iframe></div>
 <div id="toast"></div>
 <script id="fh-prefs" type="application/json">__FH_PREFS__</script>
 <script id="fh-help" type="application/json">__FH_HELP__</script>
@@ -400,6 +404,7 @@ const CARD_HELP = { "Images": "guide/window#images", "Cell segmentation": "guide
   "Display and output": "guide/window#display-and-output" };
 const HUES = { "Images": 212, "Cell segmentation": 175, "Stimulation and calibration": 32, "Screening": 330, "Display and output": 262 };
 function render() {
+  pruneOwnSettings();
   const active = document.activeElement?.id;
   let html = "", hidden = 0;
   for (const card of SCHEMA.layout) {
@@ -456,14 +461,13 @@ function runDiffersFromList(o) {  // did that run analyze other files than those
 // buttons for the results in the output folder (of this run or an earlier one)
 function renderResults() {
   const o = outputState(), el = $("results");
-  const xs = experimentState(), expBtn = xs && xs.index ? `<div class="grp">The experiment:</div><button class="primary" data-go="experiment" title="Overview of all samples of the experiment: the images of all runs in the experiment folder together">Experiment overview</button>` : "";
+  const xs = experimentState(), expBtn = xs && xs.index ? `<div class="grp">The experiment:</div><button class="primary" data-go="overview" title="The overview of the experiment: all analyzed images compared">Overview</button>` : "";
   renderNav();
   if (JOB.state === "running" || !o || !o.images.length) { el.innerHTML = JOB.state !== "running" ? expBtn : ""; return; }
   const links = [];
-  if (o.index) links.push(`<button class="primary" data-go="sample" title="Overview of the run: all images, the hits and the .rgn files">${S.input.experiment ? "Overview of this sample" : "Overview"}</button>`);
   for (const d of o.images) links.push(`<button data-go="image" data-image="${esc(d)}" title="Interactive dashboard of this image: cells, traces, kymograph and hits">Dashboard: ${esc(d)}</button>`);
-  links.push(`<button data-open="${esc(S.input.output)}" title="Open the folder in the file explorer">Open ${S.input.experiment ? "sample" : "output"} folder</button>`);
-  el.innerHTML = `<div class="grp">${S.input.experiment ? "This sample" : "Results in the output folder"}${JOB.state === "done" ? "" : " (earlier run)"}:</div>` + links.join("") + expBtn;
+  links.push(`<button data-open="${esc(S.input.output)}" title="Open the folder in the file explorer">Open its folder</button>`);
+  el.innerHTML = `<div class="grp">The current image${inExperiment(S.input.output) ? ` (${esc(baseName(S.input.output))})` : ""}:</div>` + links.join("") + expBtn;
 }
 // the samples (runs) in the experiment folder, and which were analyzed with other settings than this window
 const EXPS = {};
@@ -479,15 +483,6 @@ function experimentState() {
 }
 const samePath = (a, b) => String(a || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase() === String(b || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
 const parentPath = (p) => String(p || "").replace(/[\\/]+$/, "").replace(/[\\/][^\\/]*$/, "");
-// the output folder that 'New sample' proposes: <experiment folder>\<name of the first image>
-function sampleOutput(path) {
-  const exp = S.input.experiment.replace(/[\\/]+$/, ""), sep = exp.includes("\\") ? "\\" : "/";
-  const name = String(path).replace(/[\\/]+$/, "").split(/[\\/]/).pop().replace(/\.(ome\.)?(tiff?|lif)$/i, "");
-  const x = experimentState(), taken = new Set(((x && x.samples) || []).map(s => s.name.toLowerCase()));
-  let n = name; for (let k = 2; taken.has(n.toLowerCase()); k++) n = `${name} ${k}`;  // e.g. the same series name in two .lif files
-  return exp + sep + n;
-}
-
 // ---------------------------------------------------------------- checks before running
 // the same checks of the settings against the images as at the start of a run (server side, metadata only)
 // inputs: the images and the output folder; while their check is not back yet, the page waits (see busy())
@@ -498,7 +493,8 @@ function serverCheck() {
   SRV.key = key; SRV.inputs = inputsKey(); clearTimeout(serverCheck.t);
   const inputs = SRV.inputs;
   serverCheck.t = setTimeout(async () => {
-    const rows = sampleRows(), chk = { ...S, input: { ...S.input, output: S.input.experiment ? joinP(S.input.experiment, rows.length ? rows[0].name : "sample") : "" } };
+    const rows = sampleRows(), chk = { ...S, input: { ...S.input, files: rows.length ? [...new Set(rows.map(r => r.file))] : S.input.files,
+      output: S.input.experiment ? joinP(S.input.experiment, rows.length ? rows[0].name : "image") : "" } };
     let problems; try { problems = (await api("check", { settings: chk, samples: true })).problems; } catch (e) { problems = [e.message]; }
     if (SRV.key === key) { SRV.problems = problems; SRV.checkedInputs = inputs; renderChecks(); }
   }, 350);
@@ -511,13 +507,13 @@ function checks() {
   SRV.problems.forEach(m => add("err", m, true));  // images, channels, frames, files
   const rows = sampleRows();
   if (!S.input.experiment) add("err", "Choose an experiment folder (adding images proposes one)", true);
-  if (!rows.length) add("err", sampleRows(true).length ? "All series are unticked: tick the ones to analyze" : "Add the images to analyze: each image is a sample", true);
+  if (!sampleRows(true).length) add("err", "Add the images to analyze (Images)", true);
+  else if (!rows.length) add("info", "No image in the list is ticked: the images with results are left out; tick one to analyze it again");
   const dup = rows.map(r => r.name.toLowerCase()).filter((n, i, a) => a.indexOf(n) !== i);
-  if (dup.length) add("err", `Two samples have the same name (${dup.join(", ")}): give each its own name`, true);
+  if (dup.length) add("err", `Two images have the same name (${dup.join(", ")}): give each its own name`, true);
   const o = outputState(), imgs = runImages(o);
   if (imgs.length) {
-    add("info", `${S.input.experiment ? "The sample folder" : "The output folder"} holds the run of ${o.run.started} (${plural(imgs.length, "image")}: ${imgs.map(i => i.name).join(", ")}). `
-      + `Run analysis replaces it; ${S.input.experiment ? "Re-apply this sample" : "Re-apply screening"} redoes the screening of these images.`);
+    add("info", `The current image (${imgs.map(i => i.name).join(", ")}) was analyzed on ${o.run.started}; Re-apply this image redoes its screening.`);
     if (imageSettingsDiffer(o)) add("warn", `The run in the output folder has other own settings for ${differingImages(o).join(", ")} `
       + "than this window: Re-apply screening uses the ones listed under Stimulation and calibration");
     const normPath = (p) => p ? String(p).replace(/\\/g, "/").toLowerCase() : "";
@@ -529,20 +525,18 @@ function checks() {
   if (S.input.experiment) {
     const x = experimentState();
     if (x && x.samples.length) {
-      const others = x.samples.filter(s => !samePath(S.input.experiment.replace(/[\\/]+$/, "") + "/" + s.name, S.input.output)).length;
-      add("info", `The experiment folder holds ${plural(x.samples.length, "sample")}: ${x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")).join(", ")}`
-        + (others < x.samples.length ? "; the sample in the window is one of them" : ""));
+      add("info", `The experiment holds ${plural(x.samples.length, "analyzed image")}: ${x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")).join(", ")}`);
       const again = rows.filter(r => x.samples.some(s => sameName(s.name, r.name))).map(r => r.name);
-      if (again.length) add("warn", `Run analysis replaces the results of ${again.join(", ")} (samples of the same name)`);
+      if (again.length) add("warn", `Run analysis analyzes ${again.join(", ")} again: ${again.length === 1 ? "its" : "their"} results are replaced`);
       const diff = Object.entries(x.differs || {});
-      const groups = {};  // samples that differ in the same settings, together
+      const groups = {};  // images that differ in the same settings, together
       const nameOf = (k) => (FIELD[k] ? FIELD[k].label : k);
       for (const [n, ks] of diff) { const g = `${ks.slice(0, 4).map(nameOf).join(", ")}${ks.length > 4 ? ", …" : ""}`; (groups[g] = groups[g] || []).push(n); }
       const all = diff.length === x.samples.length && Object.keys(groups).length === 1;
-      if (diff.length) add("warn", (all ? `All ${plural(diff.length, "sample")} of the experiment were analyzed with other settings than this window: ${Object.keys(groups)[0]}`
-        : `${plural(diff.length, "sample")} of the experiment ${diff.length === 1 ? "was" : "were"} analyzed with other settings than this window: `
+      if (diff.length) add("warn", (all ? `All ${plural(diff.length, "image")} of the experiment were analyzed with other settings than this window: ${Object.keys(groups)[0]}`
+        : `${plural(diff.length, "image")} of the experiment ${diff.length === 1 ? "was" : "were"} analyzed with other settings than this window: `
           + Object.entries(groups).map(([g, ns]) => `${ns.join(", ")} (${g})`).join("; "))
-        + ". Re-apply all samples makes their stimulation, screening and display settings the same; other settings only change with a new run of that sample");
+        + ". Re-apply all images makes their stimulation, screening and display settings the same; other settings only change by analyzing that image again");
     }
   }
   if (S.segmentation.method === "cellpose") {
@@ -558,7 +552,7 @@ function checks() {
     if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
   }
   if (busy()) add("busy", "Reading the output folder and checking the images… (Run analysis waits until this is done)");
-  else if (!out.some(c => c[0] !== "info")) add("ok", "Ready to run");
+  else if (!out.some(c => c[0] !== "info") && sampleRows().length) add("ok", "Ready to run");
   return out;
 }
 function renderChecks() {
@@ -570,10 +564,10 @@ function renderChecks() {
   const imgs = runImages(o), wait = busy();
   $("bRun").disabled = blocked || wait; $("bReapply").disabled = blockedReapply || !imgs.length || wait || !S.input.output;
   $("bRun").title = wait ? "Wait: the output folder is being read and the images are being checked"
-    : "Analyze every sample in the Images list (one after the other): segmentation, traces, screening and dashboards. The checks above must show no errors.";
-  const nr = sampleRows().length; $("bRun").textContent = nr > 1 ? `▶ Run analysis (${nr} samples)` : "▶ Run analysis";
-  const what = S.input.experiment ? "↻ Re-apply this sample" : "↻ Re-apply screening";
-  $("bReapply").textContent = imgs.length ? `${what} (${plural(imgs.length, "image")})` : what;
+    : "Analyze the ticked images of the Images list, one after the other: segmentation, traces, screening and dashboards. The checks above must show no errors.";
+  const nr = sampleRows().length; $("bRun").textContent = `▶ Run analysis (${plural(nr, "image")})`; if (!nr) $("bRun").disabled = true;
+  const what = "↻ Re-apply this image";
+  $("bReapply").textContent = what;
   $("bReapply").title = imgs.length ? `Redo stimulation detection, screening and dashboards for the ${plural(imgs.length, "image")} of the run in the `
     + `output folder (${imgs.map(i => i.name).join(", ")}), with the stimulation, screening and display settings of this window. `
     + "Segmentation and traces of that run are kept (seconds instead of minutes). Dashboard size and tiles "
@@ -584,9 +578,9 @@ function renderChecks() {
   $("bNewSample").hidden = !S.input.experiment;
   renderNav();
   $("bReapplyAll").hidden = !n; $("bReapplyAll").disabled = blockedReapply || !n;
-  $("bReapplyAll").textContent = `↻ Re-apply all samples (${n})`;
-  $("bReapplyAll").title = n ? `Redo stimulation detection, screening and dashboards for every sample of the experiment (${x.samples.map(s => s.name).join(", ")}), `
-    + "with the stimulation, screening and display settings of this window; each sample keeps its own segmentation and traces, "
+  $("bReapplyAll").textContent = `↻ Re-apply all images (${n})`;
+  $("bReapplyAll").title = n ? `Redo stimulation detection, screening and dashboards for every image of the experiment (${x.samples.map(s => s.name).join(", ")}), `
+    + "with the stimulation, screening and display settings of this window; each image keeps its own segmentation and traces, "
     + "and the own settings of its single images. Then the experiment overview is updated once." : "";
 }
 
@@ -609,11 +603,11 @@ function readInput(el) {
 }
 document.addEventListener("change", (e) => {
   const el = e.target;
-  if (el.dataset.rkey !== undefined) {  // a sample row: a series ticked or not, its name or label
+  if (el.dataset.rkey !== undefined) {  // a row of the Images list: ticked or not, its name or label
     const key = el.dataset.rkey, k = el.dataset.field;
-    if (k === "use") { if (el.checked) SKIP.delete(key); else SKIP.add(key); }
+    if (k === "use") USE[key] = el.checked;
     else ROWS[key] = { ...(ROWS[key] || {}), [k]: k === "name" ? safeName(el.value) : el.value.trim() };
-    render(); return;
+    saveRows(); render(); return;
   }
   const crit = el.closest("[data-crit]");
   if (crit) {
@@ -667,7 +661,7 @@ document.addEventListener("click", async (e) => {
     if (!r || (Array.isArray(r) && !r.length)) return;
     if (kind === "files" || kind === "tiles") {
       const added = kind === "tiles" ? [r] : r, files = [...new Set([...(cur || []), ...added])]; set(f.key, files);
-      if (!S.input.experiment) set("input.experiment", joinP(parentPath(added[0]), "FAST-HIPPOS"));  // one folder per sample in it
+      if (!S.input.experiment) set("input.experiment", joinP(parentPath(added[0]), "FAST-HIPPOS"));  // one folder per image in it
       inspect(files);
     } else set(f.key, r);
     render(); return;
@@ -767,33 +761,36 @@ async function start(reapply) {
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 }
 $("bRun").onclick = startSamples;
-// Run analysis: every row of the Images list a sample, analyzed one after the other in <experiment folder>\<name>
+// Run analysis: the ticked rows of the Images list, analyzed one after the other, each in <experiment folder>\<name>
 async function startSamples() {
   const rows = sampleRows(), x = experimentState();
   const again = rows.filter(r => ((x && x.samples) || []).some(s => sameName(s.name, r.name))).map(r => r.name);
-  if (!confirm(`Analyze ${plural(rows.length, "sample")} in\n${S.input.experiment}:\n\n`
+  if (!confirm(`Analyze ${plural(rows.length, "image")} in\n${S.input.experiment}:\n\n`
       + bulletList(rows.map(r => r.name + (r.label ? ` (${r.label})` : "")), 20)
       + (again.length ? `\n\nThese have results already, which are replaced (kept in _previous_run in their folder until the new run is complete):\n${bulletList(again, 20)}` : "")
       + "\n\nEach image is analyzed in a run of its own, then the experiment overview is updated.\n\nContinue?")) return;
   const samples = rows.map(r => ({ file: r.file, series: r.series, name: r.name, label: r.label || null }));
+  for (const r of rows) delete USE[r.key]; saveRows();  // once analyzed they have results: unticked by default
   const before = S.input.output; S.input.output = joinP(S.input.experiment, rows[rows.length - 1].name);  // shown afterwards
   let r; try { r = await api("run", { settings: S, samples }); } catch (e) { S.input.output = before; toast(e.message, 6000); return; }
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = ""; render();
 }
 function newSample() {
-  S.input.files = []; S.input.series = null; S.input.sample_label = null; S.image = {};
-  S.screening.manual_hits = null; for (const k in ROWS) delete ROWS[k]; for (const k in PICK) delete PICK[k]; SKIP.clear(); show("setup"); render();
-  toast("New sample: add its images; the output folder becomes the experiment folder\\<image name>. All other settings are kept.", 5000);
+  S.input.files = []; S.input.series = null; S.input.sample_label = null; clearRows();
+  S.screening.manual_hits = null; show("setup"); render();
+  toast("New image: add the image(s) to analyze next. All settings are kept.", 5000);
 }
 $("bNewSample").onclick = newSample;
+// the Settings menu closes after a choice, or a click elsewhere
+document.addEventListener("click", (e) => { for (const m of document.querySelectorAll("details.menu[open]")) if (!m.contains(e.target) || e.target.closest("button")) m.open = false; });
 $("bReapplyAll").onclick = async () => {
   let x; try { x = await api("experiment", { path: S.input.experiment, settings: S }); } catch (e) { toast(e.message, 6000); return; }
-  if (!x.samples.length) { toast("No samples (runs) in the experiment folder", 5000); return; }
+  if (!x.samples.length) { toast("No analyzed images in the experiment folder", 5000); return; }
   const otherType = Object.entries(x.differs || {}).filter(([, ks]) => ks.includes("input.modality")).map(([n]) => n);
-  if (!confirm(`Re-apply to all ${plural(x.samples.length, "sample")} of the experiment in\n${S.input.experiment}:\n\n`
+  if (!confirm(`Re-apply all ${plural(x.samples.length, "image")} of the experiment in\n${S.input.experiment}:\n\n`
       + bulletList(x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")), 20) + "\n\nThe stimulation, screening and display settings "
-      + "of this window are used for every sample (except the dashboard size and tiles and the stage positions file, "
-      + "which only change with a new run). Each sample keeps its own images, segmentation and traces, its sample label and the "
+      + "of this window are used for every image (except the dashboard size and tiles and the stage positions file, "
+      + "which only change with a new run). Each image keeps its own segmentation and traces, its label and the "
       + "own settings of its single images. Then the experiment overview is updated."
       + (otherType.length ? `\n\nOf another image type than this window: ${otherType.join(", ")}. They keep their quality gates, hit criteria and colour range (in the units of their values).` : "")
       + "\n\nContinue?")) return;
@@ -803,89 +800,122 @@ $("bReapplyAll").onclick = async () => {
 $("bReapply").onclick = () => start(true);
 $("bStop").onclick = () => api("stop");
 // ---------------------------------------------------------------- one tab: the top bar and the pages inside the window
-// Setup is this page. Experiment, Sample (the overview of the run) and Image (a dashboard) show the pages in the
-// output folders in a frame, served by FAST-HIPPOS (the files themselves stay pages of their own). Links between those
-// pages stay in the window (templates/common/base.js: SHELL -> FH_SHELL.open). Choosing a sample in the top bar loads
-// it into the window: its images, folder, label and the own settings of its images; the analysis settings stay.
+// Setup is this page. Overview (of the experiment: all images) and Image (the dashboard of the current image) show the
+// pages in the folders in frames, served by FAST-HIPPOS (the files themselves stay pages of their own). Links between
+// those pages stay in the window (templates/common/base.js: SHELL -> FH_SHELL.open).
+// Two things are kept apart: the Images list (the images to analyze, each with a folder of its own in the experiment
+// folder) and the current image (S.input.output: the folder of the image shown, re-applied by 'Re-apply this image').
 const VIEW = { cur: "setup", image: "", want: null };
 const normP = (p) => String(p || "").replace(/\\/g, "/").replace(/\/+$/, "");
 const joinP = (a, b) => { const sp = String(a).includes("\\") ? "\\" : "/"; return String(a).replace(/[\\/]+$/, "") + sp + b; };
 const baseName = (p) => normP(p).split("/").pop();
 const pageURL = (path) => "/files/" + normP(path).split("/").map(encodeURIComponent).join("/");
-const FRAMES = ["experiment", "sample", "image"];
-// every image a sample: a .tif, a folder of tiles, or one series of a .lif (named as pipeline.sample_name); the names
-// and labels typed in the rows (key: file|series) are kept here until the next New sample
-// PICK: the one series of a .lif of a sample chosen in the top bar; SKIP: series of a .lif left out (unticked rows)
-const ROWS = {}, PICK = {}, SKIP = new Set();
-// a folder name that is a sample (not skipped like _folders, not . or ..): as pipeline.sample_name
+const VIEWS = ["overview", "image"];
+// The rows of the Images list: a .tif, a folder of tiles, or one series of a .lif, each named as pipeline.sample_name.
+// ROWS: names and labels typed in the rows; USE: a row ticked or not (default: ticked unless the image has results);
+// PICK: a .lif of which only one series is in the list. Kept in the tab (sessionStorage) across a reload.
+const ROWS = {}, USE = {}, PICK = {};
+try { const r = JSON.parse(sessionStorage.getItem("fh-rows") || "null"); if (r) { Object.assign(ROWS, r.rows); Object.assign(USE, r.use); Object.assign(PICK, r.pick); } } catch { /* no storage */ }
+const saveRows = () => { try { sessionStorage.setItem("fh-rows", JSON.stringify({ rows: ROWS, use: USE, pick: PICK })); } catch { /* no storage */ } };
+const clearRows = () => { for (const m of [ROWS, USE, PICK]) for (const k in m) delete m[k]; saveRows(); };
+// a folder name of an image (not skipped like _folders, not . or ..): as pipeline.sample_name
 const safeName = (s) => String(s || "").replace(/[\\/:*?"<>|]/g, "_").trim().replace(/^[_.\s]+|[.\s]+$/g, "");
-function autoName(file, seriesName, n) {
-  const base = /[\\/]$/.test(file) || !/\.[a-z]+$/i.test(baseName(file)) ? baseName(file) : baseName(file).replace(/\.(ome\.)?(tiff?|lif)$/i, "");
-  return safeName(seriesName && n > 1 ? `${base} - ${seriesName}` : base) || "sample";
-}
-function sampleRows(all = false) {  // all: also the unticked series (as rows to show)
+const fileBase = (file) => /[\\/]$/.test(file) || !/\.[a-z]+$/i.test(baseName(file)) ? baseName(file) : baseName(file).replace(/\.(ome\.)?(tiff?|lif)$/i, "");
+const autoName = (file, seriesName, n) => safeName(seriesName && n > 1 ? `${fileBase(file)} - ${seriesName}` : fileBase(file)) || "image";
+const sameName = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+const inExperiment = (p) => !!p && (!S.input.experiment || samePath(parentPath(p), S.input.experiment));
+function analyzed() { const x = S.input.experiment ? experimentState() : null; return (x && x.samples) || []; }  // the images with results
+function sampleRows(all = false) {  // the ticked rows (all: every row, with its `use`)
   if (!S) return [];
-  const rows = [], taken = new Set(), x = S.input.experiment ? experimentState() : null;
-  const known = (n) => ((x && x.samples) || []).find(s => sameName(s.name, n));  // a sample of that name has results
+  const rows = [], taken = new Set(), done = analyzed();
   for (const f of S.input.files || []) {
     const lif = /\.lif$/i.test(f), names = (lif && INFO[f] && INFO[f].series_names) || [null];
     names.forEach((sn, i) => {
       if (lif && f in PICK ? PICK[f] !== i : lif && S.input.series && S.input.series.length && !S.input.series.includes(i)) return;
       const key = f + "|" + (lif ? i : ""), own = ROWS[key] || {};
-      if (SKIP.has(key) && !all) return;
       let name = own.name || autoName(f, sn, names.length);
       if (!own.name) for (let k = 2, b = name; taken.has(name.toLowerCase()); k++) name = `${b} ${k}`;
       taken.add(name.toLowerCase());
-      rows.push({ key, file: f, series: lif ? i : null, lif, skip: SKIP.has(key), name, label: own.label ?? ((known(name) && known(name).label) || "") });
+      const has = done.find(s => sameName(s.name, name)), use = key in USE ? USE[key] : !has;
+      if (!use && !all) return;
+      rows.push({ key, file: f, series: lif ? i : null, lif, use, has: !!has, image: autoName(f, sn, names.length), seriesName: sn,
+        name, label: own.label ?? ((has && has.label) || "") });
     });
   }
   return rows;
 }
 function samplesHTML() {
-  const rows = sampleRows(true), x = S.input.experiment ? experimentState() : null;
+  const rows = sampleRows(true);
   if (!rows.length) return "";
-  const done = (n) => ((x && x.samples) || []).some(s => sameName(s.name, n));
-  return `<div class="samples"><div class="samples-h">Each image is a sample: its folder in the experiment folder, and a label for the overviews</div>`
-    + rows.map((r) => `<div class="srow${r.skip ? " skip" : ""}">${r.lif ? `<input type="checkbox" data-rkey="${esc(r.key)}" data-field="use" ${r.skip ? "" : "checked"} title="Analyze this series of ${esc(baseName(r.file))} (untick to leave it out)">` : "<span></span>"}`
-      + `<input type="text" data-rkey="${esc(r.key)}" data-field="name" value="${esc(r.name)}" ${r.skip ? "disabled" : ""} title="The folder of this sample in the experiment folder (${esc(baseName(r.file))}${r.series !== null ? ", series " + r.series : ""})">`
-      + `<input type="text" data-rkey="${esc(r.key)}" data-field="label" value="${esc(r.label)}" ${r.skip ? "disabled" : ""} placeholder="label, e.g. the condition (optional)" title="Shown in the experiment overview, to tell or group the samples">`
-      + `<span class="st${!r.skip && done(r.name) ? " done" : ""}">${r.skip ? "left out" : done(r.name) ? "has results: replaced" : "new"}</span></div>`).join("") + "</div>";
+  const state = (r) => r.has ? (r.use ? ["again", "has results: analyzed again (replaced)"] : ["ok", "✓ has results"]) : (r.use ? ["", "new"] : ["", "left out"]);
+  return `<div class="samples"><div class="samples-h">Ticked images are analyzed by Run analysis, each in a folder of its own in the experiment folder (its name); the label is shown in the overviews</div>`
+    + rows.map((r) => { const [cls, text] = state(r); return `<div class="srow${r.use ? "" : " skip"}"><input type="checkbox" data-rkey="${esc(r.key)}" data-field="use" ${r.use ? "checked" : ""} title="${r.has ? "This image has results: tick it to analyze it again (its results are replaced)" : "Analyze this image (untick to leave it out)"}">`
+      + `<input type="text" data-rkey="${esc(r.key)}" data-field="name" value="${esc(r.name)}" title="The folder of this image in the experiment folder (${esc(baseName(r.file))}${r.series !== null ? ", series " + r.series : ""})">`
+      + `<input type="text" data-rkey="${esc(r.key)}" data-field="label" value="${esc(r.label)}" placeholder="label, e.g. the condition (optional)" title="Shown in the overview, to tell or group the images">`
+      + `<span class="st ${cls}">${text}</span></div>`; }).join("") + "</div>";
 }
-const inExperiment = (p) => !S.input.experiment || samePath(parentPath(p), S.input.experiment);  // a sample of it
-const sameName = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+// the own settings of single images belong to images: only those of the images in the list and of the current image
+// are kept (the run of an image keeps its own in its folder)
+function pruneOwnSettings() {
+  if (!S || !S.image || !Object.keys(S.image).length) return;
+  const files = S.input.files || [];
+  if (files.some(f => /\.lif$/i.test(f) && !(INFO[f] && INFO[f].series_names))) return;  // series names not read yet
+  const o = outputState(); if (S.input.output && o === null) return;  // the current image is being read
+  const keep = new Set(runImages(o).map(i => i.name.toLowerCase()));
+  for (const r of sampleRows(true)) for (const n of [r.image, r.name, fileBase(r.file), r.seriesName ? `${fileBase(r.file)} - ${r.seriesName}` : null]) if (n) keep.add(n.toLowerCase());
+  const gone = Object.keys(S.image).filter(n => !keep.has(n.toLowerCase()));
+  if (!gone.length) return;
+  for (const n of gone) delete S.image[n];
+  toast(`Own settings of ${gone.join(", ")} dropped from the window: not in the Images list (the analyzed image keeps them in its folder)`, 6000);
+}
 function viewTargets() {  // the page each view shows now (null: nothing to show)
   if (!S) return {};
-  const o = outputState(), x = S.input.experiment ? experimentState() : null, imgs = (S.input.output && o && o.images) || [];
+  const o = outputState(), x = S.input.experiment ? experimentState() : null;
+  const imgs = (inExperiment(S.input.output) && o && o.images) || [];
   if (!imgs.includes(VIEW.image)) VIEW.image = imgs[0] || "";
   return {
-    experiment: x && x.index ? joinP(S.input.experiment, "index.html") : null,
-    sample: S.input.output && o && o.index && inExperiment(S.input.output) ? joinP(S.input.output, "index.html") : null,
-    image: VIEW.image && inExperiment(S.input.output) ? joinP(joinP(S.input.output, VIEW.image), "dashboard.html") : null,
+    overview: x && x.index ? joinP(S.input.experiment, "index.html") : null,
+    image: VIEW.image ? joinP(joinP(S.input.output, VIEW.image), "dashboard.html") : null,
   };
 }
 function renderNav() {
   if (!S) return;
-  const t = viewTargets(), exp = !!S.input.experiment, x = exp ? experimentState() : null, o = outputState();
+  const t = viewTargets(), o = outputState(), x = S.input.experiment ? experimentState() : null;
   const btn = (v) => document.querySelector(`#views [data-view="${v}"]`);
-  btn("experiment").hidden = !exp; btn("experiment").disabled = !t.experiment;
-  btn("sample").textContent = exp ? "Sample" : "Overview"; btn("sample").disabled = !t.sample;
-  btn("image").disabled = !t.image;
-  const sel = $("selSample"); sel.hidden = !exp;
-  if (exp) {  // the samples, with their hits; the sample in the window may not have run yet
-    const samples = (x && x.samples) || [], cur = S.input.output ? baseName(S.input.output) : "";
-    const known = samples.find(s => sameName(s.name, cur));
-    const inside = S.input.output && samePath(parentPath(S.input.output), S.input.experiment);
-    const opts = samples.map(s => `<option value="${esc(s.name)}">${esc(s.name)}${s.label ? " · " + esc(s.label) : ""}${s.hits != null ? ` · ${plural(s.hits, "hit")}` : ""}</option>`);
-    if (!known) opts.unshift(`<option value="">${inside ? esc(cur) + " (not analyzed yet)" : "(choose a sample)"}</option>`);
-    opts.push(`<option value="__new">＋ New sample</option>`);
-    const html = opts.join(""); if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
-    sel.value = known ? known.name : "";
+  btn("overview").disabled = !t.overview; btn("image").disabled = !t.image;
+  // every image of the experiment, with its label and hits; picking one makes it the current image
+  const sel = $("selImage"), opts = [], cur = inExperiment(S.input.output) ? baseName(S.input.output) : "";
+  for (const s of analyzed()) for (const f of (s.images && s.images.length ? s.images : [s.name])) {
+    const multi = s.images && s.images.length > 1;
+    opts.push(`<option value="${esc(s.name + "|" + f)}">${esc(multi ? `${s.name}: ${f}` : s.name)}${s.label ? " · " + esc(s.label) : ""}${s.hits != null ? ` · ${plural(s.hits, "hit")}` : ""}</option>`);
   }
-  const isel = $("selImage"), imgs = (S.input.output && o && o.images) || [];
-  const ih = imgs.map(n => `<option>${esc(n)}</option>`).join(""); if (isel.dataset.html !== ih) { isel.innerHTML = ih; isel.dataset.html = ih; }
-  isel.hidden = imgs.length < 2; isel.value = VIEW.image;
+  const value = cur && VIEW.image ? `${cur}|${VIEW.image}` : "";
+  if (!opts.some(op => op.includes(`value="${esc(value)}"`))) opts.unshift(`<option value="">${!x ? "(choose an experiment folder)" : opts.length ? "(choose an image)" : "(no analyzed images yet)"}</option>`);
+  const html = opts.join(""); if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
+  sel.value = opts.some(op => op.includes(`value="${esc(value)}"`)) ? value : "";
   if (VIEW.want && t[VIEW.want.view]) { const w = VIEW.want; VIEW.want = null; show(w.view, w); }
-  else if (VIEW.cur !== "setup" && !t[VIEW.cur] && o !== null && (!exp || x !== null)) show("setup");
+  else if (VIEW.cur !== "setup" && !t[VIEW.cur] && o !== null && x !== null) show("setup");
+}
+// the dashboards of the last images viewed stay open (switching back is instant); the overview has a frame of its own
+const POOL = 3;
+function frameFor(view, page) {
+  if (view === "overview") return $("fr-overview");
+  const frs = [...document.querySelectorAll("#viewPages iframe.imgfr")];
+  let fr = frs.find(f => f.dataset.page === page);
+  if (!fr) {
+    fr = frs.length >= POOL ? frs.filter(f => !f.classList.contains("on")).sort((a, b) => a.dataset.used - b.dataset.used)[0] : null;
+    if (fr) { fr.remove(); }
+    fr = document.createElement("iframe"); fr.className = "imgfr"; fr.title = "Dashboard";
+    fr.addEventListener("load", () => syncTheme(fr));
+    $("viewPages").appendChild(fr);
+  }
+  fr.dataset.used = Date.now();
+  return fr;
+}
+const allFrames = () => [...document.querySelectorAll("#viewPages iframe")];
+const shownFrame = () => allFrames().find(f => f.classList.contains("on")) || null;
+function pauseFrame(fr) {  // a dashboard that is hidden stops playing
+  try { const b = fr.contentDocument.getElementById("play"); if (b && b.textContent === "❚❚") b.click(); } catch { /* not loaded */ }
 }
 function show(view, opts = {}) {
   if (view === "image" && opts.image) VIEW.image = opts.image;
@@ -895,49 +925,44 @@ function show(view, opts = {}) {
   document.querySelectorAll("#views [data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === view));
   document.body.classList.toggle("pages", view !== "setup");
   document.documentElement.style.setProperty("--hdr", document.querySelector("header").offsetHeight + "px");
-  for (const v of FRAMES) {
-    const fr = $("fr-" + v); fr.classList.toggle("on", v === view);
-    if (v !== view) continue;
-    const url = pageURL(target) + (opts.hash || "");
-    if (fr.dataset.url !== url || fr.dataset.stale) {  // replace(): no entries in the browser history for the frame
-      if (fr.dataset.url) fr.contentWindow.location.replace(url); else fr.src = url;
-      fr.dataset.url = url; delete fr.dataset.stale;
-    } else if (opts.hash) fr.contentWindow.location.hash = opts.hash.slice(1) + "&" + Date.now();  // the same cell again
+  const page = target ? pageURL(target) : null, fr = page ? frameFor(view, page) : null;
+  for (const f of allFrames()) if (f !== fr && f.classList.contains("on")) { f.classList.remove("on"); pauseFrame(f); }
+  if (fr) {
+    fr.classList.add("on");
+    const url = page + (opts.hash || "");
+    if (fr.dataset.page !== page || fr.dataset.stale) {  // replace(): no entries in the browser history for the frame
+      if (fr.dataset.page) fr.contentWindow.location.replace(url); else fr.src = url;
+      fr.dataset.page = page; fr.dataset.url = url; delete fr.dataset.stale;
+    } else if (opts.hash) fr.contentWindow.location.hash = opts.hash.slice(1) + "&" + Date.now();  // a cell of the page shown
   }
   $("popOut").hidden = view === "setup";
-  document.title = view === "setup" ? "FAST-HIPPOS" : `${view === "image" ? VIEW.image : baseName(view === "experiment" ? S.input.experiment : S.input.output)} · FAST-HIPPOS`;
-  const hash = "#" + view + (view === "image" ? "/" + encodeURIComponent(VIEW.image) : "");
-  if (!opts.fromHistory && location.hash !== hash) history.pushState({ view, image: VIEW.image }, "", hash);
+  const cur = inExperiment(S.input.output) ? baseName(S.input.output) : "";
+  document.title = view === "setup" ? "FAST-HIPPOS" : `${view === "image" ? cur : baseName(S.input.experiment)} · FAST-HIPPOS`;
+  const hash = "#" + view + (view === "image" ? "/" + encodeURIComponent(cur) + "/" + encodeURIComponent(VIEW.image) : "");
+  if (!opts.fromHistory && location.hash !== hash) history.pushState({ view, image: VIEW.image, sample: cur }, "", hash);
 }
-addEventListener("popstate", (e) => { const st = e.state || { view: "setup" }; show(st.view, { image: st.image, fromHistory: true }); });
+addEventListener("popstate", async (e) => {
+  const st = e.state || { view: "setup" };
+  if (st.sample && !sameName(st.sample, baseName(S.input.output || ""))) await chooseImage(st.sample);
+  show(st.view, { image: st.image, fromHistory: true });
+});
 addEventListener("resize", () => document.documentElement.style.setProperty("--hdr", document.querySelector("header").offsetHeight + "px"));
 document.querySelectorAll("#views [data-view]").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
-$("selImage").onchange = (e) => show("image", { image: e.target.value });
-$("selSample").onchange = async (e) => {
-  const v = e.target.value;
-  if (v === "__new") { newSample(); renderNav(); return; }
-  if (v && await switchSample(v) && VIEW.cur !== "setup") VIEW.want = { view: VIEW.cur === "experiment" ? "sample" : VIEW.cur };
+$("selImage").onchange = async (e) => {
+  const [name, folder] = e.target.value.split("|"); if (!name) return;
+  if (await chooseImage(name)) VIEW.want = { view: "image", image: folder };
   renderNav();
 };
-$("popOut").onclick = () => { const fr = $("fr-" + VIEW.cur); if (fr.dataset.url) window.open(fr.dataset.url, "_blank"); };
-// load a sample of the experiment into the window (asks first when the images in the window were not analyzed yet)
-async function switchSample(name) {
+$("popOut").onclick = () => { const fr = shownFrame(); if (fr && fr.dataset.url) window.open(fr.dataset.url, "_blank"); };
+// make an analyzed image of the experiment the current one (shown, and re-applied by 'Re-apply this image'); the own
+// settings of its images come along, so that re-applying keeps them. The Images list stays as it is.
+async function chooseImage(name) {
   const out = joinP(S.input.experiment, name);
   if (samePath(out, S.input.output)) return true;
   let o; try { o = await api("output", { path: out }); OUT[out] = o; } catch (e) { toast(e.message, 5000); return false; }
-  if (!o.run) { toast(`${name} holds no analyzed sample`, 4000); return false; }
-  const cur = outputState();
-  if ((S.input.files || []).length && cur !== null && !(cur && cur.run)
-      && !confirm(`The images of the sample in the window (${S.input.files.map(baseName).join(", ")}) are not analyzed yet.\n\n`
-        + `Switch to sample ${name} anyway? Its images then replace them in the Images list.`)) return false;
-  const inp = o.run.input || {};
-  S.input.output = out; S.input.files = inp.files || o.run.inputs || []; S.input.series = inp.series ?? null;
-  S.input.sample_label = null; S.image = structuredClone(o.run.image_settings || {});
-  for (const k in ROWS) delete ROWS[k]; for (const k in PICK) delete PICK[k]; SKIP.clear();
-  if (S.input.files.length === 1 && S.input.series && S.input.series.length === 1) { PICK[S.input.files[0]] = S.input.series[0]; S.input.series = null; }
-  if (S.input.files.length === 1) ROWS[S.input.files[0] + "|" + (S.input.files[0] in PICK ? PICK[S.input.files[0]] : "")] = { name, label: inp.sample_label || "" };
-  inspect(S.input.files); render(); api("remember", { settings: S }).catch(() => {});
-  toast(`Sample ${name}: its images, folder and label are now in the window (the analysis settings stay)`, 4500);
+  if (!o.run) { toast(`${name} has no results`, 4000); return false; }
+  S.input.output = out; S.image = { ...(S.image || {}), ...structuredClone(o.run.image_settings || {}) };
+  render(); api("remember", { settings: S }).catch(() => {});
   return true;
 }
 // called by the pages in the frames (common/base.js) for a link to another overview or dashboard
@@ -946,16 +971,16 @@ window.FH_SHELL = {
     const u = new URL(href, location.href);
     if (u.origin !== location.origin || !u.pathname.startsWith("/files/")) { window.open(u.href, "_blank"); return; }
     const path = decodeURIComponent(u.pathname.slice(7)), name = baseName(path).toLowerCase(), dir = parentPath(path);
-    if (name === "dashboard.html") { goRun(parentPath(dir), { view: "image", image: baseName(dir), hash: u.hash }, u.href); return; }
-    if (name === "index.html" && S.input.experiment && samePath(dir, S.input.experiment)) { show("experiment"); return; }
-    if (name === "index.html") { goRun(dir, { view: "sample" }, u.href); return; }
+    if (name === "dashboard.html") { goImage(parentPath(dir), { view: "image", image: baseName(dir), hash: u.hash }, u.href); return; }
+    if (name === "index.html" && S.input.experiment && samePath(dir, S.input.experiment)) { show("overview"); return; }
+    if (name === "index.html") { goImage(dir, { view: "image" }, u.href); return; }  // the overview of one image: its dashboard
     window.open(u.href, "_blank");
   },
 };
-async function goRun(run, want, href) {
-  if (!samePath(run, S.input.output)) {
-    if (!(S.input.experiment && samePath(parentPath(run), S.input.experiment))) { window.open(href, "_blank"); return; }
-    if (!(await switchSample(baseName(run)))) return;
+async function goImage(folder, want, href) {
+  if (!samePath(folder, S.input.output)) {
+    if (!(S.input.experiment && samePath(parentPath(folder), S.input.experiment))) { window.open(href, "_blank"); return; }
+    if (!(await chooseImage(baseName(folder)))) return;
   }
   VIEW.want = want; renderNav();
 }
@@ -968,10 +993,10 @@ function syncTheme(fr) {
     if (cur !== shellTheme()) d.getElementById("theme").click();
   } catch { /* not loaded */ }
 }
-FRAMES.forEach(v => $("fr-" + v).addEventListener("load", () => syncTheme($("fr-" + v))));
-$("bTheme").addEventListener("click", () => FRAMES.forEach(v => syncTheme($("fr-" + v))));
+$("fr-overview").addEventListener("load", () => syncTheme($("fr-overview")));
+$("bTheme").addEventListener("click", () => allFrames().forEach(syncTheme));
 function frameHelp() {
-  try { const w = $("fr-" + VIEW.cur).contentWindow; w.FH_HELP.open(w.document.body.dataset.helpHome); return true; } catch { return false; }
+  try { const w = shownFrame().contentWindow; w.FH_HELP.open(w.document.body.dataset.helpHome); return true; } catch { return false; }
 }
 document.addEventListener("click", (e) => {
   if (VIEW.cur !== "setup" && e.target.closest && e.target.closest("#helpBtn") && frameHelp()) { e.preventDefault(); e.stopPropagation(); }
@@ -1021,13 +1046,13 @@ async function poll() {
   const all = log.textContent, nImg = (all.match(/INFO {4}--- /g) || []).length, total = Math.max(1, S.input.files.length);
   const label = { idle: "Ready", running: "Running…", done: "Done", failed: "Failed", stopped: "Stopped" }[st.state];
   $("state").textContent = label; $("state").className = "state " + st.state;
-  const smp = [...all.matchAll(/=== Sample (\d+) of (\d+)/g)].pop();  // re-apply to all samples
-  $("stateInfo").textContent = st.state !== "running" ? "" : smp ? `sample ${smp[1]} of ${smp[2]}` : `image ${Math.min(nImg, total)} of ${total}`;
+  const smp = [...all.matchAll(/=== (?:Sample|Image) (\d+) of (\d+)/g)].pop();  // several images, one after the other
+  $("stateInfo").textContent = st.state !== "running" ? "" : smp ? `image ${smp[1]} of ${smp[2]}` : `image ${Math.min(nImg, total)} of ${total}`;
   $("bar").style.width = (st.state === "done" ? 100 : st.state === "running" ? Math.min(95, (Math.max(nImg, 1) - 0.5) / total * 100) : 0) + "%";
   $("bStop").disabled = st.state !== "running";
   if (changedState) { delete OUT[S.input.output || ""]; for (const k in EXPS) delete EXPS[k]; renderChecks(); renderResults(); }  // re-check for results
   if (changedState && st.state !== "running") {  // new results: the pages in the window are loaded again (the one shown at once)
-    for (const v of FRAMES) { const fr = $("fr-" + v); if (fr.dataset.url) fr.dataset.stale = "1"; }
+    for (const fr of allFrames()) if (fr.dataset.page) fr.dataset.stale = "1";
     if (VIEW.cur !== "setup") setTimeout(() => show(VIEW.cur, { fromHistory: true }), 800);
   }
   setTimeout(poll, st.state === "running" ? 700 : 2000);
@@ -1055,7 +1080,6 @@ function differingImages(o) {  // the images whose own settings differ between t
 }
 function imageSettingsDiffer(o) { return !!(o && o.run && !sameJSON(o.run.image_settings, S.image)); }
 function adoptImageSettings(o) {
-  if (o && o.run && o.run.sample_label && !S.input.sample_label && S.input.experiment) { S.input.sample_label = o.run.sample_label; render(); }
   const run = o && o.run && o.run.image_settings;
   if (run && Object.keys(run).length && !Object.keys(S.image || {}).length) {
     S.image = structuredClone(run); render();
@@ -1083,9 +1107,9 @@ function setSettings(s) {
   $("ver").textContent = "version " + SCHEMA.version;
   $("from").textContent = init.from ? "last used settings" : "default settings";
   setSettings(init.settings);
-  const h = location.hash.slice(1).split("/");  // a view in the address (#sample, #image/<name>), e.g. after a reload
+  const h = location.hash.slice(1).split("/").map(decodeURIComponent);  // the view in the address (#overview, #image/<name>/<folder>)
   history.replaceState({ view: "setup" }, "", location.pathname);
-  if (FRAMES.includes(h[0])) VIEW.want = { view: h[0], image: h[1] ? decodeURIComponent(h[1]) : "" };
+  if (VIEWS.includes(h[0])) { if (h[0] === "image" && h[1] && S.input.experiment) await chooseImage(h[1]); VIEW.want = { view: h[0], image: h[2] || "" }; }
   const st = await api("status"); JOB = { n: 0, state: st.state, run_id: st.run_id };
   poll();
 })();

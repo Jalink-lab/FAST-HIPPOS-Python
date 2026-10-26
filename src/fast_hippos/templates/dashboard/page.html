@@ -23,13 +23,14 @@
   <label title="Which cells appear in the traces, kymograph, distribution, scatter plot and cell panel: all cells, only the hits, or only the selected cells">Show <select id="show"><option value="all">all cells</option><option value="hits">hits</option><option value="sel">selection</option></select></label>
   <label title="Shape for selecting cells with Shift+drag in the image or the scatter plot (L switches between them)">Select <span class="seg" id="tool"><button data-v="rect" title="Shift+drag draws a rectangle">▭ box</button><button data-v="lasso" title="Shift+drag draws a free shape">✎ lasso</button></span></label>
   <span class="sp"></span>
-  <a class="btn" href="../index.html" title="The overview of the run: all images of this output folder, compared">↑ Overview</a>
+  <details class="menu files"><summary class="btn" title="The files of this image and its run: tables, .rgn files, plots and the log">Files ▾</summary><div id="filesMenu"></div></details>
+  <a class="btn" id="ovlink" href="../index.html" title="The overview: all images compared">↑ Overview</a>
   <button id="helpBtn" title="The manual of this page. ? or F1 over a panel: the part about that panel">? Help</button>
   <button id="theme" title="Switch between light and dark">◐</button>
 </div>
 <main>
   <section class="panel screen">
-    <div class="panel-h"><button id="scrtoggle" class="icon" title="Show or hide the screening settings">▾</button><h2 data-help="guide/choosing-hits" title="Choose which cells are hits: timing, quality gates and criteria. Changes apply at once; export the hits or apply the settings to all images (or to this image only) under Output.">Screening</h2>
+    <div class="panel-h"><button id="scrtoggle" class="icon" title="Show or hide the screening settings">▾</button><h2 data-help="guide/choosing-hits" title="Choose which cells are hits: timing, quality gates and criteria. Changes apply at once; export the hits or apply the settings to all images (or to this image only) under Output.">Screening</h2><label class="scron" title="Screen for hits: off = no hits (the cells, traces and values are all there); on = the cells that meet the criteria below are hits"><input type="checkbox" id="scron"> screen for hits</label>
       <div class="funnel" id="funnel"></div><span id="scrmod" class="modified"></span><span class="sp"></span>
       <button id="scrreset" title="Undo all changes in this panel: back to the screening settings of the analysis run">Reset</button></div>
     <div class="scrbody" id="scrbody">
@@ -70,8 +71,8 @@
         <div class="row"><button id="route" title="Calculate the stage route through the hits with the current settings; shown in the image when 'show in image' is on">Compute route</button><span id="routeinfo" class="muted"></span><label title="Draw the route of the .rgn files over the image"><input id="vroute2" type="checkbox"> show in image</label></div>
         <div class="row exports"><button id="hitsrgn" title="Download the stage positions of the hits as .rgn files for LAS X (one file per chunk)">Hits → .rgn</button><button id="hitstsv" title="Download the hit list as a table (TSV, opens in Excel)">Hits → TSV</button>
           <button id="scrtoml" title="Download these screening settings as a TOML file, to use them for all images of an output folder (fast-hippos-cli reapply config.toml --override screening.toml) or in a later analysis">Settings → TOML</button>
-          <button id="scrapply" hidden title="Use these screening settings for all images of this output folder and redo their screening (segmentation and traces are kept). A timing changed here is used for all images too; images with their own settings keep those.">↻ Apply to all images</button>
-          <button id="scrapplyimg" hidden title="Make the timing (stimulation and calibration frames) and the response window set here this image's own; the other images keep their settings. All images are re-applied, because the hit list and .rgn files cover all of them.">↻ Apply to this image only</button></div>
+          <button id="scrapply" hidden title="Use these screening settings for this image: its screening, hits, .rgn files and dashboard are made again (segmentation and traces are kept, so it takes seconds). The FAST-HIPPOS window takes them over for the next images.">↻ Apply</button>
+          <button id="scrapplyimg" hidden title="Make the timing (stimulation and calibration frames) and the response window set here this image's own: they are kept when all images are re-applied with the settings of the window.">↻ Apply as own timing</button></div>
         <div class="muted applymsg" id="applymsg"></div>
       </div>
       <div class="card crits">

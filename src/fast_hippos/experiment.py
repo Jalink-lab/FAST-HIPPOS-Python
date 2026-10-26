@@ -153,8 +153,9 @@ def build_experiment_data(experiment: Path, failed: list[str] | None = None) -> 
         for im in data["images"]:
             im = dict(im)
             im["image"] = im["name"]  # its own name (the tables); "name" is unique in the page
-            if im["name"] in names:  # the same image name in two samples
-                im["name"] = f"{folder.name}: {im['name']}"
+            # in the window every image has a folder of its own, named as the image (or renamed): that name
+            im["name"] = folder.name if len(data["images"]) == 1 else f"{folder.name}: {im['name']}"
+            im["screened"] = bool(data.get("screening"))  # hits only for images that were screened
             names.add(im["name"])
             im["sample"], im["label"] = folder.name, label
             im["run_started"] = data.get("started")
@@ -170,7 +171,7 @@ def build_experiment_data(experiment: Path, failed: list[str] | None = None) -> 
              "with_stimulation": len(stim),
              "with_calibration": sum(i["events"]["calibration"] is not None for i in images),
              "stimulation_mode": max(set(stim), key=stim.count) if stim else None}
-    screening = bool(first and first.get("screening"))
+    screening = any(im["screened"] for im in images)
     for im in images:
         im["flags"] = [{"key": f, "level": _level(f, im), "text": QC[f]} for f in _flags(im, stats, screening)]
     diffs = settings_differences(settings_by_run)
@@ -179,18 +180,18 @@ def build_experiment_data(experiment: Path, failed: list[str] | None = None) -> 
 
         fixable = any(d["setting"].split(".")[0] in REAPPLY_SECTIONS for d in diffs)
         fixed_only = any(d["setting"].split(".")[0] not in REAPPLY_SECTIONS for d in diffs)
-        notes.insert(0, "The samples were not all analyzed with the same settings, so their results are not fully "
+        notes.insert(0, "The images were not all analyzed with the same settings, so their results are not fully "
                         "comparable: " + " | ".join(describe_differences(diffs)) + "."
-                        + (" 'Re-apply all samples' in the FAST-HIPPOS window makes the stimulation, screening and "
+                        + (" 'Re-apply all images' in the FAST-HIPPOS window makes the stimulation, screening and "
                            "display settings the same." if fixable else "")
-                        + (" Other settings (segmentation, traces, image type, …) only change by running those samples "
+                        + (" Other settings (segmentation, traces, image type, …) only change by analyzing those images "
                            "again." if fixed_only else ""))
     if failed:
-        notes.insert(0, f"Not re-applied (the last 'Re-apply all samples' failed for them; they keep their earlier "
+        notes.insert(0, f"Not re-applied (the last 'Re-apply all images' failed for them; they keep their earlier "
                         f"results): {', '.join(failed)}. See experiment_log.txt.")
     units = {i.get("unit") for i in images if i.get("unit")}
     if len(units) > 1:
-        notes.append("The samples hold different kinds of values: " + ", ".join(sorted(units)))
+        notes.append("The images hold different kinds of values: " + ", ".join(sorted(units)))
     base = first or {}
     return {
         "version": __version__, "kind": "experiment", "title": experiment.name, "screening": screening,
@@ -227,6 +228,6 @@ def write_experiment_overview(experiment: Path, failed: list[str] | None = None)
     table.to_csv(experiment / SUMMARY_FILE, sep="\t", index=False, float_format="%.6g")
     path = experiment / "index.html"
     path.write_text(_embed(_bundle("overview", ["style.css"], OVERVIEW_JS), data), encoding="utf-8")
-    log.info("Experiment overview: %s (%d samples, %d images)%s", path, len(data["runs"]), len(data["images"]),
-             "; the samples were analyzed with different settings" if data["differences"] else "")
+    log.info("Experiment overview: %s (%d images)%s", path, len(data["images"]),
+             "; the images were analyzed with different settings" if data["differences"] else "")
     return path

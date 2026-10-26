@@ -239,7 +239,7 @@ def run_samples(settings: Settings, samples: list[dict] | None = None) -> list[s
     base = settings.to_dict()
     failed = []
     for k, s in enumerate(samples, 1):
-        print(f"=== Sample {k} of {len(samples)}: {s['name']}", flush=True)  # the run logs go to their own folders
+        print(f"=== Image {k} of {len(samples)}: {s['name']}", flush=True)  # the run logs go to their own folders
         d = copy.deepcopy(base)
         name = sample_name(s["name"])  # a safe folder name inside the experiment folder
         d["input"] |= {"files": [s["file"]], "series": None if s.get("series") is None else [int(s["series"])],
@@ -278,7 +278,7 @@ def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
     changes["input"]["experiment"] = str(experiment)
     failed, reasons = [], []
     for k, folder in enumerate(folders, 1):
-        print(f"=== Sample {k} of {len(folders)}: {folder.name}", flush=True)  # the run logs go to their own folders
+        print(f"=== Image {k} of {len(folders)}: {folder.name}", flush=True)  # the run logs go to their own folders
         try:
             if not run(Settings.from_dict(reapply_settings(folder, changes)), reapply=True, experiment_overview=False):
                 failed.append(folder.name); reasons.append(f"{folder.name}: no images with cells")

@@ -28,7 +28,8 @@ function recompute() {
   const hasCal = m.windows.calibration[1] > m.windows.calibration[0];
   const h = FHScreen.hits(m.cols, N, p, hasCal);
   C.valid = Array.from(h.valid); SCR.pass = h.pass; SCR.hasCal = hasCal;
-  if (SCR.mode === "selection") HIT = Array.from({ length: N }, (_, i) => SCR.manual.has(i));
+  if (!SCR.on) HIT = new Array(N).fill(false);  // no screening: no hits
+  else if (SCR.mode === "selection") HIT = Array.from({ length: N }, (_, i) => SCR.manual.has(i));
   else if (D.screening.random && JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode }) === SCR0) HIT = D.cells.hit.map(Boolean);
   else HIT = Array.from(h.hit, Boolean);
   C.hit = HIT.map(Number);
@@ -169,7 +170,12 @@ function fillParams() {
 }
 function initScreening() {
   const p = SCR.params, e = SCR.events, body = $("scrbody");
-  if (!(D.screening.enabled || p.criteria.length)) { body.classList.add("closed"); $("scrtoggle").textContent = "▸"; }
+  if (!SCR.on) { body.classList.add("closed"); $("scrtoggle").textContent = "▸"; }
+  // screening for hits on or off; off: no hits anywhere (the timing and the quality gates still apply)
+  const setOn = () => { $("scron").checked = SCR.on; body.classList.toggle("noscreen", !SCR.on);
+    ["hitsrgn", "hitstsv", "route"].forEach(id => { $(id).disabled = !SCR.on; }); };
+  $("scron").onchange = () => { SCR.on = $("scron").checked; if (SCR.on && body.classList.contains("closed")) $("scrtoggle").click(); setOn(); recompute(); };
+  setOn();
   $("scrtoggle").onclick = () => { body.classList.toggle("closed"); $("scrtoggle").textContent = body.classList.contains("closed") ? "▸" : "▾"; updateScreenUI(); };
   setWinMode = seg($("winmode"), "full", (v) => { $("rw").disabled = v === "full"; p.response_window = v === "full" ? null : Math.max(1, numOrNull($("rw")) ?? 3); scheduleRecompute(); });
   setAnchor = seg($("anchor"), p.response_window_anchor, (v) => { p.response_window_anchor = v; scheduleRecompute(); });

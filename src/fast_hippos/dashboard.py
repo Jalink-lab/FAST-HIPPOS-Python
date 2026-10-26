@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import math
+import re
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -234,8 +235,21 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
     }
 
 
+def run_files(image_dir: Path) -> list[str]:
+    """The files of an image and of its run, relative to the dashboard (its Files menu); the run summary is written
+    after the dashboards."""
+    keep = re.compile(r"\.(tsv|rgn|png|txt|toml)$", re.IGNORECASE)
+    own = sorted(f.name for f in image_dir.iterdir() if f.is_file() and keep.search(f.name))
+    run = {f.name for f in image_dir.parent.iterdir() if f.is_file() and keep.search(f.name)} | {"run_summary.tsv"}
+    return own + ["../" + n for n in sorted(run)]
+
+
 def write_image_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> Path:
     path = result.out_dir / "dashboard.html"
     data = build_image_data(result, viewer, settings, route, folder=result.out_dir)
+    data["files"] = run_files(result.out_dir)
+    exp = settings.input.experiment
+    if exp and result.out_dir.parent.parent.resolve() == Path(exp).resolve():  # ↑ Overview: that of the experiment
+        data["overview_href"] = "../../index.html"
     path.write_text(_embed(_dashboard_template(), data), encoding="utf-8")
     return path

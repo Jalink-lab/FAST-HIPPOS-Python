@@ -1,6 +1,7 @@
 // ---------------------------------------------------------------- shared by the dashboard and the run Overview
 // Helpers that do not depend on the data of a page (templates/common, loaded before the page's own scripts).
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // Inside the FAST-HIPPOS window (gui.html shows this page in a frame, with its own top bar): links to other pages
 // (overviews, dashboards) open in the window, not in new tabs; Ctrl+click still opens a new tab.
 const SHELL = (() => { try { return (window.parent !== window && window.parent.FH_SHELL) || null; } catch { return null; } })();
