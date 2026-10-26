@@ -15,7 +15,7 @@ function drawMaps() {
   $("mapsPanel").style.display = "";
   if (!ks.length) { box.innerHTML = `<div class="mapsmsg">${selected().length ? "The selected images have no hits" : "Select images in the table"}</div>`; return; }
   box.innerHTML = ks.map(k => { const im = IM[k];
-    return `<div class="mapcard" data-k="${k}"><div class="mh"><span class="sw" style="background:${imgColor(k)}"></span><span class="n" title="${esc(im.name)}">${esc(im.name)}</span><span class="muted">${im.n_hits} hit${im.n_hits === 1 ? "" : "s"}</span>` +
+    return `<div class="mapcard" data-k="${k}"><div class="mh"><span class="sw" style="background:${imgColor(k)}"></span><span class="n" title="${esc(im.name)}">${esc(im.name)}</span><span class="muted">${im.screened === false ? "not screened" : `${im.n_hits} hit${im.n_hits === 1 ? "" : "s"}`}</span>` +
       (im.href ? `<a href="${esc(encPath(im.href))}" target="_blank" title="Open the dashboard of this image">↗</a>` : "") + "</div>" +
       (im.has_positions ? `<canvas data-k="${k}"></canvas>` : `<div class="empty">No stage positions for this image: its hits cannot be visited</div>`) + "</div>"; }).join("");
   const ext = new Map(ks.map(k => [k, extentOf(IM[k])]));

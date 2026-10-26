@@ -289,7 +289,7 @@ def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
     write_experiment_overview(experiment, failed)
     if failed:
         log.error("Not re-applied (they keep their earlier settings): %s", "; ".join(reasons))
-    log.info("Done. %d of %d samples re-applied; experiment overview in %s", len(folders) - len(failed), len(folders),
+    log.info("Done. %d of %d images re-applied; experiment overview in %s", len(folders) - len(failed), len(folders),
              experiment / "index.html")
     return failed
 

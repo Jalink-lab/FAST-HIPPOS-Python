@@ -12,7 +12,8 @@ function gateSeed() {
 // ---------------------------------------------------------------- live screening panel
 const METRIC_KEYS = Object.keys(D.screen.metrics).filter(k => k !== "additional_intensity" || KA);
 const critText = (c) => `${c.metric} ${c.op === "between" ? "between" : c.op} ${c.value}` + (c.op === "between" ? ` and ${c.value2}` : "");
-const screeningModified = () => JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode }) !== SCR0 || SCR.mode === "selection";
+const screeningModified = () => JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on }) !== SCR0 || SCR.mode === "selection";
+let setScreenOn = () => {};  // shows the screen-for-hits switch (set in initScreening)
 let eventsTouched = false;
 SCR.version = 0;
 
@@ -30,7 +31,7 @@ function recompute() {
   C.valid = Array.from(h.valid); SCR.pass = h.pass; SCR.hasCal = hasCal;
   if (!SCR.on) HIT = new Array(N).fill(false);  // no screening: no hits
   else if (SCR.mode === "selection") HIT = Array.from({ length: N }, (_, i) => SCR.manual.has(i));
-  else if (D.screening.random && JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode }) === SCR0) HIT = D.cells.hit.map(Boolean);
+  else if (D.screening.random && JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on }) === SCR0) HIT = D.cells.hit.map(Boolean);
   else HIT = Array.from(h.hit, Boolean);
   C.hit = HIT.map(Number);
   if (KA && p.classify_additional_channel && Number.isFinite(p.classification_threshold))
@@ -172,7 +173,7 @@ function initScreening() {
   const p = SCR.params, e = SCR.events, body = $("scrbody");
   if (!SCR.on) { body.classList.add("closed"); $("scrtoggle").textContent = "▸"; }
   // screening for hits on or off; off: no hits anywhere (the timing and the quality gates still apply)
-  const setOn = () => { $("scron").checked = SCR.on; body.classList.toggle("noscreen", !SCR.on);
+  const setOn = setScreenOn = () => { $("scron").checked = SCR.on; body.classList.toggle("noscreen", !SCR.on);
     ["hitstsv", "route"].forEach(id => { $(id).disabled = !SCR.on; }); $("hitsrgn").disabled = !SCR.on || !HAS_ABS; };
   $("scron").onchange = () => { SCR.on = $("scron").checked; if (SCR.on && body.classList.contains("closed")) $("scrtoggle").click(); setOn(); recompute(); };
   setOn();
@@ -211,7 +212,7 @@ function initScreening() {
   $("usesel").onclick = () => { SCR.manual = new Set(S.sel); SCR.mode = "selection"; setSrc("selection"); renderCriteria(); recompute(); };
   $("addsel").onclick = () => { S.sel.forEach(i => SCR.manual.add(i)); recompute(); };
   $("clearmanual").onclick = () => { SCR.manual.clear(); recompute(); };
-  $("scrreset").onclick = () => { const o = JSON.parse(SCR0); Object.assign(e, o.events); Object.assign(p, o.params); SCR.mode = o.mode; eventsTouched = false; fillParams(); recompute(); };
+  $("scrreset").onclick = () => { const o = JSON.parse(SCR0); Object.assign(e, o.events); Object.assign(p, o.params); SCR.mode = o.mode; SCR.on = o.on; setScreenOn(); eventsTouched = false; fillParams(); recompute(); };
   const readOut = () => { p.sort_by = $("sortby").value || null; p.sort_descending = $("sortdir").value === "1"; p.max_hits_per_rgn = Math.max(1, numOrNull($("chunk")) ?? 1000); p.optimize_path = $("optpath").checked;
     if (SCR.route) { SCR.route.stale = true; clearTimeout(readOut.t); readOut.t = setTimeout(() => computeRoute(false), 500); }  // a new route right away
     updateScreenUI(); invalidate("viewerHov"); };

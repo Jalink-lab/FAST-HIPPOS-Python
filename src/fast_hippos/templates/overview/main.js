@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------- header, theme, remembered state, start
 function drawChips() {
-  const cells = IM.reduce((s, im) => s + im.n_cells, 0), valid = IM.reduce((s, im) => s + im.n_valid, 0), hits = IM.reduce((s, im) => s + im.n_hits, 0);
+  const cells = IM.reduce((s, im) => s + im.n_cells, 0), valid = IM.reduce((s, im) => s + im.n_valid, 0), hits = IM.reduce((s, im) => s + (im.screened === false ? 0 : im.n_hits), 0);
   const chip = (html, tip) => `<span class="chip" title="${esc(tip)}">${html}</span>`;
   const ch = [
     ...(EXP ? [chip(`<b>${RUNS.length}</b> sample${RUNS.length === 1 ? "" : "s"}`, "Samples (runs) in this experiment folder: the output folders inside it")] : []),

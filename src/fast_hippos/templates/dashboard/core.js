@@ -16,7 +16,7 @@ const SCR = {
   on: !!D.screening.enabled,  // screening for hits: off = no hits at all (switched on in the pane: try criteria)
 };
 SCR.params.criteria.forEach(c => { c.logic = (c.logic || SCR.params.logic || "OR").toUpperCase(); });
-const SCR0 = JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode });
+const SCR0 = JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on });
 let KS = KR, HIT = C.hit.map(Boolean), ORDER = D.order, EV = D.events;
 
 const S = {
