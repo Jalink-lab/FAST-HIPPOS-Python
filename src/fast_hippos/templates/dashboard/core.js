@@ -87,6 +87,8 @@ function lutRGB(v, out = [0, 0, 0]) {
   const j = Math.round(x * 255) * 3; out[0] = L[j]; out[1] = L[j + 1]; out[2] = L[j + 2]; return out;
 }
 // baseline / response / timed window / calibration as in the Timing panel: frame f covers (f - 1/2 .. f + 1/2) x interval
+// the response window, when it is only part of the response (a 'frames' window): shown a little darker
+const partWindow = (ev) => ev.timed_window && ev.response && (ev.timed_window[0] !== ev.response[0] || ev.timed_window[1] !== ev.response[1]);
 function shadeWindows(ctx, P) {
   const ev = EV, block = (w, col) => {
     if (!w || !(w[1] > w[0])) return;
@@ -94,8 +96,8 @@ function shadeWindows(ctx, P) {
     ctx.fillStyle = col; ctx.fillRect(x0, P.m.t, x1 - x0, P.ph);
   };
   block(ev.baseline, css("--base-win"));
-  block(ev.response, withAlpha(css("--resp-solid"), 0.06));
-  block(ev.timed_window, withAlpha(css("--resp-solid"), 0.12));
+  block(ev.response, withAlpha(css("--resp-solid"), 0.1));  // as in the overview
+  if (partWindow(ev)) block(ev.timed_window, withAlpha(css("--resp-solid"), 0.08));
   block(ev.calibration_window, css("--cal-win"));
 }
 const eventX = (f) => (f - 0.5) * FI;  // time of the transition into frame f (the S / C markers of the Timing panel)

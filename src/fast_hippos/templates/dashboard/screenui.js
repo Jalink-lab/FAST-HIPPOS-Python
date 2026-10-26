@@ -109,8 +109,8 @@ function drawTimeline() {
   const x = TLP.clear(0), ev = EV, X = (f) => TLP.X(f);
   const shade = (w, col, label) => { if (w[1] > w[0]) { x.fillStyle = col; x.fillRect(X(w[0] - 0.5), TLP.m.t, X(w[1] - 0.5) - X(w[0] - 0.5), TLP.ph); if (label) { x.fillStyle = css("--muted"); x.font = "10px system-ui"; x.fillText(label, X(w[0] - 0.5) + 3, TLP.m.t - 3); } } };
   shade(ev.baseline, css("--base-win"), ev.baseline_only ? "baseline (all frames)" : "baseline");
-  shade(ev.response, withAlpha(css("--resp-solid"), 0.06), "response");
-  shade(ev.timed_window, withAlpha(css("--resp-solid"), 0.12), "");
+  shade(ev.response, withAlpha(css("--resp-solid"), 0.1), "response");
+  if (partWindow(ev)) shade(ev.timed_window, withAlpha(css("--resp-solid"), 0.08), "");
   shade(ev.calibration_window, css("--cal-win"), "calibration");
   x.fillStyle = withAlpha(css("--accent"), 0.2); x.beginPath(); for (let t = 0; t < T; t++) x.lineTo(X(t), TLP.Y(st[3][t])); for (let t = T - 1; t >= 0; t--) x.lineTo(X(t), TLP.Y(st[1][t])); x.fill();
   x.strokeStyle = css("--accent"); x.lineWidth = 2; x.beginPath(); for (let t = 0; t < T; t++) x.lineTo(X(t), TLP.Y(st[2][t])); x.stroke();
