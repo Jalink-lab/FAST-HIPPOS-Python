@@ -25,8 +25,9 @@ TWO_CHANNELS = {Modality.TCSPC: "the second lifetime component", Modality.FAST_F
                 Modality.TAU_CONTRAST: "the lifetime", Modality.RATIO: "the denominator"}
 
 
-def check_inputs(settings: Settings) -> list[str]:
-    """All problems found, as readable sentences; empty if the run can start."""
+def check_inputs(settings: Settings, samples: bool = False) -> list[str]:
+    """All problems found, as readable sentences; empty if the run can start. samples: every image is a sample in a
+    folder of its own (the window, run-samples), so images of the same name do not share a result folder."""
     s_in, seg, ev = settings.input, settings.segmentation, settings.events
     problems: list[str] = []
     if not s_in.files:
@@ -55,7 +56,7 @@ def check_inputs(settings: Settings) -> list[str]:
             name = f"{path.stem} - {info['name'].replace('/', '-')}" if path.suffix.lower() == ".lif" else info["name"]
             label = path.name if len(infos) == 1 else f"{path.name} ({info['name']})"
             key = safe_name(name).lower()
-            if key in folders:
+            if key in folders and not samples:
                 problems.append(f"{label} and {folders[key]} would share the result folder '{safe_name(name)}': rename one "
                                 "of them (Images).")
             folders.setdefault(key, label)

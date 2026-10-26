@@ -706,10 +706,10 @@ _CELLPOSE_PROBE = (
 )
 
 
-def _check(settings: dict) -> list[str]:
+def _check(settings: dict, samples: bool = False) -> list[str]:
     from .checks import check_inputs
 
-    return check_inputs(settings_from_plain(settings))
+    return check_inputs(settings_from_plain(settings), samples)
 
 
 def output_info(path: str, job: Job | None = None, settings: dict | None = None) -> dict:
@@ -1155,7 +1155,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "load": lambda q: {"settings": load_toml(Path(q["path"]))},
         "save": lambda q: (Path(q["path"]).write_text(to_toml(q["settings"]), encoding="utf-8"), {"ok": True})[1],
         "validate": lambda q: (settings_from_plain(q["settings"]), {"ok": True})[1],
-        "check": lambda q: {"problems": _check(q["settings"])},
+        "check": lambda q: {"problems": _check(q["settings"], bool(q.get("samples")))},
         "run": lambda q: {"run_id": start_reapply_experiment(job, q["settings"]) if q.get("experiment")
                           else start_reapply(job, q["settings"]) if q.get("reapply")
                           else job.start(q["settings"], False, remember=q["settings"], samples=q.get("samples"))},

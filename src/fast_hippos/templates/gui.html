@@ -499,7 +499,7 @@ function serverCheck() {
   const inputs = SRV.inputs;
   serverCheck.t = setTimeout(async () => {
     const rows = sampleRows(), chk = { ...S, input: { ...S.input, output: S.input.experiment ? joinP(S.input.experiment, rows.length ? rows[0].name : "sample") : "" } };
-    let problems; try { problems = (await api("check", { settings: chk })).problems; } catch (e) { problems = [e.message]; }
+    let problems; try { problems = (await api("check", { settings: chk, samples: true })).problems; } catch (e) { problems = [e.message]; }
     if (SRV.key === key) { SRV.problems = problems; SRV.checkedInputs = inputs; renderChecks(); }
   }, 350);
 }

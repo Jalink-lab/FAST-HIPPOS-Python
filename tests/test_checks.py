@@ -37,6 +37,7 @@ def test_two_images_with_the_same_result_folder(tmp_path):
     s.input.files.append(_image(tmp_path / "b" / "IMG.tif"))  # img.tif and IMG.tif: one folder on Windows
     problems = check_inputs(s)
     assert len(problems) == 1 and "would share the result folder" in problems[0]
+    assert check_inputs(s, samples=True) == []  # the window: each image a sample in a folder of its own
 
 
 def test_additional_channel_that_does_not_exist(tmp_path):
