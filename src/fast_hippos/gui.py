@@ -69,15 +69,15 @@ FIELDS: dict[str, dict] = {
     # ---- input
     "input.files": {"label": "Images", "widget": "files",
         "help": "Time-lapse images: .tif (ImageJ hyperstack) or .lif, or a folder of tiles exported from LAS X "
-        "(stitched by the stage positions of the tiles). Each image is a sample of its own, and so is each series of a "
-        ".lif file: Run analysis analyzes them one after the other."},
+        "(stitched by the stage positions of the tiles). Each image, and each series of a .lif file, is analyzed in a "
+        "folder of its own; Run analysis analyzes the ticked ones one after the other."},
     "input.output": {"label": "Output folder", "widget": "folder",
-        "help": "The folder of one sample (one run); the window sets it per sample: <experiment folder>/<sample name>"},
+        "help": "The folder of one image (one run); the window sets it per image: <experiment folder>/<name>"},
     "input.experiment": {"label": "Experiment folder", "widget": "folder",
-        "placeholder": "proposed when you add images", "help": "One folder per sample inside it (each image is a "
-        "sample), and an overview of all samples"},
+        "placeholder": "proposed when you add images", "help": "One folder per image inside it, and the overview of "
+        "all images"},
     "input.sample_label": {"label": "Sample label", "wide": True, "show": {"input.experiment": {"set": True}},
-        "placeholder": "e.g. the condition or library of this sample",
+        "placeholder": "e.g. the condition or library of this image",
         "help": "Shown in the experiment overview, to tell or group the samples"},
     "input.modality": {"label": "Image type", "choices": {
         "tcspc": "Fitted TCSPC data / TauSeparation (2 lifetime components)", "fast_flim": "Fast FLIM",
@@ -214,11 +214,11 @@ FIELDS: dict[str, dict] = {
 # 'help' line under a field stays; this is the fuller explanation. Every setting has one (checked by a test).
 TIPS: dict[str, str] = {
     # ---- images
-    "input.files": "The time-lapse images to analyze. Each image is a sample of its own: a .tif, a folder of tiles "
+    "input.files": "The time-lapse images to analyze. Each image is analyzed in a folder of its own: a .tif, a folder of tiles "
         "exported from LAS X (stitched into one image), or each series of a .lif file (untick the series to leave out). "
         "All are analyzed with the same settings, each in a run of its own, with its own hits and .rgn files.",
-    "input.output": "The folder of one sample (one run): tables, plots, dashboards and .rgn files, with a subfolder per "
-        "image. The window sets it per sample (<experiment folder>/<sample name>); a new run replaces the results in it.",
+    "input.output": "The folder of one image (one run): tables, plots, dashboards and .rgn files. The window sets "
+        "it per image (<experiment folder>/<name>); a new run replaces the results in it.",
     "input.experiment": "The folder that holds one folder per sample, and the overview of all samples (index.html), "
         "updated after every run and re-apply, with a warning when samples were analyzed with different settings. "
         "Adding images without one proposes a folder FAST-HIPPOS next to the images.",
