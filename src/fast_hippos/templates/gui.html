@@ -145,13 +145,30 @@ body.pages header { margin-bottom: 0; }
 .srow .st { font-size: 11.5px; white-space: nowrap; } .srow .st.again { color: var(--warn); } .srow .st.ok { color: var(--ok); }
 .results .grp { color: var(--muted); margin-top: 6px; }
 /*__HELP_CSS__*/
+/* Cellpose on this computer (Cell segmentation card) */
+.cps { border-top: 1px dashed var(--line); padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+.cps-h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: hsl(var(--h) var(--t-h3)); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
+.cps-h .sp { flex: 1; } .cps-h button { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.cps-row { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; background: var(--panel); display: flex; flex-direction: column; gap: 5px; }
+.cps-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; } .cps-top b { font-weight: 600; } .cps-top .sp { flex: 1; }
+.cps-path { font: 11.5px Consolas, ui-monospace, monospace; color: var(--muted); overflow-wrap: anywhere; }
+.cps-found { border-left: 3px solid var(--warn); padding-left: 8px; display: flex; flex-direction: column; gap: 4px; }
+.cps-btns { display: flex; gap: 6px; flex-wrap: wrap; } .cps-btns button.use { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+.cps-log { font: 11px Consolas, ui-monospace, monospace; color: var(--muted); white-space: pre-wrap; max-height: 90px; overflow: auto; margin: 0; }
+/* updates: a bar when a newer version is there, and a dialog (version line, "Updates…") */
+#updateBar { display: none; align-items: center; gap: 10px; flex-wrap: wrap; margin: -4px 16px 10px; padding: 7px 12px; border-radius: 8px; background: var(--accent-soft); border: 1px solid var(--accent); }
+#updateBar.on { display: flex; } #updateBar .sp { flex: 1; }
+#updDlg { width: min(620px, 92vw); border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); padding: 16px; }
+#updDlg::backdrop { background: rgba(0,0,0,.4); } #updDlg h2 { margin: 0 0 8px; font-size: 16px; }
+#updNotes { white-space: pre-wrap; max-height: 40vh; overflow: auto; background: var(--panel2); border-radius: 6px; padding: 8px 10px; font: 12px/1.45 system-ui, sans-serif; margin: 8px 0; }
+#updDlg .btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; } #updDlg .btns .sp { flex: 1; }
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 8px; display: none; z-index: 10; }
 </style>
 </head>
 <body data-help-home="guide/window">
 <header data-help-scope="guide/window">
   <img class="logo" src="__FH_LOGO__" alt="FAST-HIPPOS">
-  <div><h1>FAST-HIPPOS</h1><div class="sub"><span id="ver"></span> · <span id="from"></span></div></div>
+  <div><h1>FAST-HIPPOS</h1><div class="sub"><span id="ver"></span> · <button class="link" id="bUpdates" title="See whether a newer version of FAST-HIPPOS is available, and install it">Check for updates</button> · <span id="from"></span></div></div>
   <nav class="views" id="views" data-help-scope="guide/window#finding-your-way">
     <button class="v on" data-view="setup" title="The settings, the checks and running the analysis">Setup</button>
     <button class="v" data-view="overview" title="The overview of the experiment: all analyzed images compared">Overview</button>
@@ -172,6 +189,8 @@ body.pages header { margin-bottom: 0; }
   <button id="bTheme" title="Light / dark">◐</button>
   <button id="bQuit" title="Stop FAST-HIPPOS (a running analysis is stopped too)">Quit</button>
 </header>
+<div id="updateBar"><span id="updBarText"></span><span class="sp"></span><button class="small" id="updBarShow" title="See what is new and install it">What's new / update</button><button class="small" id="updBarLater" title="Do not mention it for a week">Later</button><button class="small" id="updBarSkip" title="Do not mention this version again; a newer one is offered as usual">Skip this version</button></div>
+<dialog id="updDlg"><h2>Updates</h2><div id="updBody"></div><div class="btns"><label class="switch" title="Ask GitHub once a day whether there is a newer version. Nothing else is sent."><input type="checkbox" id="updAuto"> Check once a day</label><span class="sp"></span><button id="updCheck">Check now</button><button class="primary" id="updInstall" hidden>Install update</button><button id="updClose">Close</button></div></dialog>
 <div id="stopped"><img class="logo" src="__FH_LOGO__" alt="" style="width:96px;height:96px;border-radius:14px;background:#fff">
   <h2 style="margin:0" id="stopTitle">FAST-HIPPOS has stopped</h2><div class="spinner"></div><div class="muted" id="stopText">You can close this tab. Start FAST-HIPPOS again to continue.</div></div>
 <main>
@@ -284,7 +303,8 @@ function fileMeta(f) {
 // ---------------------------------------------------------------- Cellpose status
 const CP_MODELS = { cyto3: "cyto3 (Cellpose 3)", nuclei: "nuclei (Cellpose 3)", cyto2_cp3: "cyto2_cp3 (Cellpose 3)", cpsam: "cpsam (Cellpose 4, Cellpose-SAM)" };
 function cpVersion() { return S.segmentation.cellpose_version || (S.segmentation.cellpose_model === "cpsam" ? 4 : 3); }
-function cpPython() { return S.segmentation[`cellpose${cpVersion()}_python`] || ""; }
+// the user's own environment first, then the copy installed with FAST-HIPPOS, else this environment ("")
+function cpPython() { const v = cpVersion(); return S.segmentation[`cellpose${v}_python`] || (CPS && CPS.bundled[v]) || ""; }
 async function checkCellpose() {
   const py = cpPython(), key = `${cpVersion()}|${py}`;
   if (CP[key]) return; CP[key] = { pending: true }; render();
@@ -300,11 +320,159 @@ function cpStatus() {
   const v = cpVersion(), r = CP[`${v}|${cpPython()}`];
   if (!r) { setTimeout(checkCellpose); return `<span class="chip">checking Cellpose…</span>`; }
   if (r.pending) return `<span class="chip">checking Cellpose ${v}…</span>`;
-  if (r.error || !r.cellpose) return `<span class="chip warn">Cellpose ${v} not found${cpPython() ? "" : " in this environment: set its python.exe under Cell segmentation → Advanced settings → Cellpose environments"}</span>`;
+  if (r.error || !r.cellpose) return `<span class="chip warn">Cellpose ${v} not found${cpPython() ? "" : ": choose or install it below"}</span>`;
   const major = +r.cellpose.split(".")[0];
   if (major !== v) return `<span class="chip warn">environment has Cellpose ${esc(r.cellpose)}, model needs ${v}</span>`;
   return `<span class="chip ok">Cellpose ${esc(r.cellpose)} · ${r.gpu ? "GPU " + esc(r.gpu) : "CPU only"}</span>`;
 }
+
+// ---------------------------------------------------------------- Cellpose on this computer: use, install or choose
+// Found installations are only offered: nothing is used until the user says so.
+let CPS = null;
+const CP_CHANGING = new Set();  // versions whose choice is being changed (the row shows the options again)
+const CP_LABEL = { 3: "cyto3, nuclei, cyto2_cp3", 4: "cpsam (Cellpose-SAM)" };
+function cpProbe(v, py) {  // version and GPU of an environment, for its row; starting PyTorch takes seconds
+  const key = `${v}|${py}`;
+  if (!CP[key]) { CP[key] = { pending: true }; api("cellpose", { python: py }).catch(e => ({ error: e.message })).then(r => { CP[key] = r; paintCellpose(); }); }
+  const r = CP[key];
+  if (r.pending) return `<span class="chip">checking…</span>`;
+  if (r.error || !r.cellpose) return `<span class="chip warn">does not start${r.error ? ": " + esc(String(r.error).slice(0, 90)) : ""}</span>`;
+  if (+r.cellpose.split(".")[0] !== v) return `<span class="chip warn">has Cellpose ${esc(r.cellpose)}, not ${v}</span>`;
+  return `<span class="chip ok">Cellpose ${esc(r.cellpose)} · ${r.gpu ? "GPU " + esc(r.gpu) : "CPU only"}</span>`;
+}
+function cpOptions(v, own) {
+  const found = CPS.found.filter(f => f.major === v && f.python !== own), bundle = CPS.bundled[v];
+  const offers = found.map(f => {
+    const chip = cpProbe(v, f.python), r = CP[`${v}|${f.python}`];  // an environment that does not start is not offered
+    const bad = r && !r.pending && (r.error || !r.cellpose || +r.cellpose.split(".")[0] !== v);
+    return `<div class="cps-found"><span>Found an existing installation:</span><span class="cps-path">${esc(f.python)}</span><div>${chip}</div>`
+      + (bad ? "" : `<div class="cps-btns"><button class="small use" data-cp="use" data-v="${v}" data-py="${esc(f.python)}" title="Run Cellpose ${v} from this environment. Nothing in it is changed.">Use this installation</button></div>`) + `</div>`;
+  }).join("");
+  const install = bundle ? `<button class="small" data-cp="bundled" data-v="${v}" title="Use the copy installed with FAST-HIPPOS">Use the copy installed with FAST-HIPPOS</button>`
+    : CPS.can_install ? `<button class="small" data-cp="install" data-v="${v}" title="Download Cellpose ${v} with PyTorch into the FAST-HIPPOS folder. Removed when FAST-HIPPOS is uninstalled.">Install with FAST-HIPPOS (about ${CPS.size_gb} GB)</button>` : "";
+  return offers + `<div class="cps-btns">${install}<button class="small" data-cp="own" data-v="${v}" title="Choose the python.exe of an environment that has Cellpose ${v}">Choose my own python.exe…</button>${CP_CHANGING.has(v) ? `<button class="small" data-cp="keep" data-v="${v}">Cancel</button>` : ""}</div>`
+    + (!bundle && !CPS.can_install ? `<span class="muted">Installing from here needs FAST-HIPPOS installed with its setup; this copy runs from source.</span>` : "");
+}
+function cpRow(v) {
+  const key = `cellpose${v}_python`, own = S.segmentation[key] || "", bundle = CPS.bundled[v], ins = CPS.install;
+  const top = (chip, right = "") => `<div class="cps-top"><b>Cellpose ${v}</b><span class="muted">${CP_LABEL[v]}</span>${chip}<span class="sp"></span>${right}</div>`;
+  const change = `<button class="small" data-cp="change" data-v="${v}" title="Use another installation">Change</button>`;
+  if (ins.running && ins.version === v) return `<div class="cps-row">${top(`<span class="chip">installing…</span>`)}
+    <div>${esc(ins.status || "")}</div><div class="progress" style="margin:0"><div style="width:${(ins.permille || 0) / 10}%"></div></div><pre class="cps-log">${esc((ins.lines || []).join("\n"))}</pre></div>`;
+  const failed = ins.failed && ins.version === v ? `<div class="chip warn" style="border-radius:6px">The installation did not finish.</div><pre class="cps-log">${esc(ins.error || "")}</pre>` : "";
+  if (!CP_CHANGING.has(v)) {
+    if (own) return `<div class="cps-row">${top(`<span class="chip">your installation</span>`, change)}<span class="cps-path">${esc(own)}</span><div>${cpProbe(v, own)}</div></div>`;
+    if (bundle) return `<div class="cps-row">${top(`<span class="chip">installed with FAST-HIPPOS</span>`, change)}<div>${cpProbe(v, bundle)}</div></div>`;
+    if (CPS.here === v) return `<div class="cps-row">${top(`<span class="chip">in this Python environment</span>`, change)}<div>${cpProbe(v, "")}</div></div>`;
+  }
+  const n = CPS.found.filter(f => f.major === v).length;
+  const chip = CP_CHANGING.has(v) ? `<span class="chip">choose</span>` : n ? `<span class="chip warn">found: your choice</span>` : `<span class="chip">not installed</span>`;
+  return `<div class="cps-row">${top(chip)}${failed}${cpOptions(v, own)}</div>`;
+}
+function cellposeHTML() {
+  if (!CPS) return `<div class="cps" id="cpSetup"><span class="muted">Looking for Cellpose…</span></div>`;
+  const s = CPS.search;
+  const searching = s.running ? `<span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">${s.full ? `searching all drives: ${(s.folders || 0).toLocaleString("en")} folders` : "searching…"}</span><button class="small" data-cp="cancel">Stop</button>` : "";
+  return `<div class="cps" id="cpSetup"><div class="cps-h"><span>Cellpose on this computer</span><span class="sp"></span>${searching}
+    <button class="small" data-cp="search" ${s.running ? "disabled" : ""} title="Look again in the usual places (conda, mamba, uv and venv folders)">Search again</button>
+    <button class="small" data-cp="full" ${s.running ? "disabled" : ""} title="Look through all local hard drives. Only names are read; this can take several minutes.">Search all drives</button></div>${cpRow(3)}${cpRow(4)}</div>`;
+}
+function paintCellpose() { const el = $("cpSetup"); if (el) { el.outerHTML = cellposeHTML(); } }
+async function loadCellpose(first = false) {
+  const was = CPS && CPS.install.running;
+  try { CPS = await api(first ? "cellpose_search" : "cellpose_setup"); }
+  catch { if (!CPS) setTimeout(() => loadCellpose(first), 2000); return; }
+  if (was && !CPS.install.running && CPS.install.done) {  // installed: from now on this copy is used
+    const v = CPS.install.version; S.segmentation[`cellpose${v}_python`] = null; CP_CHANGING.delete(v);
+    for (const k in CP) if (k.startsWith(v + "|")) delete CP[k];
+    api("remember", { settings: S }).catch(() => {}); toast(`Cellpose ${v} is installed`); render();
+  } else if (first) render(); else paintCellpose();
+  if (CPS.search.running || CPS.install.running) setTimeout(loadCellpose, 800);
+}
+async function cellposeAction(b) {
+  const a = b.dataset.cp, v = +b.dataset.v, key = `cellpose${v}_python`;
+  const chosen = (py) => { S.segmentation[key] = py; CP_CHANGING.delete(v); api("remember", { settings: S }).catch(() => {}); render(); };
+  try {
+    if (a === "use") chosen(b.dataset.py);
+    else if (a === "bundled") chosen(null);
+    else if (a === "change") { CP_CHANGING.add(v); paintCellpose(); }
+    else if (a === "keep") { CP_CHANGING.delete(v); paintCellpose(); }
+    else if (a === "own") {
+      const r = (await api("browse", { kind: "file", title: `The python.exe of your Cellpose ${v} environment`, initial: S.segmentation[key] || "", types: "python" })).result;
+      if (r) { delete CP[`${v}|${r}`]; chosen(r); }
+    } else if (a === "install") {
+      if (!confirm(`Install Cellpose ${v} with FAST-HIPPOS?\n\nThis downloads about ${CPS.size_gb} GB and can take 5 to 20 minutes. You can keep working meanwhile.`)) return;
+      CPS = await api("cellpose_install", { version: v }); paintCellpose(); setTimeout(loadCellpose, 800);
+    } else if (a === "search" || a === "full") {
+      CPS = await api("cellpose_search", { full: a === "full" }); paintCellpose(); setTimeout(loadCellpose, 400);
+    } else if (a === "cancel") { CPS = await api("cellpose_search_cancel"); paintCellpose(); }
+  } catch (e) { toast(e.message, 5000); }
+}
+
+// ---------------------------------------------------------------- updates
+let UPD = null, UPDATING = false;
+async function loadUpdates() {
+  try { UPD = await api("update"); paintUpdates(); } catch { return; }
+  if (UPD.checking) setTimeout(loadUpdates, 1500);
+}
+function paintUpdates() {
+  if (!UPD) return;
+  const n = UPD.latest;
+  $("updateBar").classList.toggle("on", !!UPD.offer && !UPDATING);
+  if (n) $("updBarText").textContent = `FAST-HIPPOS ${n.version} is available (you have ${UPD.current}).`;
+  $("updAuto").checked = UPD.check;
+  $("updCheck").disabled = UPD.checking;
+  $("updCheck").textContent = UPD.checking ? "Checking…" : "Check now";
+  $("updInstall").hidden = !(UPD.newer && UPD.can_install);
+  const when = UPD.last_check ? new Date(UPD.last_check * 1000).toLocaleString() : "never";
+  const ins = UPD.installing || {};
+  $("updBody").innerHTML = `<div>You have version <b>${esc(UPD.current)}</b>. Last checked: ${esc(when)}.</div>`
+    + (UPD.error ? `<div style="color:var(--warn)">${esc(UPD.error)}</div>` : "")
+    + (ins.state === "failed" ? `<div style="color:var(--err)">The update could not start: ${esc(ins.error)}</div>` : "")
+    + (ins.state === "downloading" ? `<div>Downloading version ${esc(ins.version)}… ${Math.round((ins.permille || 0) / 10)} %</div>` : "")
+    + (UPD.newer ? `<div style="margin-top:6px">Version <b>${esc(n.version)}</b>${n.date ? ` (${esc(n.date)})` : ""} is available. <a href="${esc(n.page)}" target="_blank" rel="noopener">Release page</a></div><div id="updNotes">${esc(n.notes || "No release notes.")}</div>`
+      + (UPD.can_install ? `<div class="muted">Your settings and results stay as they are. FAST-HIPPOS restarts in this tab.</div>` : `<div class="muted">This copy runs from source: update it with <code>git pull</code> and <code>uv sync</code>.</div>`)
+      : `<div style="margin-top:6px;color:var(--ok)">${UPD.last_check ? "You have the newest version." : ""}</div>`);
+}
+async function updateChoice(action) { try { UPD = await api("update_choice", { action }); paintUpdates(); } catch (e) { toast(e.message); } }
+$("bUpdates").onclick = () => { paintUpdates(); $("updDlg").showModal(); checkUpdatesNow(); };
+$("updBarShow").onclick = () => { paintUpdates(); $("updDlg").showModal(); };
+$("updBarLater").onclick = () => updateChoice("later");
+$("updBarSkip").onclick = () => updateChoice("skip");
+$("updClose").onclick = () => $("updDlg").close();
+$("updAuto").onchange = () => updateChoice($("updAuto").checked ? "auto_on" : "auto_off");
+$("updCheck").onclick = () => checkUpdatesNow();
+async function checkUpdatesNow() {
+  if (UPD) { UPD.checking = true; paintUpdates(); }
+  try { UPD = await api("update_check"); } catch (e) { toast(e.message); if (UPD) UPD.checking = false; }
+  paintUpdates();
+}
+$("updInstall").onclick = async () => {
+  if (JOB.state === "running") { toast("An analysis is running. Update when it has finished.", 4000); return; }
+  if (!confirm(`Install FAST-HIPPOS ${UPD.latest.version} now?\n\nFAST-HIPPOS closes, updates and restarts in this tab. Your settings and results stay as they are.`)) return;
+  try { await api("remember", { settings: S }); UPD = await api("update_start"); } catch (e) { toast(e.message, 5000); return; }
+  UPDATING = true; $("updDlg").close();
+  $("stopTitle").textContent = "Updating FAST-HIPPOS…"; $("stopText").textContent = "Your settings and results stay as they are.";
+  $("stopped").classList.add("busy", "on");
+  // Until this port shows the installer's page or the new version (a page with another token). A request can hang
+  // while the program stops, so each one has a time limit.
+  const limit = (p) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 3000))]);
+  for (let i = 0; i < 900; i++) {
+    await new Promise(r => setTimeout(r, 400));
+    try {
+      const t = await limit(fetch("/", { cache: "no-store" }).then(r => r.text()));
+      // (the installer's page recognises the new version by the absence of its own title word in brackets: keep that
+      // exact text out of this page)
+      if (/<title>[^<]*updating/.test(t) || !t.includes(TOKEN)) { location.reload(); return; }
+      UPD = await limit(api("update"));  // still this program: did the download fail?
+      if (UPD.installing.state === "failed") {
+        UPDATING = false; $("stopped").classList.remove("busy", "on"); poll(); paintUpdates(); $("updDlg").showModal(); return;
+      }
+    } catch { /* between the two programs */ }
+  }
+  $("stopTitle").textContent = "The update takes longer than expected"; $("stopText").textContent = "Reload this tab, or start FAST-HIPPOS again.";
+  $("stopped").classList.remove("busy");
+};
 
 // ---------------------------------------------------------------- widgets
 function widget(f) {
@@ -416,7 +584,8 @@ function render() {
     if (!open) hidden += changed;
     html += `<div class="card" style="--h:${HUES[card.title] ?? 212}" data-card-title="${esc(card.title)}"><h2 class="toggle" data-fold="${esc(card.title)}" data-help="${CARD_HELP[card.title] || "guide/window#the-cards"}" title="Click to fold or unfold this section"><span class="fold">▾</span>${esc(card.title)}</h2>` +
       (basic.length ? `<div class="body">${basic.map(fieldHTML).join("")}</div>` : `<div class="note">${esc(card.note || "")}</div>`) +
-      (card.title === "Stimulation and calibration" ? imageSettingsHTML() : "");
+      (card.title === "Stimulation and calibration" ? imageSettingsHTML() : "") +
+      (card.title === "Cell segmentation" && S.segmentation.method === "cellpose" ? cellposeHTML() : "");
     if (subs.length) {
       html += `<div class="adv"><button class="advtoggle" data-card="${esc(card.title)}" title="Show or hide the less common settings of this section. A dot marks settings that differ from the default.">${open ? "▾" : "▸"} Advanced settings` +
         (changed ? ` · <span class="count">${changed} changed</span>` : "") + `</button>`;
@@ -641,6 +810,7 @@ document.addEventListener("change", () => { clearTimeout(rememberTimer); remembe
 document.addEventListener("input", (e) => { if (e.target.type === "number" && e.target.closest("[data-key]") && !e.target.closest("[data-crit]")) { readInput(e.target); renderChecks(); } });
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("button, h2.toggle"); if (!b) return;
+  if (b.dataset.cp) { cellposeAction(b); return; }
   if (b.dataset.card) { const c = b.dataset.card; openAdv.has(c) ? openAdv.delete(c) : openAdv.add(c); render(); return; }
   if (b.id === "bFoldAll") {  // all settings sections folded -> unfold them all, else fold them all
     const titles = SCHEMA.layout.map(c => c.title), all = titles.every(t => FOLDED.has(t));
@@ -1030,7 +1200,7 @@ if ("BroadcastChannel" in window) {
 }
 // polls all the time: re-applies can also be started from a dashboard ('Apply to all images' / 'Apply to this image only')
 async function poll() {
-  if (REPLACED) return;
+  if (REPLACED || UPDATING) return;
   poll.fails = poll.fails || 0;
   let st;
   try { st = await api("status", { since: JOB.n }); poll.fails = 0; }
@@ -1118,6 +1288,8 @@ function setSettings(s) {
   if (VIEWS.includes(h[0])) { if (h[0] === "image" && h[1] && S.input.experiment) await chooseImage(h[1]); VIEW.want = { view: h[0], image: h[2] || "" }; }
   const st = await api("status"); JOB = { n: 0, state: st.state, run_id: st.run_id };
   poll();
+  loadCellpose(true);  // the quick search; what it finds is only offered
+  loadUpdates(); setInterval(loadUpdates, 3600 * 1000);  // the check itself runs at most once a day
 })();
 </script>
 </body>

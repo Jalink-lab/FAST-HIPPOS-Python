@@ -1,6 +1,6 @@
 [project]
 name = "fast-hippos"
-version = "0.1.0.dev0"
+dynamic = ["version"]  # from src/fast_hippos/__init__.py
 description = "FLIM Analysis of Single-cell Traces for Hit Identification of Phenotypes in Pooled Optical Screening (Python port of the FAST-HIPPOS Fiji macro)"
 readme = "README.md"
 authors = [{ name = "Bram van den Broek", email = "b.vd.broek@nki.nl" }]
@@ -16,6 +16,7 @@ dependencies = [
     "pillow>=10",
     "scikit-learn>=1.5",
     "joblib>=1.4",
+    "readlif>=0.6.6",  # Leica .lif files (images + stage positions)
 ]
 
 [project.scripts]
@@ -29,8 +30,8 @@ fast-hippos = "fast_hippos.gui:main_gui"  # the GUI in the browser, without a co
 # environments via segmentation.cellpose3_python / cellpose4_python, without installing them here.
 cellpose3 = ["cellpose>=3.1,<4"]
 cellpose4 = ["cellpose>=4"]
-# Reading Leica .lif files (images + stage positions).
-lif = ["readlif"]
+# Kept so that older instructions (uv sync --extra lif) still work; readlif is now a normal dependency.
+lif = []
 # Interactive inspection of traces (replacement for Inspect_and_select_traces).
 viewer = ["napari[all]"]
 
@@ -51,6 +52,9 @@ docs = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/fast_hippos/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fast_hippos"]

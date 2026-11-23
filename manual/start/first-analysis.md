@@ -83,7 +83,7 @@ the two components of the fit.</li>
 </figure>
 
 Leave **Cellpose** with the model **cyto3**. The green label shows that FAST-HIPPOS found Cellpose and a GPU. If it
-shows a problem instead, see [Installation → Cellpose](install.md#4-cellpose). The cell diameter **0** means that
+shows a problem instead, see [Installation → Cellpose](install.md#cellpose). The cell diameter **0** means that
 Cellpose estimates it.
 
 ## 4. Stimulation and calibration

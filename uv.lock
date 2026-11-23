@@ -972,7 +972,6 @@ wheels = [
 
 [[package]]
 name = "fast-hippos"
-version = "0.1.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "joblib" },
@@ -983,6 +982,7 @@ dependencies = [
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.14' and extra == 'extra-11-fast-hippos-cellpose3') or (extra == 'extra-11-fast-hippos-cellpose3' and extra == 'extra-11-fast-hippos-cellpose4')" },
     { name = "pandas", version = "3.0.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14' or extra != 'extra-11-fast-hippos-cellpose3' or (extra == 'extra-11-fast-hippos-cellpose3' and extra == 'extra-11-fast-hippos-cellpose4')" },
     { name = "pillow" },
+    { name = "readlif" },
     { name = "scikit-image" },
     { name = "scikit-learn" },
     { name = "scipy" },
@@ -997,9 +997,6 @@ cellpose3 = [
 cellpose4 = [
     { name = "cellpose", version = "4.2.1.1", source = { registry = "https://pypi.org/simple" } },
 ]
-lif = [
-    { name = "readlif" },
-]
 viewer = [
     { name = "napari", extra = ["all"] },
 ]
@@ -1011,6 +1008,7 @@ dev = [
     { name = "ruff" },
 ]
 docs = [
+    { name = "mkdocs" },
     { name = "mkdocs-glightbox" },
     { name = "mkdocs-material" },
     { name = "playwright" },
@@ -1026,7 +1024,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.0" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "pillow", specifier = ">=10" },
-    { name = "readlif", marker = "extra == 'lif'" },
+    { name = "readlif", specifier = ">=0.6.6" },
     { name = "scikit-image", specifier = ">=0.24" },
     { name = "scikit-learn", specifier = ">=1.5" },
     { name = "scipy", specifier = ">=1.13" },
@@ -1041,6 +1039,7 @@ dev = [
     { name = "ruff", specifier = ">=0.6" },
 ]
 docs = [
+    { name = "mkdocs", specifier = ">=1.6,<2" },
     { name = "mkdocs-glightbox", specifier = ">=0.4" },
     { name = "mkdocs-material", specifier = ">=9.5" },
     { name = "playwright", specifier = ">=1.47" },

@@ -33,6 +33,16 @@ screens. Window (GUI) in the browser, HTML dashboards and overviews, `.rgn` file
   point at `<page>#<anchor>` (data-help attributes, `CARD_HELP` in gui.html). `tests/test_help.py` fails when
   help.json is stale or a ? points at a heading that is gone.
 
+## Installer, updates, releases (since 2026-11-23)
+- `installer/` (adapted from Foci-analyzer): `install.py` (one install path for setup, install.sh, window), Inno Setup
+  script, `build-windows.ps1`, `check.py`. `updates.py` = once-a-day GitHub check + "Check for updates" + self-update;
+  `cellpose_envs.py` = search for Cellpose (names only), offered, never used by itself; copies in `<install>/cellpose{3,4}-env`.
+- The version is only in `src/fast_hippos/__init__.py`. Release: bump it, add a `## <version>` section to CHANGELOG.md
+  (shown as the update notes), commit, push a tag `v<version>`; `.github/workflows/build.yml` tests, builds and tries the
+  installers and makes a DRAFT release; publishing it offers it to users.
+- gui.html must not contain the literal bracketed word that marks the installer's progress page title (see the comment
+  in the update code): that page would never hand back to the new version.
+
 ## The user manual (manual/, MkDocs Material, live at https://jalink-lab.github.io/FAST-HIPPOS-Python/)
 - Read `tools/manual/MAINTAINING.md` first. Every change to the window, dashboards or overviews is checked against
   the manual in the same piece of work (the update-manual skill).

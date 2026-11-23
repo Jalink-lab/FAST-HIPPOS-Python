@@ -53,15 +53,12 @@ an experiment (every image is analyzed in a run of its own, in a folder of its o
 
 ## Quick installation
 
-With [uv](https://docs.astral.sh/uv/), in PowerShell (details, and Cellpose, in the
-[manual](https://jalink-lab.github.io/FAST-HIPPOS-Python/start/install/)):
+**Windows:** download `FAST-HIPPOS-Setup-<version>.exe` from the
+[latest release](https://github.com/Jalink-lab/FAST-HIPPOS-Python/releases/latest) and run it.
+**macOS and Linux:** download the source from the same page, unpack it and run `sh install.sh`.
 
-```powershell
-git clone https://github.com/Jalink-lab/FAST-HIPPOS-Python.git
-cd FAST-HIPPOS-Python
-uv sync --extra lif
-uv run fast-hippos-cli shortcut   # a desktop shortcut that opens FAST-HIPPOS
-```
+No Python or administrator rights are needed. FAST-HIPPOS sets up Cellpose in its window and updates itself; see the
+[manual](https://jalink-lab.github.io/FAST-HIPPOS-Python/start/install/).
 
 ## The paper
 
@@ -76,6 +73,8 @@ This is the Python version of the [FAST-HIPPOS Fiji plugin](https://imagej.net/p
 ## Development
 
 ```powershell
+git clone https://github.com/Jalink-lab/FAST-HIPPOS-Python.git
+cd FAST-HIPPOS-Python
 uv sync                 # includes the dev group (pytest, ruff, mini-racer)
 uv run pytest           # Python tests, JavaScript parity and syntax tests, manual checks
 uv run ruff check

@@ -11,12 +11,14 @@ pages in the browser cannot use it.
 
 from __future__ import annotations
 
+import argparse
 import base64
 import json
 import logging
 import mimetypes
 import os
 import secrets
+import shutil
 import subprocess
 import sys
 import threading
@@ -31,7 +33,7 @@ from importlib import resources
 from pathlib import Path
 from typing import get_args, get_origin, get_type_hints
 
-from . import __version__
+from . import __version__, cellpose_envs, updates
 from .config import METRICS, Criterion, Modality, Settings, _from_dict
 
 log = logging.getLogger(__name__)
@@ -1120,6 +1122,11 @@ def file_url(base: str, path: Path) -> str:
 
 def make_handler(token: str, job: Job, ctx: dict | None = None):
     ctx = ctx if ctx is not None else {}
+    updater = updates.Updater(STATE_DIR / "updates.json")
+    cp_setup = cellpose_envs.CellposeSetup(STATE_DIR)
+
+    def cellpose_state() -> dict:
+        return cp_setup.state() | {"here": cellpose_envs.installed_major(), "size_gb": 4.5 if shutil.which("nvidia-smi") else 1.1}
 
     def quit_server() -> None:
         job.stop()
@@ -1174,6 +1181,16 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "open": lambda q: (open_path(q["path"]), {"ok": True})[1],
         "quit": lambda q: (quit_server(), {"ok": True})[1],
         "prefs": lambda q: save_prefs(q),
+        # updates (updates.py): the daily check runs when the page asks and one is due; the button checks at any time
+        "update": lambda q: updater.check_if_due(),
+        "update_check": lambda q: updater.check(),
+        "update_choice": lambda q: updater.choice(q["action"]),
+        "update_start": lambda q: updater.start(ctx["server"].server_address[1], job.state == "running", quit_server),
+        # Cellpose on this computer (cellpose_envs.py): what is installed or found, searching, installing
+        "cellpose_setup": lambda q: cellpose_state(),
+        "cellpose_search": lambda q: (cp_setup.search(bool(q.get("full"))), cellpose_state())[1],
+        "cellpose_search_cancel": lambda q: (cp_setup.cancel_search(), cellpose_state())[1],
+        "cellpose_install": lambda q: (cp_setup.install(int(q["version"])), cellpose_state())[1],
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -1263,7 +1280,7 @@ def _say(msg: str) -> None:
 
 
 def serve(port: int = 0, open_browser: bool = True) -> None:
-    if port == 0 and (url := _running_instance()):
+    if port == 0 and (url := _running_instance() or updates.running_update()):
         _say(f"FAST-HIPPOS is already running at {url}")
         if open_browser:
             webbrowser.open(url)
@@ -1309,8 +1326,13 @@ def main_gui() -> int:
     """Entry point of fast-hippos.exe (no console window): the GUI, with a log file instead of a console."""
     STATE_DIR.mkdir(exist_ok=True)
     logging.basicConfig(filename=STATE_DIR / "gui.log", level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    # after an update the installer restarts the program on the same port: the browser tab that was open reloads itself
+    start = argparse.ArgumentParser(add_help=False)
+    start.add_argument("--port", type=int, default=0)
+    start.add_argument("--after-update", action="store_true")
+    args, _ = start.parse_known_args()
     try:
-        serve(open_browser=not os.environ.get("FAST_HIPPOS_NO_BROWSER"))
+        serve(args.port, open_browser=not os.environ.get("FAST_HIPPOS_NO_BROWSER") and not (args.after_update and args.port))
     except Exception:
         log.exception("The FAST-HIPPOS interface stopped with an error")
         try:

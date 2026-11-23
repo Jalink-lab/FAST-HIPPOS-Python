@@ -4,13 +4,13 @@
 
 ??? question "Nothing happens when I double-click the shortcut"
     FAST-HIPPOS may still be starting (the first start after an installation or update takes longer). If it is
-    already running, the shortcut opens its window in the browser again. Otherwise open PowerShell in the
-    FAST-HIPPOS folder and run `uv run fast-hippos-cli gui`: the console then shows what goes wrong.
+    already running, the shortcut opens its window in the browser again. Otherwise look in `gui.log` in the folder
+    `.fast_hippos` in your user folder: it shows what goes wrong.
 
 ??? question "The window says Cellpose is not available"
-    FAST-HIPPOS looks for Cellpose in its own environment and in the environments set under *Cell segmentation →
-    Advanced settings*. Set the `python.exe` of an environment with the Cellpose version that the model needs:
-    Cellpose 3 for `cyto3` and `nuclei`, Cellpose 4 for `cpsam`. See [Installation](../start/install.md#4-cellpose).
+    Under *Cell segmentation → Cellpose on this computer*, use an installation that was found, install Cellpose with
+    FAST-HIPPOS, or choose the `python.exe` of your own environment. The model decides the version: Cellpose 3 for
+    `cyto3` and `nuclei`, Cellpose 4 for `cpsam`. See [Installation](../start/install.md#cellpose).
 
 ??? question "Cellpose runs on the CPU, not on the GPU"
     The Cellpose environment needs PyTorch with CUDA support. *Use GPU* must also be on (*Cell segmentation →

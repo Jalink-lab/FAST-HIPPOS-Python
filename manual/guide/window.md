@@ -95,6 +95,10 @@ How the cells are found, in a projection of the time-lapse:
 *Cell diameter* 0 lets Cellpose estimate it. Small objects can be removed with *Minimum cell size*; the advanced
 settings also filter on circularity and intensity, and choose which frames are projected.
 
+With Cellpose selected, **Cellpose on this computer** shows Cellpose 3 and 4: where each comes from, or the choice to
+use an installation that was found, install it with FAST-HIPPOS, or choose your own `python.exe`. See
+[Installation → Cellpose](../start/install.md#cellpose).
+
 ### Stimulation and calibration
 
 When the stimulus and the calibration happened. Leave the frames empty and FAST-HIPPOS detects them in the average
@@ -165,6 +169,12 @@ settings, and **Defaults** goes back to the default settings (the images and the
 the Cellpose environments you set, since they belong to the computer rather than to an experiment (unless the loaded
 file names its own). Settings files
 can also be used on the [command line](../reference/command-line.md).
+
+## Updates
+
+**Check for updates**, next to the version at the top of the window, shows whether a newer version is available, what
+is new in it, and installs it. FAST-HIPPOS also checks once a day by itself and then shows a bar at the top. See
+[Installation → Updates](../start/install.md#updates).
 
 ## Quitting
 

@@ -98,10 +98,14 @@ def run_cellpose(img: np.ndarray, settings: SegmentationSettings) -> np.ndarray:
         return masks
 
     python = settings.cellpose4_python if version == 4 else settings.cellpose3_python
+    if python is None:  # the user's own environment comes first, then the copy installed with FAST-HIPPOS
+        from .cellpose_envs import bundled
+
+        python = bundled(version)
     if python is None:
         raise RuntimeError(
-            f"Cellpose {version} is not installed in this environment. Set segmentation.cellpose{version}_python "
-            f"to the python executable of an environment with Cellpose {version}."
+            f"Cellpose {version} is not installed. Install it in the Cell segmentation section of the window, or set "
+            f"segmentation.cellpose{version}_python to the python executable of an environment with Cellpose {version}."
         )
     log.info("Running Cellpose %d via %s (model %s)", version, python, settings.cellpose_model)
     runner = Path(__file__).with_name("_cellpose_runner.py")
