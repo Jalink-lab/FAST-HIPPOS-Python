@@ -42,7 +42,7 @@ def test_toml_round_trip(tmp_path):
     s.screening.baseline_calibration_diff = None  # default is a tuple: written as []
     s.screening.criteria = [Criterion("response_max_diff", ">", 0.6, logic="AND"),
                             Criterion("baseline_mean", "between", 2.0, 2.4)]
-    s.segmentation.cellpose3_python = Path(r"C:\envs\cp3\python.exe")
+    s.segmentation.cellpose3_python = tmp_path / "cp3" / "python.exe"  # absolute on every system
     path = tmp_path / "settings.toml"
     path.write_text(gui.to_toml(s.to_dict()), encoding="utf-8")
     assert Settings.from_toml(path).to_dict() == s.to_dict()
