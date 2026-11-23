@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import Modality, Settings
-from .io import image_info, safe_name
+from .io import NO_SCREENING, has_series, image_info, image_name, safe_name
 
 
 class SettingsError(ValueError):
@@ -23,6 +23,25 @@ class SettingsError(ValueError):
 # image types that read a second channel (the one after input.intensity_channel)
 TWO_CHANNELS = {Modality.TCSPC: "the second lifetime component", Modality.FAST_FLIM: "the lifetime",
                 Modality.TAU_CONTRAST: "the lifetime", Modality.RATIO: "the denominator"}
+
+
+def _no_screening(path: Path, fmt: str) -> str:
+    return (f"{path.name}: screening is only available for Leica data (.lif, or TIFFs and tiles exported from LAS X), "
+            f"not for {NO_SCREENING[fmt]} files. Turn off Screen for hits (Screening).")
+
+
+def screening_problems(settings: Settings) -> list[str]:
+    """For a re-apply, which does not run check_inputs: screening switched on for images that do not support it."""
+    if not settings.screening.enabled:
+        return []
+    out = []
+    for f in settings.input.files:
+        path = Path(f)
+        if path.is_file() and path.suffix.lower() in (".czi", ".tif", ".tiff"):
+            fmt = image_info(path)[0].get("format")
+            if fmt in NO_SCREENING:
+                out.append(_no_screening(path, fmt))
+    return out
 
 
 def check_inputs(settings: Settings, samples: bool = False) -> list[str]:
@@ -49,11 +68,14 @@ def check_inputs(settings: Settings, samples: bool = False) -> list[str]:
         except Exception as e:  # noqa: BLE001 - reported to the user
             problems.append(f"{path.name} cannot be read: {e}")
             continue
-        if path.suffix.lower() == ".lif" and s_in.series:
+        if settings.screening.enabled and infos and infos[0].get("format") in NO_SCREENING:
+            problems.append(_no_screening(path, infos[0]["format"]))
+        n_series = len(infos)
+        if has_series(path) and s_in.series:
             infos = [infos[i] for i in s_in.series if 0 <= i < len(infos)]
         for info in infos:
-            # the image name as the analysis gives it (see io.read_lif), and so the name of its result folder
-            name = f"{path.stem} - {info['name'].replace('/', '-')}" if path.suffix.lower() == ".lif" else info["name"]
+            # the image name as the analysis gives it, and so the name of its result folder
+            name = image_name(path, info, n_series)
             label = path.name if len(infos) == 1 else f"{path.name} ({info['name']})"
             key = safe_name(name).lower()
             if key in folders and not samples:

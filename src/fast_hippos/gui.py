@@ -70,9 +70,9 @@ SCATTER_AXES = {"value_at_frame": "lifetime (or ratio) at the current frame",
 FIELDS: dict[str, dict] = {
     # ---- input
     "input.files": {"label": "Images", "widget": "files",
-        "help": "Time-lapse images: .tif (ImageJ hyperstack) or .lif, or a folder of tiles exported from LAS X "
-        "(stitched by the stage positions of the tiles). Each image, and each series of a .lif file, is analyzed in a "
-        "folder of its own; Run analysis analyzes the ticked ones one after the other."},
+        "help": "Time-lapse images: .tif (ImageJ hyperstack), OME-TIFF, Leica .lif, Zeiss .czi (beta), or a folder of "
+        "tiles exported from LAS X (stitched by the stage positions of the tiles). Each image, and each series or scene "
+        "of a file, is analyzed in a folder of its own; Run analysis analyzes the ticked ones one after the other."},
     "input.output": {"label": "Output folder", "widget": "folder",
         "help": "The folder of one image (one run); the window sets it per image: <experiment folder>/<name>"},
     "input.experiment": {"label": "Experiment folder", "widget": "folder",
@@ -94,7 +94,7 @@ FIELDS: dict[str, dict] = {
     "input.default_frame_interval": {"label": "Frame interval if not in the file (s)"},
     "input.pixel_size": {"label": "Pixel size (µm)", "help": "Overrides the file metadata; empty = from the file"},
     "input.remove_last_frame": {"label": "Remove last frame"},
-    "input.series": {"label": ".lif series (0-based)", "widget": "intlist", "help": "Comma-separated; empty = all"},
+    "input.series": {"label": "Series / scenes (0-based)", "widget": "intlist", "help": "Comma-separated; empty = all"},
     # ---- frequency-domain FLIM
     "fdflim.reference": {"label": "Reference phase stack", "widget": "file"},
     "fdflim.background": {"label": "Background phase stack", "widget": "file"},
@@ -217,8 +217,9 @@ FIELDS: dict[str, dict] = {
 TIPS: dict[str, str] = {
     # ---- images
     "input.files": "The time-lapse images to analyze. Each image is analyzed in a folder of its own: a .tif, a folder of tiles "
-        "exported from LAS X (stitched into one image), or each series of a .lif file (untick the series to leave out). "
-        "All are analyzed with the same settings, each in a run of its own, with its own hits and .rgn files.",
+        "exported from LAS X (stitched into one image), or each series or scene of a .lif, .czi or OME-TIFF file (untick "
+        "the ones to leave out). All are analyzed with the same settings, each in a run of its own. Screening, with its "
+        "hits and .rgn files, is available for Leica data only.",
     "input.output": "The folder of one image (one run): tables, plots, dashboards and .rgn files. The window sets "
         "it per image (<experiment folder>/<name>); a new run replaces the results in it.",
     "input.experiment": "The folder that holds one folder per sample, and the overview of all samples (index.html), "
@@ -244,8 +245,8 @@ TIPS: dict[str, str] = {
         "or a wrong calibration. Affects cell sizes and the stage positions of the hits.",
     "input.remove_last_frame": "Leave out the last frame of every image, e.g. when it is incomplete because the "
         "acquisition was stopped during that frame.",
-    "input.series": "Which images (series) of a .lif file to analyze, counted from 0, e.g. '0, 2, 5'. Empty = all "
-        "series. Ignored for .tif files and tile folders.",
+    "input.series": "Which images (series or scenes) of a .lif, .czi or OME-TIFF file to analyze, counted from 0, e.g. "
+        "'0, 2, 5'. Empty = all. Ignored for other .tif files and tile folders.",
     # ---- frequency-domain FLIM
     "fdflim.reference": "Phase stack of a dye with a known lifetime, recorded with the same settings. Used to "
         "calibrate the phase and modulation of the instrument.",
@@ -363,7 +364,8 @@ TIPS: dict[str, str] = {
     "events.margin": "Frames left out just before each transition (end of the baseline and end of the response), "
         "because the change may already start there.",
     # ---- screening
-    "screening.enabled": "Select hit cells with the criteria and write their stage positions to .rgn files for "
+    "screening.enabled": "Leica data only (.lif, or TIFFs and tiles exported from LAS X). "
+        "Select hit cells with the criteria and write their stage positions to .rgn files for "
         "LAS X, to revisit them on the microscope.",
     "screening.criteria": "Conditions that a cell must meet to be a hit, e.g. response_max_diff > 0.3. AND: must "
         "pass. OR: at least one of the OR criteria must pass. Hover over a metric for its meaning; thresholds can be "
@@ -679,14 +681,14 @@ def inspect_file(path: Path) -> dict:
     if path.is_file():
         out["size_mb"] = round(path.stat().st_size / 1e6, 1)
     try:
-        from .io import image_info
+        from .io import has_series, image_info
 
         infos = image_info(path)
-        first = {k: v for k, v in infos[0].items() if k != "name"}
+        first ={k: v for k, v in infos[0].items() if k != "name"}
         out |= first
         if len(infos) > 1:
             out |= {"series": len(infos), "channels": min(i["channels"] for i in infos), "frames": min(i["frames"] for i in infos)}
-        if path.suffix.lower() == ".lif":  # every series becomes a sample of its own
+        if has_series(path):  # every series or scene becomes a sample of its own
             out["series_names"] = [i.get("name") or f"series {k}" for k, i in enumerate(infos)]
     except Exception as e:  # noqa: BLE001 - shown to the user
         out["error"] = f"{type(e).__name__}: {e}"
@@ -856,7 +858,7 @@ print(json.dumps(r))
 """
 
 FILETYPES = {
-    "files": [["Images", "*.tif *.tiff *.lif"], ["All files", "*.*"]],
+    "files": [["Images", "*.tif *.tiff *.lif *.czi"], ["All files", "*.*"]],
     "file": [["All files", "*.*"]],
     "positions": [["Stage positions: .lif file or text file", "*.lif *.txt *.tsv *.csv"], ["All files", "*.*"]],
     "python": [["Python", "python.exe python"], ["All files", "*.*"]],

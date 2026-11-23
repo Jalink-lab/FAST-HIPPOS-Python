@@ -76,6 +76,11 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
     info = run_info(out) if reapply else None
     if reapply and not info:
         raise ValueError(f"No analysis results in {out}: run the analysis first")
+    if reapply:
+        from .checks import SettingsError, screening_problems
+
+        if problems := screening_problems(settings):
+            raise SettingsError(problems)
     if not reapply:  # stop now, not after minutes of work, if the settings do not fit the images
         from .checks import SettingsError, check_inputs
 
@@ -193,24 +198,24 @@ def sample_name(path: str | Path, series_name: str | None = None, n_series: int 
     """The folder name of a sample: the name of its image file or tile folder; for a .lif with several series also
     the name of the series (the window names its rows the same way)."""
     p = Path(path)
-    base = p.name if p.is_dir() else re.sub(r"\.(ome\.)?(tiff?|lif)$", "", p.name, flags=re.IGNORECASE)
+    base = p.name if p.is_dir() else re.sub(r"\.(ome\.)?(tiff?|lif|czi)$", "", p.name, flags=re.IGNORECASE)
     name = f"{base} - {series_name}" if series_name and n_series > 1 else base
     name = re.sub(r'[\\/:*?"<>|]', "_", name).strip()
     return re.sub(r"^[_.\s]+|[.\s]+$", "", name) or "sample"  # not skipped like _folders, not . or ..
 
 
 def sample_list(settings: Settings) -> list[dict]:
-    """One sample per image of the settings: a .tif, a folder of tiles, or one series of a .lif (input.series chooses
-    series). Names repeated within the list get a number."""
-    from .io import image_info
+    """One sample per image of the settings: a .tif, a folder of tiles, or one series of a .lif, .czi or .ome.tif
+    (input.series chooses series). Names repeated within the list get a number."""
+    from .io import has_series, image_info
 
     samples, taken = [], set()
     for f in settings.input.files:
         p = Path(f)
-        infos = image_info(p) if p.suffix.lower() == ".lif" else [{"name": None}]
+        multi = has_series(p)
+        infos = image_info(p) if multi else [{"name": None}]
         for i, info in enumerate(infos):
-            lif = p.suffix.lower() == ".lif"
-            if lif and settings.input.series and i not in settings.input.series:
+            if multi and settings.input.series and i not in settings.input.series:
                 continue
             name = base = sample_name(p, info.get("name") or f"series {i}", len(infos))  # (as the window)
             for k in range(2, 1000):
@@ -218,7 +223,7 @@ def sample_list(settings: Settings) -> list[dict]:
                     break
                 name = f"{base} {k}"
             taken.add(name.lower())
-            samples.append({"file": str(p), "series": i if lif else None, "name": name, "label": settings.input.sample_label})
+            samples.append({"file": str(p), "series": i if multi else None, "name": name, "label": settings.input.sample_label})
     return samples
 
 

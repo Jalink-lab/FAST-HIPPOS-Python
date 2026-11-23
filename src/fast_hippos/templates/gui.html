@@ -513,7 +513,7 @@ function widget(f) {
       const files = v || [];
       return `<div class="files">${files.map((p, i) => `<div class="file"><span class="name" title="${esc(p)}">${esc(p.split(/[\\/]/).pop())}</span>
           <span class="meta">${fileMeta(INFO[p])}</span><button class="small" data-remove="${i}" title="Remove">✕</button></div>`).join("")}
-        <div class="row"><button data-browse="${f.key}" data-kind="files" title="Add .tif or .lif files to the list (several at once is possible)">Add images…</button><button data-browse="${f.key}" data-kind="tiles" title="A folder with one TIFF per tile, exported from LAS X: stitched by the stage positions of the tiles">Add tile folder…</button>${files.length ? `<button class="link" data-clearfiles title="Remove all images from the list">clear</button>` : `<span class="muted">no images selected</span>`}</div>${samplesHTML()}</div>`;
+        <div class="row"><button data-browse="${f.key}" data-kind="files" title="Add .tif, OME-TIFF, .lif or .czi files to the list (several at once is possible)">Add images…</button><button data-browse="${f.key}" data-kind="tiles" title="A folder with one TIFF per tile, exported from LAS X: stitched by the stage positions of the tiles">Add tile folder…</button>${files.length ? `<button class="link" data-clearfiles title="Remove all images from the list">clear</button>` : `<span class="muted">no images selected</span>`}</div>${samplesHTML()}</div>`;
     }
     case "criteria": {
       const crit = v || [], metrics = Object.keys(SCHEMA.metrics);
@@ -551,6 +551,7 @@ function fieldHTMLRaw(f) {
 // context-dependent hints, derived from the selected images
 function hintFor(f) {
   const ff = fileFacts();
+  if (f.key === "screening.enabled" && ff.files.some(x => ["czi", "ome-tiff"].includes(x.format))) return `<span style="color:var(--warn)">Leica data only: not available for the .czi or OME-TIFF images in the list</span>`;
   if (f.key === "screening.stage_positions_file" && ff.positions) return "<b>the selected images carry their stage positions</b>";
   if (f.key === "input.modality" && ff.files.length && ["tcspc", "ratio"].includes(get(f.key)) && ff.channels < 2) return `<span style="color:var(--warn)">needs 2 channels, the images have ${ff.channels}</span>`;
   if (f.key === "input.default_frame_interval" && ff.files.length && !ff.interval) return `<span style="color:var(--warn)">used: not all images have a frame interval</span>`;
@@ -990,7 +991,8 @@ const saveRows = () => { try { sessionStorage.setItem("fh-rows", JSON.stringify(
 const clearRows = () => { for (const m of [ROWS, USE, PICK]) for (const k in m) delete m[k]; saveRows(); };
 // a folder name of an image (not skipped like _folders, not . or ..): as pipeline.sample_name
 const safeName = (s) => String(s || "").replace(/[\\/:*?"<>|]/g, "_").trim().replace(/^[_.\s]+|[.\s]+$/g, "");
-const fileBase = (file) => /[\\/]$/.test(file) || !/\.[a-z]+$/i.test(baseName(file)) ? baseName(file) : baseName(file).replace(/\.(ome\.)?(tiff?|lif)$/i, "");
+const fileBase = (file) => /[\\/]$/.test(file) || !/\.[a-z]+$/i.test(baseName(file)) ? baseName(file) : baseName(file).replace(/\.(ome\.)?(tiff?|lif|czi)$/i, "");
+const hasSeries = (file) => /\.(lif|czi|ome\.tiff?)$/i.test(file);  // as io.has_series
 const autoName = (file, seriesName, n) => safeName(seriesName && n > 1 ? `${fileBase(file)} - ${seriesName}` : fileBase(file)) || "image";
 const sameName = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
 const inExperiment = (p) => !!p && (!S.input.experiment || samePath(parentPath(p), S.input.experiment));
@@ -999,7 +1001,7 @@ function sampleRows(all = false) {  // the ticked rows (all: every row, with its
   if (!S) return [];
   const rows = [], taken = new Set(), done = analyzed();
   for (const f of S.input.files || []) {
-    const lif = /\.lif$/i.test(f), names = (lif && INFO[f] && INFO[f].series_names) || [null];
+    const lif = hasSeries(f), names = (lif && INFO[f] && INFO[f].series_names) || [null];
     names.forEach((sn, i) => {
       if (lif && f in PICK ? PICK[f] !== i : lif && S.input.series && S.input.series.length && !S.input.series.includes(i)) return;
       const key = f + "|" + (lif ? i : ""), own = ROWS[key] || {};
@@ -1029,7 +1031,7 @@ function samplesHTML() {
 function pruneOwnSettings() {
   if (!S || !S.image || !Object.keys(S.image).length) return;
   const files = S.input.files || [];
-  if (files.some(f => /\.lif$/i.test(f) && !(INFO[f] && INFO[f].series_names))) return;  // series names not read yet
+  if (files.some(f => hasSeries(f) && !(INFO[f] && (INFO[f].series_names || INFO[f].error || INFO[f].exists === false)))) return;  // series names not read yet
   const o = outputState(); if (S.input.output && o === null) return;  // the current image is being read
   const keep = new Set(runImages(o).map(i => i.name.toLowerCase()));
   for (const r of sampleRows(true)) {

@@ -64,8 +64,9 @@ experiment of one image.
 - **Experiment folder**: always needed. The folder that holds one folder per image, and the overview of all
   images. Adding images without one proposes a folder *FAST-HIPPOS* next to the images. See
   [A screen of many images](screen.md).
-- **Add images…**: time-lapse `.tif` files (ImageJ hyperstacks) or Leica `.lif` files. Every series of a `.lif` file
-  is an image of its own, with a tick box in its row: untick the series you want to leave out.
+- **Add images…**: time-lapse `.tif` files (ImageJ hyperstacks), OME-TIFF, Leica `.lif` or Zeiss `.czi` files (see
+  [Image formats](formats.md)). Every series or scene of a file is an image of its own, with a tick box in its row:
+  untick the ones you want to leave out.
 - **Add tile folder…**: a folder of tiles exported from LAS X, which FAST-HIPPOS stitches by their stage positions into
   one image; see [Back to the microscope](microscope.md#tile-scans).
 - Every image shows what was read from it: size, frames, channels, pixel size, frame interval, and whether it holds

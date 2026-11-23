@@ -195,11 +195,10 @@ def positions_from_xml(path: Path, n: int) -> tuple[np.ndarray, float | None, st
 
 def _lif_header(path: Path) -> ET.Element:
     """The XML header of a .lif file (no pixel data is read)."""
-    try:
-        from readlif.reader import LifFile
-    except ImportError as err:
-        raise ImportError("Reading .lif files requires 'readlif': uv sync --extra lif") from err
-    return LifFile(str(path)).xml_root
+    from liffile import LifFile
+
+    with LifFile(path) as lif:
+        return ET.fromstring(lif.xml_header())
 
 
 def positions_from_lif(path: Path, n: int) -> tuple[np.ndarray, float | None, str]:
@@ -209,8 +208,8 @@ def positions_from_lif(path: Path, n: int) -> tuple[np.ndarray, float | None, st
 
 
 def lif_images(path: Path) -> dict[str, _TileScan]:
-    """Stage positions and pixel size of every image in a .lif file with a position, by its full name as readlif
-    gives it (image.path + last part of image.name)."""
+    """Stage positions and pixel size of every image in a .lif file with a position, by its full name
+    ('project/folder/image', see io._lif_full_name)."""
     return {s.name: s for s in _tile_scans(_lif_header(path))}
 
 

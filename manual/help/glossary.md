@@ -41,8 +41,8 @@ Overview
     the window). Every image folder also holds one of its own.
 
 Image
-:   What you analyze: a `.tif`, a stitched tile folder or one series of a `.lif`. Every image is analyzed in a run of
-    its own, with its own hit list and `.rgn` files, in its own folder inside the experiment folder. It can carry a
+:   What you analyze: a `.tif`, a stitched tile folder, or one series or scene of a `.lif`, `.czi` or OME-TIFF file.
+    Every image is analyzed in a run of its own, in its own folder inside the experiment folder. It can carry a
     label, e.g. its condition.
 
 Quality gate

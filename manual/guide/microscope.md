@@ -38,6 +38,9 @@ save `.rgn` files of the current hits, or of a hand-picked selection.
 
 ## Where the stage positions come from
 
+Screening and `.rgn` files are for Leica data; other formats are analyzed without hits (see
+[Image formats](formats.md#screening-is-for-leica-data)).
+
 To compute the stage position of a cell, FAST-HIPPOS needs the stage position of its image, and the pixel size.
 Usually these are read from the images:
 

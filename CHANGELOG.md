@@ -13,4 +13,7 @@ First release with an installer.
 - **Cellpose setup.** The *Cell segmentation* section shows Cellpose 3 and 4 on this computer. FAST-HIPPOS looks for
   existing installations and asks whether to use one, or to install Cellpose with FAST-HIPPOS. You can also choose your
   own `python.exe`, or search all drives.
-- `.lif` support is now part of every installation.
+- **More image formats.** OME-TIFF and Zeiss `.czi` (beta, not yet tested on real Zeiss time-lapses), with one row per
+  series or scene. Screening stays available for Leica data only.
+- `.lif` files are now read with `liffile`, which replaces the deprecated `readlif` and also opens files that `readlif`
+  could not read. `.lif` support is part of every installation.

@@ -60,6 +60,9 @@ an experiment (every image is analyzed in a run of its own, in a folder of its o
 No Python or administrator rights are needed. FAST-HIPPOS sets up Cellpose in its window and updates itself; see the
 [manual](https://jalink-lab.github.io/FAST-HIPPOS-Python/start/install/).
 
+It reads Leica `.lif`, TIFF, OME-TIFF and Zeiss `.czi` (beta). Screening is for Leica data; see
+[Image formats](https://jalink-lab.github.io/FAST-HIPPOS-Python/guide/formats/).
+
 ## The paper
 
 FAST-HIPPOS (in its Fiji version) and the screening method it serves are described in: Mukherjee S, van Tooren M,

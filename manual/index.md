@@ -199,6 +199,8 @@ respond (orange); the few that don't are the hits (pink).</figcaption>
 
 -   :material-tune:{ .lg } **[Look up a setting](reference/settings.md)**: all settings, with a filter.
 
+-   :material-file-image:{ .lg } **[Image formats](guide/formats.md)**: Leica LIF, TIFF, OME-TIFF and Zeiss CZI (beta).
+
 </div>
 
 !!! note "Beta"

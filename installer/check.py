@@ -33,7 +33,7 @@ def cells_image() -> np.ndarray:
 
 
 def main() -> int:
-    from readlif.reader import LifFile  # noqa: F401 - .lif support is part of every installation
+    import liffile  # noqa: F401 - .lif support is part of every installation
 
     print(f"FAST-HIPPOS {fast_hippos.__version__}: program and .lif support ok; window page {len(gui.schema()['sections'])} sections")
     runner = Path(fast_hippos.__file__).with_name("_cellpose_runner.py")

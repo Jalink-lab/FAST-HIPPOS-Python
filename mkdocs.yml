@@ -46,6 +46,7 @@ nav:
       - Try it in your browser: start/demo.md
   - User guide:
       - The FAST-HIPPOS window: guide/window.md
+      - Image formats: guide/formats.md
       - The dashboard: guide/dashboard.md
       - Choosing the hits: guide/choosing-hits.md
       - Settings for single images: guide/own-settings.md

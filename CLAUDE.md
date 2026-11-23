@@ -43,6 +43,13 @@ screens. Window (GUI) in the browser, HTML dashboards and overviews, `.rgn` file
 - gui.html must not contain the literal bracketed word that marks the installer's progress page title (see the comment
   in the update code): that page would never hand back to the new version.
 
+## Image formats (since 2026-11-23)
+- `io.py` dispatches on the file: TIFF, OME-TIFF (`_ome_metadata`), `.lif` (liffile), `.czi` (`czi.py`, pylibCZIrw, beta:
+  not yet tested on a real Zeiss file). A new format: a reader returning `ImageData`, an `image_info` branch with
+  `format`, `has_series` (+ `hasSeries` in gui.html), `IMAGE_SUFFIXES`/the file dialog, `manual/guide/formats.md`.
+- Screening is for Leica data only (`io.NO_SCREENING`, enforced in `checks.py`, also for re-apply).
+- The numpy override in pyproject.toml exists because Cellpose 3 declares numpy<2.1; raise it only after comparing masks.
+
 ## The user manual (manual/, MkDocs Material, live at https://jalink-lab.github.io/FAST-HIPPOS-Python/)
 - Read `tools/manual/MAINTAINING.md` first. Every change to the window, dashboards or overviews is checked against
   the manual in the same piece of work (the update-manual skill).

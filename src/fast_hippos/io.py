@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,6 +14,11 @@ import tifffile
 log = logging.getLogger(__name__)
 
 _UNIT_TO_UM = {"micron": 1.0, "um": 1.0, "µm": 1.0, "\\u00B5m": 1.0, "mm": 1e3, "cm": 1e4, "m": 1e6, "nm": 1e-3}
+_UNIT_TO_S = {"s": 1.0, "sec": 1.0, "ms": 1e-3, "us": 1e-6, "µs": 1e-6, "ns": 1e-9, "min": 60.0, "h": 3600.0}
+
+IMAGE_SUFFIXES = (".tif", ".tiff", ".lif", ".czi")  # what the file dialog offers; a new format also goes in FORMATS below
+# Screening writes hits as Leica .rgn files, from Leica stage coordinates: not for files from elsewhere
+NO_SCREENING = {"czi": "Zeiss .czi", "ome-tiff": "OME-TIFF"}
 
 
 @dataclass
@@ -58,14 +64,78 @@ def iter_images(path: Path, series: list[int] | None = None, bidirectional: str 
 
         yield stitch_folder(path, bidirectional=bidirectional, channels=channels)
     elif suffix in (".tif", ".tiff"):
-        yield read_tiff(path)
+        with tifffile.TiffFile(path) as tif:
+            n = len(tif.series) if tif.is_ome else 1
+        for i in ([k for k in series if 0 <= k < n] if series and n > 1 else range(n)):
+            yield read_tiff(path, i)
     elif suffix == ".lif":
         yield from read_lif(path, series, bidirectional, channels)
+    elif suffix == ".czi":
+        from .czi import read_czi
+
+        yield from read_czi(path, series)
     elif suffix == ".npy":
         arr = np.load(path)
         yield ImageData(_to_tcyx(arr, "TCYX"[-arr.ndim :]), path.stem, path)
     else:
-        raise ValueError(f"Unsupported file type: {path} (supported: .tif, .lif, .npy)")
+        raise ValueError(f"Unsupported file type: {path} (supported: .tif, .ome.tif, .lif, .czi, .npy)")
+
+
+def has_series(path: str | Path) -> bool:
+    """Whether a file can hold several images, each analyzed on its own (.lif, .czi, .ome.tif)."""
+    name = Path(path).name.lower()
+    return name.endswith((".lif", ".czi", ".ome.tif", ".ome.tiff"))
+
+
+def image_name(path: Path, info: dict, n_series: int) -> str:
+    """The name the analysis gives an image of image_info, and so the name of its result folder."""
+    if path.suffix.lower() == ".lif" or (n_series > 1 and has_series(path)):
+        return f"{path.stem} - {info['name'].replace('/', '-')}"
+    return info["name"]
+
+
+def _ome_metadata(tif: tifffile.TiffFile, series: int) -> dict:
+    """Name, pixel size (µm) and frame interval (s) of a series, from the OME-XML (empty where it gives none)."""
+    out: dict = {}
+    try:
+        root = ET.fromstring(tif.ome_metadata)
+        image = root.findall("{*}Image")[series]
+        pixels = image.find("{*}Pixels")
+    except (ET.ParseError, TypeError, IndexError):
+        return out
+    if image.get("Name"):
+        out["name"] = image.get("Name")
+    if pixels is None:
+        return out
+    size, unit = pixels.get("PhysicalSizeX"), pixels.get("PhysicalSizeXUnit", "µm")
+    if size and unit in _UNIT_TO_UM and float(size) > 0:
+        out["pixel_size"] = float(size) * _UNIT_TO_UM[unit]
+    step, unit = pixels.get("TimeIncrement"), pixels.get("TimeIncrementUnit", "s")
+    if step and unit in _UNIT_TO_S and float(step) > 0:
+        out["frame_interval"] = float(step) * _UNIT_TO_S[unit]
+    else:  # from the time of the planes of the first channel and slice
+        times = sorted((int(p.get("TheT", 0)), float(p.get("DeltaT")) * _UNIT_TO_S.get(p.get("DeltaTUnit", "s"), 1.0))
+                       for p in pixels.findall("{*}Plane")
+                       if p.get("DeltaT") and p.get("TheC", "0") == "0" and p.get("TheZ", "0") == "0")
+        if len(times) > 1 and times[-1][0] > times[0][0] and times[-1][1] > times[0][1]:
+            out["frame_interval"] = (times[-1][1] - times[0][1]) / (times[-1][0] - times[0][0])
+    return out
+
+
+def _ome_infos(path: Path, tif: tifffile.TiffFile) -> list[dict]:
+    out = []
+    for i, s in enumerate(tif.series):
+        t, c, h, w = _tcyx_shape(s.shape, s.axes)
+        meta = _ome_metadata(tif, i)
+        name = (meta.get("name") or f"series {i}") if len(tif.series) > 1 else path.stem
+        info = {"name": name, "frames": t, "channels": c, "width": w, "height": h, "dtype": str(s.dtype),
+                "format": "ome-tiff", "stitched": False}
+        if "pixel_size" in meta:
+            info["pixel_size"] = round(meta["pixel_size"], 4)
+        if "frame_interval" in meta:
+            info["frame_interval"] = meta["frame_interval"]
+        out.append(info)
+    return out
 
 
 def image_info(path: Path, lif: Path | None = None) -> list[dict]:
@@ -80,11 +150,14 @@ def image_info(path: Path, lif: Path | None = None) -> list[dict]:
         return [stitched_info(path, lif)]
     if suffix in (".tif", ".tiff"):
         with tifffile.TiffFile(path) as tif:
+            if tif.is_ome:
+                return _ome_infos(path, tif)
             s = tif.series[0]
             ij = tif.imagej_metadata or {}
             t, c, h, w = _tcyx_shape(s.shape, s.axes)
             info = {"name": path.stem, "frames": t, "channels": c, "width": w, "height": h, "dtype": str(s.dtype),
-                    "frame_interval": ij.get("finterval"), "stitched": "Stitched image" in (ij.get("Info") or "")}
+                    "format": "tiff", "frame_interval": ij.get("finterval"),
+                    "stitched": "Stitched image" in (ij.get("Info") or "")}
             tag = tif.pages[0].tags.get("XResolution")
             if tag and tag.value[0] and str(ij.get("unit", "")) in (*_UNIT_TO_UM, "pixel"):  # as read_tiff
                 info["pixel_size"] = round(tag.value[1] / tag.value[0], 4)
@@ -97,31 +170,36 @@ def image_info(path: Path, lif: Path | None = None) -> list[dict]:
                 info["pixel_size"] = round(pixel_size, 4)
         return [info]
     if suffix == ".lif":
-        from readlif.reader import LifFile
+        from liffile import LifFile
 
         from .stitch import TileLayout, lif_images
 
         scans = lif_images(path)
         out = []
-        for img in LifFile(str(path)).get_iter_image():
-            dims = img.dims
-            info = {"name": img.name, "frames": max(dims.t, dims.z, 1), "channels": img.channels,
-                    "width": dims.x, "height": dims.y}
-            scan = scans.get(_lif_full_name(img))
-            if scan is not None:
-                info["positions"] = True
-                if scan.pixel_size:
-                    info["pixel_size"] = round(scan.pixel_size, 4)
-                if dims.m > 1 and len(scan.positions) == dims.m and scan.pixel_size:
-                    h, w = TileLayout([""] * dims.m, scan.positions, (dims.x, dims.y), scan.pixel_size).shape
-                    info |= {"width": w, "height": h, "tiles": dims.m, "stitched": True}
-            out.append(info)
+        with LifFile(path) as doc:
+            for img in _lif_series(doc):
+                d = _lif_dims(img)
+                info = {"name": img.path, "frames": max(d["t"], d["z"], 1), "channels": d["c"],
+                        "width": d["x"], "height": d["y"], "format": "lif"}
+                scan = scans.get(_lif_full_name(doc, img))
+                if scan is not None:
+                    info["positions"] = True
+                    if scan.pixel_size:
+                        info["pixel_size"] = round(scan.pixel_size, 4)
+                    if d["m"] > 1 and len(scan.positions) == d["m"] and scan.pixel_size:
+                        h, w = TileLayout([""] * d["m"], scan.positions, (d["x"], d["y"]), scan.pixel_size).shape
+                        info |= {"width": w, "height": h, "tiles": d["m"], "stitched": True}
+                out.append(info)
         return out
+    if suffix == ".czi":
+        from .czi import czi_info
+
+        return czi_info(path)
     if suffix == ".npy":
         arr = np.load(path, mmap_mode="r")
         t, c, h, w = _tcyx_shape(arr.shape, "TCYX"[-arr.ndim :])
         return [{"name": path.stem, "frames": t, "channels": c, "width": w, "height": h}]
-    raise ValueError(f"Unsupported file type: {path.name} (supported: .tif, .lif, .npy)")
+    raise ValueError(f"Unsupported file type: {path.name} (supported: .tif, .ome.tif, .lif, .czi, .npy)")
 
 
 def _tcyx_shape(shape: tuple, axes: str) -> tuple[int, int, int, int]:
@@ -132,8 +210,15 @@ def _tcyx_shape(shape: tuple, axes: str) -> tuple[int, int, int, int]:
     return frames, dims.get("C", 1), dims["Y"], dims["X"]
 
 
-def read_tiff(path: Path) -> ImageData:
+def read_tiff(path: Path, series_index: int = 0) -> ImageData:
+    """A TIFF as (T, C, Y, X). An OME-TIFF can hold several images (series_index) and has its calibration in its XML."""
     with tifffile.TiffFile(path) as tif:
+        if tif.is_ome:
+            n = len(tif.series)
+            s, meta = tif.series[series_index], _ome_metadata(tif, series_index)
+            name = f"{path.stem} - {(meta.get('name') or f'series {series_index}').replace('/', '-')}" if n > 1 else path.stem
+            return ImageData(_to_tcyx(s.asarray(), s.axes), name, path, meta.get("pixel_size"), meta.get("frame_interval"),
+                             extra={"series": series_index})
         series = tif.series[0]
         axes = series.axes
         arr = series.asarray()
@@ -189,49 +274,76 @@ def read_lif(path: Path, series: list[int] | None = None, bidirectional: str | N
              channels: list[int] | None = None) -> Iterator[ImageData]:
     """The images (series) of a .lif file, with their own stage position and pixel size from the header. A tile scan
     is stitched by the positions of its tiles."""
-    try:
-        from readlif.reader import LifFile
-    except ImportError as err:
-        raise ImportError("Reading .lif files requires 'readlif': uv sync --extra lif") from err
+    from liffile import LifFile
+
     from .stitch import TileLayout, lif_images, stitch_tiles
 
-    lif = LifFile(str(path))
     scans = lif_images(path)
-    indices = series if series is not None else range(lif.num_images)
-    for i in indices:
-        img = lif.get_image(i)
-        nt, nz, nm = img.dims.t, img.dims.z, max(img.dims.m, 1)
-        if nz > 1 and nt > 1:
-            raise ValueError(f"{path.name} series {i}: z-stacks with time frames are not supported")
-        scan = scans.get(_lif_full_name(img))
-        # readlif's scale is (N - 1) / Length; Length / N from the header matches the stage steps (see stitch.py)
-        pixel_size = scan.pixel_size if scan and scan.pixel_size else (1.0 / img.scale[0] if img.scale and img.scale[0] else None)
-        frame_interval = None
-        if nt > 1 and len(img.scale) > 3 and img.scale[3]:
-            frame_interval = 1.0 / img.scale[3]
-        name = f"{path.stem} - {img.name.replace('/', '-')}"
-        if nm > 1:
-            if scan is None or len(scan.positions) != nm or not pixel_size:
-                raise ValueError(f"{path.name} series {i} ('{img.name}'): tile scan of {nm} tiles without their positions")
-            layout = TileLayout([f"tile {m}" for m in range(nm)], scan.positions, (img.dims.x, img.dims.y), pixel_size,
-                                f"{path.name} ({scan.flags})")
-            data, info = stitch_tiles([_lif_tile(img, m) for m in range(nm)], layout, bidirectional, channels, name)
-            yield ImageData(data, name, path, pixel_size, frame_interval, info, extra={"series": i, "tiles": nm})
-        else:
-            stage = tuple(float(v) for v in scan.positions[0]) if scan is not None else None
-            yield ImageData(_lif_tile(img, 0), name, path, pixel_size, frame_interval, stage_position=stage, extra={"series": i})
+    with LifFile(path) as lif:
+        images = _lif_series(lif)
+        for i in (series if series is not None else range(len(images))):
+            img = images[i]
+            d = _lif_dims(img)
+            nt, nz, nm = d["t"], d["z"], d["m"]
+            if nz > 1 and nt > 1:
+                raise ValueError(f"{path.name} series {i}: z-stacks with time frames are not supported")
+            scan = scans.get(_lif_full_name(lif, img))
+            # Length / N from the header matches the stage steps (see stitch.py); the step of the coordinates is
+            # Length / (N - 1), only used when the header gives no pixel size
+            pixel_size = scan.pixel_size if scan and scan.pixel_size else _lif_step(img, "X", 1e6)
+            frame_interval = _lif_step(img, "T") if nt > 1 else None
+            name = f"{path.stem} - {img.path.replace('/', '-')}"
+            if nm > 1:
+                if scan is None or len(scan.positions) != nm or not pixel_size:
+                    raise ValueError(f"{path.name} series {i} ('{img.path}'): tile scan of {nm} tiles without their positions")
+                layout = TileLayout([f"tile {m}" for m in range(nm)], scan.positions, (d["x"], d["y"]), pixel_size,
+                                    f"{path.name} ({scan.flags})")
+                data, info = stitch_tiles([_lif_tile(img, m) for m in range(nm)], layout, bidirectional, channels, name)
+                yield ImageData(data, name, path, pixel_size, frame_interval, info, extra={"series": i, "tiles": nm})
+            else:
+                stage = tuple(float(v) for v in scan.positions[0]) if scan is not None else None
+                yield ImageData(_lif_tile(img, 0), name, path, pixel_size, frame_interval, stage_position=stage, extra={"series": i})
+
+
+def _lif_series(lif) -> list:
+    """The images of a .lif file that FAST-HIPPOS can read, in file order (the series numbers in settings and runs)."""
+    return [img for img in lif.images if not img.is_flim]
+
+
+def _lif_dims(img) -> dict[str, int]:
+    """Sizes of a liffile image; a dimension that is not there counts as 1. RGB samples count as channels."""
+    s = img.sizes
+    return {"x": s.get("X", 1), "y": s.get("Y", 1), "t": s.get("T", 1), "z": s.get("Z", 1), "m": s.get("M", 1),
+            "c": s.get("C", s.get("S", 1))}
+
+
+def _lif_step(img, dim: str, scale: float = 1.0) -> float | None:
+    """Spacing of a dimension from its coordinates (metres for X, seconds for T), times scale."""
+    values = img.coords.get(dim)
+    if values is None or len(values) < 2:
+        return None
+    step = abs(float(values[-1]) - float(values[0])) / (len(values) - 1)
+    return step * scale if step > 0 else None
 
 
 def _lif_tile(img, m: int) -> np.ndarray:
-    """Tile m of a readlif image as (T, C, Y, X); z-slices count as frames."""
-    nt, nz = img.dims.t, img.dims.z
-    return np.stack([np.stack([np.asarray(img.get_frame(z=t if nz > 1 else 0, t=t if nt > 1 else 0, c=c, m=m))
-                               for c in range(img.channels)]) for t in range(max(nt, nz))])
+    """Tile m of a liffile image as (T, C, Y, X); z-slices count as frames."""
+    d, sizes = _lif_dims(img), img.sizes
+    if "X" not in sizes or "Y" not in sizes:  # e.g. a line scan: keeps its series number, but is no image to analyze
+        raise ValueError(f"Series '{img.path}' is not an XY image (dimensions {', '.join(sizes)})")
+    axis = "T" if d["t"] > 1 else "Z"
+
+    def plane(t: int, c: int) -> np.ndarray:
+        at = {k: v for k, v in ((axis, t), ("M", m), ("C", c)) if k in sizes}
+        frame = img.frame(**at)
+        return np.asarray(frame[..., c] if "S" in sizes else frame)
+
+    return np.stack([np.stack([plane(t, c) for c in range(d["c"])]) for t in range(max(d["t"], d["z"]))])
 
 
-def _lif_full_name(img) -> str:
-    """Full name of a readlif image as stitch.lif_images keys it ('project/folder/image')."""
-    return img.path + img.name.rsplit("/", 1)[-1]
+def _lif_full_name(lif, img) -> str:
+    """Full name of an image as stitch.lif_images keys it ('project/folder/image')."""
+    return f"{lif.name}/{img.path}"
 
 
 def lif_stage_positions(path: Path, n: int | None = None) -> np.ndarray:

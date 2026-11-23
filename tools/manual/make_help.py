@@ -23,7 +23,7 @@ SITE = "https://jalink-lab.github.io/FAST-HIPPOS-Python/"
 
 # the pages in the help, in the order of the manual's contents (mkdocs.yml)
 PAGES = {
-    "User guide": ["guide/window", "guide/dashboard", "guide/choosing-hits", "guide/own-settings", "guide/overview",
+    "User guide": ["guide/window", "guide/formats", "guide/dashboard", "guide/choosing-hits", "guide/own-settings", "guide/overview",
                    "guide/microscope", "guide/screen", "guide/output-folder"],
     "Reference": ["reference/settings", "reference/metrics", "reference/analysis"],
     "Help": ["help/faq", "help/glossary"],

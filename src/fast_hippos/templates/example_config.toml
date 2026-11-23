@@ -2,7 +2,7 @@
 # Channels are 1-based (as in Fiji); frames are 0-based.
 
 [input]
-files = ["data/experiment.tif"]       # .tif, .lif (needs: uv sync --extra lif) or .npy
+files = ["data/experiment.tif"]       # .tif, .ome.tif, .lif, .czi or .npy
 output = "output"
 modality = "tcspc"                    # tcspc | fast_flim | tau_contrast | fd_flim | ratio | intensity
 intensity_channel = 1                 # first FLIM channel; the lifetime / second component is the next one
