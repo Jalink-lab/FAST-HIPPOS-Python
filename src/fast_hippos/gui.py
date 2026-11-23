@@ -750,7 +750,7 @@ def output_info(path: str, job: Job | None = None, settings: dict | None = None)
 def remember_settings(settings: dict) -> None:
     """The settings of the page, so that the window starts with them next time (also without a run)."""
     settings_from_plain(settings)  # only valid settings
-    STATE_DIR.mkdir(exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     LAST_SETTINGS.write_text(to_toml(settings, f"# FAST-HIPPOS {__version__} settings, written by the GUI"), encoding="utf-8")
 
 
@@ -821,7 +821,7 @@ def check_cellpose(python: str | None, fresh: bool = False) -> dict:
     result = _probe_cellpose(exe)
     cache[exe] = result
     try:
-        STATE_DIR.mkdir(exist_ok=True)
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
         CELLPOSE_CACHE.write_text(json.dumps(cache, indent=1))
     except OSError:
         pass
@@ -905,7 +905,7 @@ class Job:
         out = Path(experiment or (settings["input"]["experiment"] if samples else settings["input"]["output"]))
         out.mkdir(parents=True, exist_ok=True)
         # the run itself writes fast_hippos_settings.toml into the output folder, after moving the previous run away
-        STATE_DIR.mkdir(exist_ok=True)
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
         toml = STATE_DIR / "run_settings.toml"
         header = f"# FAST-HIPPOS {__version__} settings, written by the GUI"
         toml.write_text(to_toml(settings, header), encoding="utf-8")
@@ -1060,7 +1060,7 @@ def save_prefs(changes: dict) -> dict:
     if isinstance(changes.get("folded"), list):
         ok["folded"] = [str(t)[:100] for t in changes["folded"] if isinstance(t, str)][:50]
     prefs = load_prefs() | ok
-    STATE_DIR.mkdir(exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     PREFS.write_text(json.dumps(prefs), encoding="utf-8")
     return prefs
 
@@ -1294,7 +1294,7 @@ def serve(port: int = 0, open_browser: bool = True) -> None:
     ctx["server"] = server
     ctx["base"] = f"http://127.0.0.1:{server.server_address[1]}"
     url = ctx["base"] + "/"
-    STATE_DIR.mkdir(exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     INSTANCE.write_text(json.dumps({"port": server.server_address[1], "pid": os.getpid()}))
 
     def watchdog():  # stop when no browser has talked to us for a while (e.g. all tabs closed)
@@ -1326,7 +1326,7 @@ def serve(port: int = 0, open_browser: bool = True) -> None:
 
 def main_gui() -> int:
     """Entry point of fast-hippos.exe (no console window): the GUI, with a log file instead of a console."""
-    STATE_DIR.mkdir(exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(filename=STATE_DIR / "gui.log", level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     # after an update the installer restarts the program on the same port: the browser tab that was open reloads itself
     start = argparse.ArgumentParser(add_help=False)
