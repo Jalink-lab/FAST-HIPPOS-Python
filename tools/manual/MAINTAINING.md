@@ -14,7 +14,7 @@ piece of work.
 | `config.py` METRICS, cell table columns | regenerate `reference/metrics.md` (other values: `OTHER_VALUES` in `gen_reference.py`) |
 | `templates/dashboard/` (panels, screening pane, Apply buttons) | `guide/dashboard.md`, `guide/choosing-hits.md`, `guide/own-settings.md`, `start/first-analysis.md` (step 7) |
 | `templates/overview/` | `guide/overview.md`, `guide/screen.md` (the experiment overview) |
-| `experiment.py`, experiment folder, New image, Re-apply all images, the Images list (ticks), the top bar (Setup, Overview, Image) | `guide/screen.md`, `guide/window.md` (Images, Run card), `guide/output-folder.md`, `reference/command-line.md` |
+| `experiment.py`, experiment bar (New, Open), Re-apply all images, the Images table (ticks), the top bar (Setup, Overview, Image) | `guide/screen.md`, `guide/window.md` (Images, Run card), `guide/output-folder.md`, `reference/command-line.md` |
 | `events.py`, `screening.py` (detection, gates, criteria) | `guide/choosing-hits.md`, `reference/analysis.md`, `guide/window.md` (Stimulation and calibration), `help/faq.md` |
 | per-image settings (`config.IMAGE_SETTINGS`, Apply to this image only) | `guide/own-settings.md` |
 | `pipeline.py` output files, run folder, `_previous_run` | `guide/output-folder.md` |

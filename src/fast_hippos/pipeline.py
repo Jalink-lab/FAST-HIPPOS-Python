@@ -64,12 +64,14 @@ class ImageResult:
 # ---------------------------------------------------------------- run
 
 
-def run(settings: Settings, reapply: bool = False, experiment_overview: bool = True) -> list[ImageResult]:
+def run(settings: Settings, reapply: bool = False, experiment_overview: bool = True, flat: bool = False) -> list[ImageResult]:
     """Analyze the images (one output folder holds one run: a new run first removes the results of the previous one),
     or, with reapply, redo the analysis after segmentation for the images of the run in the output folder. For a
     reapply, `settings` are those of that run with other event / screening / display settings (reapply_settings).
     When the output folder is a sample of an experiment (a folder inside the experiment folder), the overview of the
-    experiment is updated too, unless experiment_overview is off (re-applying all samples updates it once, at the end)."""
+    experiment is updated too, unless experiment_overview is off (re-applying all samples updates it once, at the end).
+    flat: a run of exactly one image, whose results go directly in the output folder (<experiment>/<image>/dashboard.html)
+    instead of a folder per image inside it."""
     out = Path(settings.input.output)
     out.mkdir(parents=True, exist_ok=True)
     _close_logging()  # the log of an earlier run in this process is moved along with that run
@@ -87,7 +89,7 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
         problems = check_inputs(settings)
         if not problems:
             try:
-                moved = clear_run(out, input_paths(settings))
+                moved = clear_run(out, input_paths(settings), flat)
             except ValueError as e:
                 problems = str(e).splitlines()
         if problems:
@@ -95,7 +97,7 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
             for p in problems:
                 log.error(p)
             raise SettingsError(problems)
-        _start_run_file(out, settings)
+        _start_run_file(out, settings, flat)
     _setup_logging(out / "run_log.txt")
     log.info("FAST-HIPPOS (Python) %s%s", __version__, " - re-applying the analysis after segmentation" if reapply else "")
     if not reapply and moved:
@@ -139,7 +141,7 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
                     image.extra["stitched_file"] = _save_stitched(image, out)
                 if "stitched_file" in image.extra:
                     _record_file(out, image.extra["stitched_file"])
-                result = process_image(image, index, settings, positions_all, override)
+                result = process_image(image, index, settings, positions_all, override, flat)
                 if result is not None:
                     results.append(result)
                 index += 1
@@ -234,6 +236,7 @@ def run_samples(settings: Settings, samples: list[dict] | None = None) -> list[s
     import copy
 
     from .experiment import LOG_FILE, write_experiment_overview
+    from .io import has_series
 
     if not settings.input.experiment:
         raise ValueError("No experiment folder: set [input] experiment, the folder that holds one folder per sample")
@@ -251,7 +254,9 @@ def run_samples(settings: Settings, samples: list[dict] | None = None) -> list[s
                        "output": str(experiment / name), "sample_label": s.get("label") or None,
                        "experiment": str(experiment)}
         try:
-            if not run(Settings.from_dict(d), experiment_overview=False):
+            # one image per folder, so its results go directly in it (a file with series, without a chosen one, may hold more)
+            flat = s.get("series") is not None or not has_series(Path(s["file"]))
+            if not run(Settings.from_dict(d), experiment_overview=False, flat=flat):
                 failed.append(s["name"])
         except Exception as e:  # noqa: BLE001 - the other samples go on
             print(f"Image {s['name']} failed: {e}", flush=True)
@@ -315,20 +320,40 @@ _RUN_OUTPUTS = re.compile(r"(index\.html|cell_coordinates\.tsv|hits\.tsv|hits_\d
                           r"hit_chunks\.json|screening_from_dashboard\.toml|settings_used\.json|run\.json|run_log\.txt|run_summary\.tsv|"
                           r"fast_hippos_settings\.toml)")
 _QUIET = ("settings_used.json", "run.json", "run_log.txt")  # moved along, but not worth listing to the user
+# what a run of one image writes directly in its folder (a "flat" run; other runs have these in a folder per image)
+_IMAGE_OUTPUTS = re.compile(r"(labels\.tif|intensity_projection\.tif|weighted_lifetime\.tif|"
+                            r"kymograph(_smoothed|_additional|_sorted)?\.tif|traces\.npz|traces\.png|meta\.json|cells_base\.tsv|"
+                            r"cells\.tsv|events\.json|lifetime_traces\.tsv|additional_traces\.tsv|viewer\.npz|dashboard\.html)")
+_IMAGE_FOLDERS = ("frames", "tiles")
+
+
+def _image_meta(folder: Path) -> dict | None:
+    """The meta.json of an image result that FAST-HIPPOS wrote (with a name and a version, and the traces next to it)."""
+    try:
+        meta = json.loads((folder / "meta.json").read_text())
+    except (OSError, ValueError):
+        return None
+    return meta if isinstance(meta, dict) and "name" in meta and "version" in meta and (folder / "traces.npz").exists() else None
 
 
 def _result_folders(out: Path) -> list[tuple[Path, dict]]:
-    """The image result folders in an output folder, with their meta.json: only folders that FAST-HIPPOS wrote
-    (meta.json with a name and a version, and the traces next to it); anything else in the folder is never touched."""
+    """The image results in an output folder, with their meta.json: the folder itself (a flat run of one image), or the
+    folders of its images. Only what FAST-HIPPOS wrote: anything else in the folder is never touched, and neither are
+    the previous run or the runs in subfolders (of an experiment folder)."""
+    out = Path(out)
+    if own := _image_meta(out):
+        return [(out, own)]
     found = []
-    for meta_path in sorted(Path(out).glob("*/meta.json")):
-        try:
-            meta = json.loads(meta_path.read_text())
-        except (OSError, ValueError):
-            continue
-        if isinstance(meta, dict) and "name" in meta and "version" in meta and (meta_path.parent / "traces.npz").exists():
-            found.append((meta_path.parent, meta))
+    for meta_path in sorted(out.glob("*/meta.json")):
+        folder = meta_path.parent
+        if folder.name != PREVIOUS_RUN and not (folder / RUN_FILE).exists() and (meta := _image_meta(folder)):
+            found.append((folder, meta))
     return found
+
+
+def is_flat(out: Path) -> bool:
+    """Whether the run in this folder has its one image directly in it."""
+    return bool(_read_run_file(out).get("flat")) or _image_meta(Path(out)) is not None
 
 
 def _read_run_file(out: Path) -> dict:
@@ -347,7 +372,7 @@ def run_info(out: Path) -> dict | None:
     folders = _result_folders(out)
     if not folders:
         return None
-    images = sorted(({"name": m["name"], "folder": d.name, "source": m.get("source", ""), "cells": m.get("n_cells"),
+    images = sorted(({"name": m["name"], "folder": "." if d == out else d.name, "source": m.get("source", ""), "cells": m.get("n_cells"),
                       "index": m.get("index", 0)} for d, m in folders), key=lambda i: i["index"])
     info = _read_run_file(out)
     if "started" not in info:  # results of an earlier version: when the first image result was written
@@ -364,28 +389,42 @@ def input_paths(settings: Settings) -> list[Path]:
     return [Path(p).resolve() for p in paths if p]
 
 
-def clear_plan(out: Path, keep: list[Path] = ()) -> dict:
+def clear_plan(out: Path, keep: list[Path] = (), flat: bool = False) -> dict:
     """What a new run in this output folder would move away: {"folders": image result folders, "files": files of the
     run next to them, "blocked": reasons why it cannot (a file the new run reads lies inside a result folder)}. Files in
-    `keep` (the inputs of the new run) are never moved."""
+    `keep` (the inputs of the new run) are never moved. flat: the new run writes its one image directly in this folder."""
     out = Path(out).resolve()
     keep = [Path(k).resolve() for k in keep]
-    folders = [d for d, _ in _result_folders(out)]
+    folders = [d for d, _ in _result_folders(out) if d != out]
     blocked = [f"{k} is inside {d.name}{os.sep}, a result of the previous run that a new run moves away: move it out of "
                "the output folder first, or choose another output folder" for d in folders for k in keep if k.is_relative_to(d)]
     files = {out / n for n in _read_run_file(out).get("files", []) if (out / n).is_file() and (out / n).parent == out}
     files |= {p for p in out.iterdir() if p.is_file() and _RUN_OUTPUTS.fullmatch(p.name)} if out.is_dir() else set()
+    names = [d.name for d in folders]
+    if out.is_dir():
+        image_files = {p for p in out.iterdir() if p.is_file() and _IMAGE_OUTPUTS.fullmatch(p.name)}
+        image_dirs = [out / n for n in _IMAGE_FOLDERS if (out / n).is_dir()]
+        was_flat = is_flat(out)
+        if flat or was_flat:
+            blocked += [f"{k} is a result file that a new run replaces: move it out of the folder first"
+                        for k in keep if k in image_files or any(k.is_relative_to(d) for d in image_dirs)]
+        if was_flat:
+            files |= image_files
+            names += [d.name for d in image_dirs]
+        elif flat:  # not written by FAST-HIPPOS: never overwritten
+            blocked += [f"{p} is not a result of FAST-HIPPOS, but a new run would write a file or folder of that name: "
+                        "move it, or give the image another name" for p in [*sorted(image_files), *image_dirs] if p not in keep]
     files = sorted(p for p in files if p not in keep)
-    return {"folders": [d.name for d in folders], "files": [p.name for p in files], "blocked": blocked}
+    return {"folders": names, "files": [p.name for p in files], "blocked": blocked}
 
 
-def clear_run(out: Path, keep: list[Path] = ()) -> list[str]:
+def clear_run(out: Path, keep: list[Path] = (), flat: bool = False) -> list[str]:
     """Before a new run: move the results of the previous run to PREVIOUS_RUN (they are removed once the new run is
     complete; if it is not, they stay there). If PREVIOUS_RUN already exists, an earlier attempt did not finish: its
     partial results are removed and the complete run in PREVIOUS_RUN is kept. Raises ValueError when a file that the
     new run reads would be moved. Returns the names of what was moved (or removed)."""
     out = Path(out)
-    plan = clear_plan(out, keep)
+    plan = clear_plan(out, keep, flat)
     if plan["blocked"]:
         raise ValueError("\n".join(plan["blocked"]))
     prev = out / PREVIOUS_RUN
@@ -404,11 +443,11 @@ def clear_run(out: Path, keep: list[Path] = ()) -> list[str]:
     return [n + "/" for n in plan["folders"]] + [n for n in plan["files"] if n not in _QUIET]
 
 
-def _start_run_file(out: Path, settings: Settings) -> None:
+def _start_run_file(out: Path, settings: Settings, flat: bool = False) -> None:
     """run.json at the start of a run: not complete yet, and every file the run writes next to the image folders is
     added as soon as it exists (so that a run that does not finish leaves no unknown files)."""
     info = {"version": __version__, "started": time.strftime("%Y-%m-%d %H:%M"), "complete": False,
-            "inputs": [str(f) for f in settings.input.files], "files": [], "images": []}
+            "inputs": [str(f) for f in settings.input.files], "files": [], "images": [], "flat": flat}
     (Path(out) / RUN_FILE).write_text(json.dumps(info, indent=2), encoding="utf-8")
 
 
@@ -423,7 +462,7 @@ def _write_run_file(out: Path, results: list[ImageResult], reapply: bool, starte
     now = time.strftime("%Y-%m-%d %H:%M")
     info = _read_run_file(out)
     info |= {"version": __version__, "started": started or info.get("started", now), "complete": True,
-             "images": [{"name": r.name, "folder": r.out_dir.name, "source": r.source, "cells": r.n_cells,
+             "images": [{"name": r.name, "folder": "." if r.out_dir == Path(out) else r.out_dir.name, "source": r.source, "cells": r.n_cells,
                          "index": r.index} for r in results]}
     if reapply:
         info["reapplied"] = now
@@ -492,6 +531,13 @@ def reapply_settings(out: Path, changes: dict) -> dict:
     return base
 
 
+def set_sample_label(folder: Path, label: str | None) -> None:
+    """The label of an analyzed image: only a name in the overviews, so nothing has to be analyzed again."""
+    used = json.loads((Path(folder) / "settings_used.json").read_text())
+    used.setdefault("input", {})["sample_label"] = label or None
+    _write_settings(Path(folder), Settings.from_dict(used))
+
+
 def _is_experiment(folder: Path) -> bool:
     from .experiment import read_overview_data
 
@@ -548,7 +594,8 @@ def _setup_logging(path: Path) -> None:
 
 
 def process_image(
-    image: ImageData, index: int, settings: Settings, positions_all: np.ndarray | None = None, override: bool = True
+    image: ImageData, index: int, settings: Settings, positions_all: np.ndarray | None = None, override: bool = True,
+    flat: bool = False,
 ) -> ImageResult | None:
     s_in, s_seg, s_disp = settings.input, settings.segmentation, settings.display
     if s_in.remove_last_frame and image.n_frames > 1:
@@ -604,7 +651,7 @@ def process_image(
         prob = predict_probability(proj, Path(s_seg.classifier), s_seg.classifier_class)
         positions = stage.refined_positions(labels, prob, centroids, s_seg.position_erosion)
 
-    out_dir = Path(s_in.output) / _safe(image.name)
+    out_dir = Path(s_in.output) if flat else Path(s_in.output) / _safe(image.name)
     out_dir.mkdir(parents=True, exist_ok=True)
     result = ImageResult(
         name=image.name, out_dir=out_dir, index=index, pixel_size=pixel_size, frame_interval=frame_interval,

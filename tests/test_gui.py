@@ -199,6 +199,16 @@ def test_cellpose_check_is_cached(tmp_path, monkeypatch):
     assert calls == ["env/python.exe"] * 2
 
 
+def test_file_dialog_starts_in_an_existing_folder(tmp_path):
+    """A file: its folder. A proposed experiment folder that is not made yet: the nearest folder that exists."""
+    image = tmp_path / "image.lif"
+    image.write_bytes(b"")
+    assert gui._start_folder("") == ""
+    assert gui._start_folder(str(tmp_path)) == str(tmp_path)
+    assert gui._start_folder(str(image)) == str(tmp_path)
+    assert gui._start_folder(str(tmp_path / "FAST-HIPPOS" / "deeper")) == str(tmp_path)
+
+
 def test_theme_is_kept_between_starts(tmp_path, monkeypatch):
     """The light / dark choice is stored in the state folder and put in the page: the browser's own storage would be
     lost, because every start uses another port."""

@@ -76,8 +76,7 @@ FIELDS: dict[str, dict] = {
     "input.output": {"label": "Output folder", "widget": "folder",
         "help": "The folder of one image (one run); the window sets it per image: <experiment folder>/<name>"},
     "input.experiment": {"label": "Experiment folder", "widget": "folder",
-        "placeholder": "proposed when you add images", "help": "One folder per image inside it, and the overview of "
-        "all images"},
+        "help": "One folder per image inside it, and the overview of all images"},
     "input.sample_label": {"label": "Sample label", "wide": True, "show": {"input.experiment": {"set": True}},
         "placeholder": "e.g. the condition or library of this image",
         "help": "Shown in the experiment overview, to tell or group the samples"},
@@ -224,7 +223,7 @@ TIPS: dict[str, str] = {
         "it per image (<experiment folder>/<name>); a new run replaces the results in it.",
     "input.experiment": "The folder that holds one folder per sample, and the overview of all samples (index.html), "
         "updated after every run and re-apply, with a warning when samples were analyzed with different settings. "
-        "Adding images without one proposes a folder FAST-HIPPOS next to the images.",
+        "Chosen with New or Open at the top of the window.",
     "input.sample_label": "A short description of this sample (e.g. its condition, cell line or library), shown in "
         "the experiment overview. Empty = none.",
     "input.modality": "What the pixel values mean, and so how the lifetime (or ratio) per cell is calculated. TCSPC: "
@@ -430,7 +429,7 @@ FD = {"input.modality": ["fd_flim"]}
 # Cards of the form: the basic settings, then the advanced ones under subheadings (an expanding pane).
 # Every setting appears exactly once (checked by the tests).
 # "|" in a group starts a new row, so that only related settings are next to each other
-# set per sample by the rows of the Images list (each image a sample), not as fields of their own
+# set per sample by the rows of the Images table (each image a sample), not as fields of their own
 PER_SAMPLE = ["input.output", "input.sample_label"]
 LAYOUT = [
     {"title": "Images", "basic": ["input.experiment", "input.files", "input.modality", "input.tau1", "input.tau2",
@@ -758,11 +757,11 @@ def experiment_info(path: str, settings: dict | None = None, job: Job | None = N
     """The samples (runs) in an experiment folder, and (with the page's settings) which of them were analyzed with
     other settings than those of the page ('differs': {sample: [settings]}; the own settings of single images and
     the settings that do not change the analysis, such as paths and display, are not compared)."""
-    from .experiment import comparable_settings, read_overview_data, run_folders
+    from .experiment import comparable_settings, read_image_list, read_overview_data, run_folders
 
     folder = Path(path) if path else None
     if not folder or not folder.is_dir():
-        return {"exists": False, "samples": [], "index": False, "differs": {}}
+        return {"exists": False, "samples": [], "index": False, "differs": {}, "saved": []}
     if job is not None:
         job.roots.add(folder.resolve())
     page = comparable_settings(settings_from_plain(settings).to_dict()) if settings else None
@@ -774,7 +773,10 @@ def experiment_info(path: str, settings: dict | None = None, job: Job | None = N
         except (OSError, ValueError):
             continue
         images = overview.get("images") or []
-        samples.append({"name": run.name, "label": (used.get("input") or {}).get("sample_label") or "",
+        given = used.get("input") or {}
+        files, series = given.get("files") or [], given.get("series") or []
+        samples.append({"name": run.name, "label": given.get("sample_label") or "",
+                        "file": files[0] if len(files) == 1 else None, "series": series[0] if len(series) == 1 else None,
                         "started": overview.get("started"), "images": [im.get("folder") for im in images],
                         "hits": sum(im.get("n_hits") or 0 for im in images) if overview.get("screening") else None})
         if page is not None:
@@ -783,7 +785,35 @@ def experiment_info(path: str, settings: dict | None = None, job: Job | None = N
                     if json.dumps(page.get(k), sort_keys=True, default=str) != json.dumps(theirs.get(k), sort_keys=True, default=str)]
             if keys:
                 differs[run.name] = keys
-    return {"exists": True, "samples": samples, "index": (folder / "index.html").exists(), "differs": differs}
+    return {"exists": True, "samples": samples, "index": (folder / "index.html").exists(), "differs": differs,
+            "saved": read_image_list(folder)}
+
+
+def set_image_label(job: Job, experiment: str, name: str, label: str) -> None:
+    """A new label for an analyzed image of the experiment: kept with its run and shown in the overview at once."""
+    from .experiment import run_folders, write_experiment_overview
+    from .pipeline import set_sample_label
+
+    if job.state == "running":
+        raise ValueError("An analysis is running: change the label when it has finished")
+    folder = next((r for r in run_folders(Path(experiment)) if r.name == name), None)
+    if folder is None:
+        raise ValueError(f"No analyzed image {name} in this experiment")
+    set_sample_label(folder, label.strip())
+    write_experiment_overview(Path(experiment))
+
+
+def create_experiment(path: str) -> None:
+    """A new (or existing) experiment folder, chosen by the user in the window."""
+    if not path or not Path(path).is_absolute():
+        raise ValueError("Choose a complete folder path for the experiment")
+    Path(path).mkdir(parents=True, exist_ok=True)
+
+
+def save_image_list(path: str, images: list[dict]) -> None:
+    from .experiment import write_image_list
+
+    write_image_list(Path(path), images)
 
 
 def start_reapply_experiment(job: Job, gui_settings: dict) -> int:
@@ -866,10 +896,21 @@ FILETYPES = {
 }
 
 
+def _start_folder(initial: str) -> str:
+    """The folder a file dialog opens in: that of a file, or the nearest existing parent of a folder not made yet."""
+    if not initial:
+        return ""
+    p = Path(initial)
+    while not p.exists() and p.parent != p:
+        p = p.parent
+    if not p.exists():
+        return ""
+    return str(p.parent if p.is_file() else p)
+
+
 def browse(kind: str, title: str, initial: str = "", types: str = "file"):
     """Native file dialog, run in a separate process (Tk needs its own main thread)."""
-    if initial and Path(initial).is_file():
-        initial = str(Path(initial).parent)
+    initial = _start_folder(initial)
     r = subprocess.run([_python(), "-c", _DIALOG, kind, title, initial or "", json.dumps(FILETYPES.get(types, []))],
                        capture_output=True, text=True, check=False, creationflags=NO_WINDOW)
     return json.loads(r.stdout) if r.stdout.strip() else None
@@ -965,7 +1006,7 @@ class Job:
         if self.output and self.state == "done":
             o = Path(self.output)
             out["index"] = str(o / "index.html") if (o / "index.html").exists() else None
-            out["dashboards"] = [str(p) for p in sorted(o.glob("*/dashboard.html"))]
+            out["dashboards"] = [str(p) for p in [*o.glob("dashboard.html"), *sorted(o.glob("*/dashboard.html"))]]
         return out
 
 
@@ -982,7 +1023,7 @@ def apply_from_dashboard(job: Job, dashboard: str, toml_text: str, manual_tsv: s
     from .config import IMAGE_SETTINGS, _image_settings
     from .pipeline import reapply_settings, run_image_settings
 
-    out = Path(dashboard).parent.parent
+    out = _run_folder(Path(dashboard))
     (out / "screening_from_dashboard.toml").write_text(toml_text, encoding="utf-8")  # a record of what was applied
     changes = tomllib.loads(toml_text)
     removed = job.removed.get(_key(out), set())  # removed in the page since: they stay removed
@@ -1053,12 +1094,14 @@ def load_prefs() -> dict:
 
 
 def save_prefs(changes: dict) -> dict:
-    """Store the known interface preferences: theme ("", "light", "dark") and folded sections (titles)."""
+    """Store the known interface preferences: theme ("", "light", "dark"), folded sections (titles), recent experiments."""
     ok = {}
     if changes.get("theme") in ("", "light", "dark"):
         ok["theme"] = changes["theme"]
     if isinstance(changes.get("folded"), list):
         ok["folded"] = [str(t)[:100] for t in changes["folded"] if isinstance(t, str)][:50]
+    if isinstance(changes.get("recent_experiments"), list):
+        ok["recent_experiments"] = [str(p)[:1000] for p in changes["recent_experiments"] if isinstance(p, str)][:12]
     prefs = load_prefs() | ok
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     PREFS.write_text(json.dumps(prefs), encoding="utf-8")
@@ -1076,6 +1119,12 @@ def _page(token: str) -> bytes:
     html = html.replace("__FH_THEME__", prefs.get("theme", ""))  # in the page itself: no flash of the other theme
     html = html.replace("__FH_PREFS__", json.dumps(prefs).replace("<", "\\u003c"))
     return html.replace("__FH_TOKEN__", token).encode("utf-8")
+
+
+def _run_folder(page: Path) -> Path:
+    """The run a page belongs to: the folder of an overview, or of a dashboard in a run of one image; else the parent."""
+    page = Path(page)
+    return page.parent if page.name == "index.html" or (page.parent / "run.json").exists() else page.parent.parent
 
 
 def _key(path: str | Path) -> str:
@@ -1141,7 +1190,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
             raise ValueError(f"Not found: {p}")
         if p.suffix.lower() == ".html" and ctx.get("base"):
             # through this server, so that the dashboard can apply settings to the run
-            job.roots.add((p.parent if p.name == "index.html" else p.parent.parent).resolve())
+            job.roots.add(_run_folder(p).resolve())
             webbrowser.open(file_url(ctx["base"], p))
         else:
             _open(path)
@@ -1163,6 +1212,9 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "cellpose": lambda q: check_cellpose(q.get("python"), bool(q.get("fresh"))),
         "output": lambda q: output_info(q.get("path", ""), job, q.get("settings")),
         "experiment": lambda q: experiment_info(q.get("path", ""), q.get("settings"), job),
+        "experiment_create": lambda q: (create_experiment(q["path"]), experiment_info(q["path"], None, job))[1],
+        "experiment_images": lambda q: (save_image_list(q["path"], q["images"]), {"ok": True})[1],
+        "experiment_label": lambda q: (set_image_label(job, q["path"], q["name"], q.get("label") or ""), {"ok": True})[1],
         "load": lambda q: {"settings": load_toml(Path(q["path"]))},
         "save": lambda q: (Path(q["path"]).write_text(to_toml(q["settings"]), encoding="utf-8"), {"ok": True})[1],
         "validate": lambda q: (settings_from_plain(q["settings"]), {"ok": True})[1],
@@ -1171,7 +1223,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
                           else start_reapply(job, q["settings"]) if q.get("reapply")
                           else job.start(q["settings"], False, remember=q["settings"], samples=q.get("samples"))},
         # the run that 'Apply to run' in a dashboard would process (<output>/<image>/dashboard.html)
-        "runinfo": lambda q: output_info(str(Path(q["dashboard"]).parent.parent)),
+        "runinfo": lambda q: output_info(str(_run_folder(Path(q["dashboard"])))),
         "apply": lambda q: {"run_id": apply_from_dashboard(job, q["dashboard"], q["toml"], q.get("manual_tsv"), q.get("image"),
                                                            q.get("scope", "all"))},
         # the own settings of an image were removed in the page: a dashboard apply must not bring them back
@@ -1226,7 +1278,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
             body = p.read_bytes()
             ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
             if p.suffix.lower() == ".html":  # lets the dashboard talk to this server
-                root = p.parent if p.name == "index.html" else p.parent.parent
+                root = _run_folder(p)
                 inject = (_WATCH.replace("__TOKEN__", token).replace("__RUN__", str(job.run_id))
                           .replace("__OUTPUT__", json.dumps(_key(root))[1:-1]))
                 body = body.decode("utf-8").replace("</head>", inject, 1).encode("utf-8")

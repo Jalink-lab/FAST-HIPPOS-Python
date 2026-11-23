@@ -11,34 +11,31 @@ image you have an experiment of one image, and its overview is just short.
 
 ## Setting it up
 
-1. In the *Images* card, choose an **Experiment folder** (e.g. `D:\screens\ADRB2 screen`). It may be empty, and you
-   use the same folder for the whole screen. If you add images without choosing one, FAST-HIPPOS proposes a folder
-   *FAST-HIPPOS* next to the images.
+1. At the top of the window, click **New…** and choose an empty folder (e.g. `D:\screens\ADRB2 screen`). You use the
+   same experiment for the whole screen.
 2. Add the first image (or several: all are analyzed one after the other). Each image gets a row with a tick box,
    its name (its folder `<experiment folder>\<name>`; by default the file name, type another to change it) and a
    **label** if you like: its condition, plate or library part. The label shows in the experiment overview.
 3. **▶ Run analysis**. When the run is done, the `.rgn` files of the image are in its folder; see
    [Back to the microscope](microscope.md).
-4. For the next image, click **＋ New image** (top right of the window). This keeps all settings, but empties the
-   Images list, so that **▶ Run analysis** analyzes only the new image. Add it and run. The images that were already
-   analyzed stay in the experiment and in its overview.
+4. For the next image, click **Add images…** again. The new image is ticked and the analyzed ones are not, so
+   **▶ Run analysis** analyzes only the new image.
 
 Images do not have to come from one folder: the experiment overview compares images from different input folders, and
 its *Source* column says where each was read from.
 
-The Images list holds the images **to analyze**. An image that already has results in the experiment folder is
-**unticked** and says *✓ has results*; tick it to analyze it again, which replaces its results (its old results wait
-in `_previous_run` until the new run is complete). Names, labels and ticks survive a reload of the browser tab.
+The Images table holds **every image of the experiment**. An analyzed image is **unticked** and says *✓ analyzed*; tick
+it to analyze it again, which replaces its results (its old results wait in `_previous_run` until the new run is
+complete). The experiment remembers its images, names, labels and ticks.
 
 <figure markdown>
 ![The Images card with an experiment folder](../images/gui_experiment.png){ .shot width="560" }
 </figure>
 
 The bar at the top of the window shows where you are: **Setup**, **Overview** (the overview of the whole experiment)
-and **Image** (the dashboard of one image). The menu of **Image** lists every analyzed image of the experiment with its
-label and hits. Choosing one makes it the **current image**: it is shown under *Image*, and *Re-apply this image*
-redoes its screening. The dashboards of the last two images stay open, so you can switch back at once. Choosing an
-image in the top bar does not change the Images list.
+and **Image** (the dashboard of one image). **Open** in a row of the Images table shows that dashboard and makes it the
+**current image**, which *Re-apply this image* redoes. The dashboards of the last two images stay open, so you can
+switch back at once.
 
 Every run (and every re-apply) of an image updates the overview of the experiment: `index.html` in the experiment
 folder. **Overview** in the bar at the top shows it.
@@ -48,8 +45,7 @@ ADRB2 screen\                  ← the experiment folder
     index.html                 ← the overview of all images
     experiment_summary.tsv     ← its images table
     plate 1\                   ← the folder of one image (its run)
-        index.html, HITS_plate 1.rgn, ...
-        plate 1\dashboard.html
+        dashboard.html, HITS_plate 1.rgn, cells.tsv, ...
     plate 2\
         ...
 ```

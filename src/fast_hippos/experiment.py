@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 
 SUMMARY_FILE = "experiment_summary.tsv"
 LOG_FILE = "experiment_log.txt"  # of the last "Re-apply all samples"
+IMAGES_FILE = "fast_hippos_experiment.json"  # the images of the experiment in the window, also those not analyzed yet
 
 # settings that make no difference to how comparable the samples are (paths, output, display, .rgn files, ...)
 NOT_COMPARED = {
@@ -56,6 +57,39 @@ def in_experiment(out: Path, experiment: Path | None) -> bool:
         return Path(out).resolve().parent == Path(experiment).resolve()
     except OSError:
         return False
+
+
+def read_image_list(experiment: Path) -> list[dict]:
+    """The images added to this experiment in the window: [{file, series, name, label, use}]. Empty for an experiment
+    without the file (from an earlier version: the window then lists its analyzed images)."""
+    try:
+        data = json.loads((Path(experiment) / IMAGES_FILE).read_text(encoding="utf-8"))
+        images = data.get("images", [])
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [_image_entry(i) for i in images if isinstance(i, dict) and i.get("file") and i.get("name")]
+
+
+def _image_entry(image: dict) -> dict:
+    series = image.get("series")
+    entry = {"file": str(image["file"]), "series": None if series is None else int(series), "name": str(image["name"]),
+             "label": str(image.get("label") or "")}
+    if isinstance(image.get("series_name"), str):
+        entry["series_name"] = image["series_name"]
+    if isinstance(image.get("use"), bool):  # (no value: ticked unless it has results)
+        entry["use"] = image["use"]
+    return entry
+
+
+def write_image_list(experiment: Path, images: list[dict]) -> None:
+    """Keep the images of the experiment in its folder (written whole, so that a crash leaves the previous list)."""
+    experiment = Path(experiment)
+    if not experiment.is_dir():
+        raise ValueError(f"No experiment folder {experiment}")
+    data = {"version": __version__, "images": [_image_entry(i) for i in images]}
+    temporary = experiment / (IMAGES_FILE + ".tmp")
+    temporary.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    temporary.replace(experiment / IMAGES_FILE)
 
 
 def read_overview_data(index_html: Path) -> dict:

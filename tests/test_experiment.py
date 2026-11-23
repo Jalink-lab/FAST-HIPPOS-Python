@@ -202,3 +202,90 @@ def test_run_samples_makes_every_image_a_sample(tmp_path):
     data = read_overview_data(exp / "index.html")
     assert [(r["name"], r["label"]) for r in data["runs"]] == [("first", "control"), ("second", "")]
     assert all(len(json.loads((exp / n / "run.json").read_text())["images"]) == 1 for n in ("first", "second"))
+
+
+def _flat_experiment(tmp_path):
+    from fast_hippos.pipeline import run_samples
+
+    file = save_tiff(make_timelapse(seed=1)[0], tmp_path / "plate.tif")
+    s = Settings()
+    s.input.files = [file]
+    s.input.experiment = tmp_path / "screen"
+    s.segmentation.method = "threshold"
+    s.segmentation.diameter = 18
+    s.segmentation.min_cell_size = 30
+    samples = [{"file": str(file), "series": None, "name": "first", "label": "control"}]
+    assert run_samples(s, samples) == []
+    return s, samples, tmp_path / "screen"
+
+
+def test_an_image_has_one_folder(tmp_path):
+    """The results of an image are directly in its folder, and everything that reads a run finds them there."""
+    from fast_hippos.pipeline import run_info, run_samples
+
+    s, samples, exp = _flat_experiment(tmp_path)
+    image = exp / "first"
+    assert (image / "dashboard.html").exists() and (image / "meta.json").exists() and not (image / "first").exists()
+    assert [i["folder"] for i in run_info(image)["images"]] == ["."]
+    assert run_info(exp) is None  # the experiment folder is not a run of its images
+    assert read_overview_data(exp / "index.html")["images"][0]["href"] == "first/dashboard.html"
+    page = (image / "dashboard.html").read_text(encoding="utf-8")
+    assert '"overview_href":"../index.html"' in page.replace(" ", "")
+    assert reapply_experiment(exp, {"screening": {"logic": "OR"}}) == []
+    assert json.loads((image / "settings_used.json").read_text())["screening"]["logic"] == "OR"
+
+    (image / "my notes.txt").write_text("mine")  # a second run replaces the results, and only those
+    assert run_samples(s, samples) == []
+    assert (image / "my notes.txt").read_text() == "mine"
+    assert (image / "dashboard.html").exists() and not (image / "_previous_run").exists()
+
+
+def test_a_new_run_does_not_overwrite_foreign_files(tmp_path):
+    from fast_hippos.pipeline import clear_plan
+
+    folder = tmp_path / "image"
+    folder.mkdir()
+    (folder / "labels.tif").write_bytes(b"not from FAST-HIPPOS")
+    assert clear_plan(folder, [], flat=True)["blocked"]
+    assert not clear_plan(folder, [])["blocked"]  # (a run with a folder per image does not write it here)
+    assert "labels.tif" not in clear_plan(folder, [])["files"]
+
+
+def test_the_previous_layout_still_works(tmp_path):
+    """An experiment of an earlier version: a folder per image inside the folder of the run."""
+    from fast_hippos.pipeline import run_info
+
+    exp = tmp_path / "old"
+    for k in (1, 2):
+        s = Settings()
+        s.input.files = [save_tiff(make_timelapse(seed=k)[0], tmp_path / f"p{k}.tif")]
+        s.input.output = exp / f"p{k}"
+        s.input.experiment = exp
+        s.segmentation.method = "threshold"
+        s.segmentation.diameter = 18
+        s.segmentation.min_cell_size = 30
+        run(s)
+    assert (exp / "p1" / "p1" / "dashboard.html").exists()
+    assert [i["folder"] for i in run_info(exp / "p1")["images"]] == ["p1"]
+    assert reapply_experiment(exp, {"screening": {"logic": "OR"}}) == []
+    assert read_overview_data(exp / "index.html")["images"][0]["href"] == "p1/p1/dashboard.html"
+
+
+def test_the_experiment_remembers_its_images(tmp_path):
+    from fast_hippos import gui
+    from fast_hippos.experiment import read_image_list, write_image_list
+
+    _, _, exp = _flat_experiment(tmp_path)
+    assert read_image_list(exp) == []  # an experiment without the list still shows its analyzed images
+    info = gui.experiment_info(str(exp))
+    assert info["samples"][0]["file"] == str(tmp_path / "plate.tif") and info["samples"][0]["label"] == "control"
+    new = {"file": "D:/data/next.lif", "series": 2, "series_name": "Series003", "name": "next", "label": "drug", "use": True}
+    write_image_list(exp, [new])
+    assert gui.experiment_info(str(exp))["saved"] == [new]
+    assert [f.name for f in run_folders(exp)] == ["first"]  # the list is not a run
+
+    job = gui.Job()
+    gui.set_image_label(job, str(exp), "first", "renamed")
+    assert read_overview_data(exp / "index.html")["runs"][0]["label"] == "renamed"
+    with pytest.raises(ValueError):
+        gui.set_image_label(job, str(exp), "../elsewhere", "x")

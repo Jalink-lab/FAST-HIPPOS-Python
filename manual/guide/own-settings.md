@@ -17,7 +17,7 @@ same for all images that you compare.
 
 ## Give an image its own settings
 
-1. Open the dashboard of the image from the FAST-HIPPOS window (the *Image* menu in the top bar, or via an overview).
+1. Open the dashboard of the image from the FAST-HIPPOS window (**Open** in its row of the Images table, or via an overview).
 2. In the Screening pane, correct the timing: drag *S* and *C*, or type the frames. Change the response window if
    needed.
 3. Click **↻ Apply as own timing**.
@@ -58,7 +58,7 @@ image* (or *Run analysis*). The image then uses the settings of the window again
 
 ## Images of the same name
 
-Own settings belong to images by name. The window keeps them only for the images in the Images list and for the
-current image; **＋ New image** drops the others. When you analyze images of the same names again (`Position 1` …),
+Own settings belong to images by name. The window keeps them for the images of the open experiment; opening another
+experiment drops them from the window (every analyzed image keeps its own in its folder). When you analyze images of the same names again (`Position 1` …),
 check the list under *Stimulation and calibration*. The window warns about it, and the confirmation of *Run analysis*
 lists the images that will use their own settings.

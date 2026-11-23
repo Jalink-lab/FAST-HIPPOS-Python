@@ -175,8 +175,8 @@ def build_overview_data(results: list[ImageResult], settings: Settings, out: Pat
         sub = _subsample(cells, seed=r.index)
         hit_rows = cells[hit]
         img = {
-            "name": r.name, "index": r.index, "folder": r.out_dir.name,
-            "href": f"{r.out_dir.name}/dashboard.html" if settings.display.dashboard and dash.exists() else None,
+            "name": r.name, "index": r.index, "folder": "." if r.out_dir == Path(out) else r.out_dir.name,
+            "href": ("dashboard.html" if r.out_dir == Path(out) else f"{r.out_dir.name}/dashboard.html") if settings.display.dashboard and dash.exists() else None,
             "source": r.source, "n_cells": r.n_cells, "n_valid": int(valid.sum()), "n_hits": int(hit.sum()),
             "frames": r.shape[0], "frame_interval": r.frame_interval, "unit": r.unit,
             "events": ev.to_dict(),

@@ -19,12 +19,12 @@ settings, starts the analysis, shows its progress and opens the results.
 - **Setup**: the settings and the Run card (this page);
 - **Overview**: the [overview of the experiment](overview.md), which compares all analyzed images
   ([A screen of many images](screen.md#the-experiment-overview));
-- **Image ▾**: the [dashboard](dashboard.md) of one image. The menu lists every analyzed image of the experiment with
-  its label and hits. Choosing one makes it the **current image**: it is shown under *Image*, and *Re-apply this
-  image* redoes its screening. The dashboards of the last two images stay open, so that you can switch back at
-  once. Choosing an image here does not change the Images list;
-- **Settings ▾**: *Open settings…*, *Save settings…* and *Defaults* (see [Settings files](#settings-files));
-- **＋ New image**: empties the Images list for the next image(s), and keeps all settings.
+- **Image**: the [dashboard](dashboard.md) of the **current image**, the one marked in the Images table. While a
+  dashboard is shown, a menu next to it switches to another analyzed image. The dashboards of the last two images stay
+  open, so that you can switch back at once;
+- **Settings ▾**: *Open settings…*, *Save settings…* and *Defaults* (see [Settings files](#settings-files)).
+
+Below it, on the Setup page, is **the experiment** you work in; see [The experiment](#the-experiment).
 
 Links in the overviews (an image, a cell) open the page in the window, and the browser's back button goes
 back. ↗ opens the page shown in a tab of its own, for instance to see two pages side by side; ++ctrl++ + click on a
@@ -53,6 +53,21 @@ stimulation frames when *Baseline only* is ticked, or the screening settings whe
 **Folding.** Click the title of a card to fold it; *Fold all* folds all cards. FAST-HIPPOS remembers which cards are
 folded, and also the light or dark look (◐).
 
+## The experiment
+
+Everything you analyze belongs to an experiment: a folder with one folder per image, and an overview that compares
+them. The bar at the top of the Setup page shows the open experiment:
+
+- the **menu** lists your recent experiments, and switches between them;
+- **New…** starts one in an empty folder, **Open…** opens an existing one, **Show folder** shows it in the file explorer.
+
+**Just one or a few images?** You do not have to create anything first. Click **Add images…**; with no experiment
+open, the window proposes a folder *FAST-HIPPOS* next to the images. Press *OK* and **▶ Run analysis**. Screening is
+off by default. With a single image, its dashboard opens when the analysis is done.
+
+An experiment remembers its images, also those not analyzed yet, so the Images table is complete when you open it
+again. Experiments made with an earlier version open as they are.
+
 ## The cards
 
 ### Images
@@ -61,22 +76,20 @@ The images to analyze and where the results go. Every image is analyzed in a run
 the window, and gets its own folder, hit list and `.rgn` files in the experiment folder. With one image you have an
 experiment of one image.
 
-- **Experiment folder**: always needed. The folder that holds one folder per image, and the overview of all
-  images. Adding images without one proposes a folder *FAST-HIPPOS* next to the images. See
-  [A screen of many images](screen.md).
 - **Add images…**: time-lapse `.tif` files (ImageJ hyperstacks), OME-TIFF, Leica `.lif` or Zeiss `.czi` files (see
   [Image formats](formats.md)). Every series or scene of a file is an image of its own, with a tick box in its row:
   untick the ones you want to leave out.
 - **Add tile folder…**: a folder of tiles exported from LAS X, which FAST-HIPPOS stitches by their stage positions into
   one image; see [Back to the microscope](microscope.md#tile-scans).
-- Every image shows what was read from it: size, frames, channels, pixel size, frame interval, and whether it holds
-  stage positions.
-- Below, **one row per image**: a **tick box**, its name (its folder in the experiment folder; the file name, which
-  you can change) and an optional **label**, e.g. the condition, shown in the overviews. The list holds the images
-  **to analyze**. Images that already have results start unticked and say *✓ has results*; tick one to analyze it
-  again, which replaces its results. **▶ Run analysis (n images)** analyzes the ticked rows one after the other and
-  then updates the overview. So when you add one new image and run, only that image is analyzed. Names, labels and
-  ticks survive a reload of the tab; **＋ New image** empties the list.
+- **The Images table** has one row for every image of the experiment: a **tick box**, its name (also the name of its
+  folder), what was read from the file (size, frames, channels, pixel size, frame interval, stage positions), an
+  optional **label**, e.g. the condition, its **status** (*new*, *✓ analyzed*, *⚠ other settings*, *analyze again*)
+  and its hits. **Open** shows its dashboard. Clicking an analyzed row makes it the **current image**, which *Re-apply
+  this image* redoes.
+- New images are ticked; analyzed images are not. Tick an analyzed image to analyze it again, which replaces its
+  results. **▶ Run analysis (n images)** analyzes the ticked rows one after the other and then updates the overview,
+  so when you add one new image and run, only that image is analyzed. A label can be changed at any time, also of an
+  analyzed image, without analyzing it again. **✕** removes an image that has no results from the experiment.
 - **Image type**: what the pixel values mean, and so how the value per cell is computed: two-component TCSPC fits
   (with τ₁ and τ₂), Fast FLIM, TauContrast, frequency-domain FLIM, ratio imaging, or intensity only.
 - **Additional channel**: optionally a channel whose intensity is measured per cell, e.g. a transfection marker.
@@ -142,19 +155,19 @@ analysis and disable *Run analysis*: no images, frames beyond the end of the mov
 stimulation, Cellpose not found. Orange warnings point out surprises: images without stage positions get no `.rgn`
 files, an image already has results (it will be replaced), Cellpose will run without GPU.
 
-**▶ Run analysis (n images)** analyzes the ticked images of the Images list, one after the other: segmentation,
+**▶ Run analysis (n images)** analyzes the ticked images, one after the other: segmentation,
 traces, stimulation detection, screening, dashboards; then it updates the experiment overview. If ticked images
 already have results, FAST-HIPPOS first tells you which will be replaced.
 
 **↻ Re-apply this image** redoes only the part after the segmentation and the traces (stimulation detection,
-screening, hit lists, `.rgn` files, dashboards) for the current image (chosen in the *Image* menu of the top bar),
+screening, hit lists, `.rgn` files, dashboards) for the current image (marked in the Images table),
 with the current settings. It takes seconds instead of minutes. Use it after changing screening settings.
 
 **■ Stop** stops a running analysis; the results of the previous run are then kept.
 
 The card also warns when some images of the [experiment](screen.md) were analyzed with other settings than those
 in the window. **↻ Re-apply all images** re-applies the settings of the window to every image of the experiment.
-[Own settings of single images](own-settings.md) are kept only for the images in the Images list and for the
+[Own settings of single images](own-settings.md) are kept only for the images of the experiment and for the
 current image.
 
 The **log** shows the progress. When the analysis is done, the buttons below it open the *Dashboard* of the image(s)

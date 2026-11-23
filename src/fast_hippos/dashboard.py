@@ -241,6 +241,8 @@ def run_files(image_dir: Path) -> list[str]:
     after the dashboards."""
     keep = re.compile(r"\.(tsv|rgn|png|txt|toml)$", re.IGNORECASE)
     own = sorted(f.name for f in image_dir.iterdir() if f.is_file() and keep.search(f.name))
+    if (image_dir / "run.json").exists():  # a run of one image, directly in this folder
+        return sorted({*own, "run_summary.tsv"})
     run = {f.name for f in image_dir.parent.iterdir() if f.is_file() and keep.search(f.name)} | {"run_summary.tsv"}
     return own + ["../" + n for n in sorted(run)]
 
@@ -250,7 +252,12 @@ def write_image_dashboard(result: ImageResult, viewer: ViewerData, settings: Set
     data = build_image_data(result, viewer, settings, route, folder=result.out_dir)
     data["files"] = run_files(result.out_dir)
     exp = settings.input.experiment
-    if exp and result.out_dir.parent.parent.resolve() == Path(exp).resolve():  # ↑ Overview: that of the experiment
+    here = result.out_dir.resolve()
+    if exp and here.parent == Path(exp).resolve():  # ↑ Overview: that of the experiment (a run of one image in it)
+        data["overview_href"] = "../index.html"
+    elif exp and here.parent.parent == Path(exp).resolve():  # (a run with a folder per image)
         data["overview_href"] = "../../index.html"
+    elif (here / "run.json").exists():  # a run of one image, not in an experiment: its own overview
+        data["overview_href"] = "index.html"
     path.write_text(_embed(_dashboard_template(), data), encoding="utf-8")
     return path

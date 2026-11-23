@@ -60,7 +60,7 @@
 ## Results
 
 ??? question "I only have one image. Do I need an experiment?"
-    You choose an experiment folder (it may be empty, and the window proposes one next to your image), and the image gets a
+    You add your image, and the window proposes an experiment folder next to it (or you choose one); the image gets a
     folder in it. Everything works as for a screen, and the experiment overview is just short. See
     [Your first analysis](../start/first-analysis.md).
 

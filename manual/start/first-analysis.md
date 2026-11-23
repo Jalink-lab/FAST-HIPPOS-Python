@@ -63,13 +63,11 @@ log and the results on the right.</figcaption>
 </figure>
 
 <ol class="callouts" markdown>
-<li markdown>Click **Browse…** next to *Experiment folder* and choose (or make) an empty folder, e.g.
+<li markdown>At the top of the window, click **New…** and choose (or make) an empty folder, e.g.
 `C:\Data\FAST-HIPPOS example\experiment`. All results go there, one folder per image. (If you skip this, adding
-the images proposes a folder *FAST-HIPPOS* next to them.) You always need an experiment folder, also for a single
-image of your own: it is then an experiment of one image.</li>
-<li markdown>Click **Add images…** and choose the three `example_screen_*.tif` files. Each image shows its size, frames,
-channels, pixel size and frame interval, read from the file. Below the images, every
-image gets a row with a tick box, its name (its folder in the experiment folder) and an optional label, e.g. the
+the images proposes a folder *FAST-HIPPOS* next to them, which is all you need for a single image of your own.)</li>
+<li markdown>Click **Add images…** and choose the three `example_screen_*.tif` files. Every image gets a row with a tick box, its name (its folder in the experiment folder), its size, frames,
+channels, pixel size and frame interval as read from the file, and an optional label, e.g. the
 condition. All three are ticked: they are all analyzed.</li>
 <li markdown>*Image type*: **Fitted TCSPC data / TauSeparation**, with τ₁ = **0.6** and τ₂ = **3.4** ns: the lifetimes of
 the two components of the fit.</li>
@@ -151,7 +149,7 @@ the results in the window:
 
 !!! tip "With one image of your own"
     Choose an experiment folder, add the image and run: you get its overview, dashboard and `.rgn` files. Later
-    images of the same screen go into the same experiment folder (**＋ New image**, then add the next image), see
+    images of the same screen go into the same experiment folder (add the next image and run), see
     [A screen of many images](../guide/screen.md).
 
 ## 7. Look at the results

@@ -30,7 +30,7 @@ full (segmentation, traces, metrics, dashboards and overviews), but without hits
 
 !!! warning "Not yet tested on real Zeiss files"
     CZI reading has been tested on files written with Zeiss's own library, not yet on time-lapses from a Zeiss
-    microscope. Check the pixel size and frame interval shown in the Images list. If the frame interval is missing, set
+    microscope. Check the pixel size and frame interval shown in the Images table. If the frame interval is missing, set
     *Default frame interval* in the advanced settings of the Images card.
 
 ## OME-TIFF

@@ -1,7 +1,7 @@
 # The output folder
 
 All results go into the **experiment folder** that you choose in the *Images* card. Every image gets a folder of its
-own in it, named as in the Images list: **one image folder holds one run** of one image, with its hit list and `.rgn`
+own in it, named as in the Images table: **one image folder holds one run** of one image, with its hit list and `.rgn`
 files. The experiment folder itself holds the overview of all images, which may come from different input folders. (A run of several images in one folder, with
 one combined hit list, can still be made with a settings file on the
 [command line](../reference/command-line.md).)
@@ -22,23 +22,25 @@ example_screen_1/               one image: its folder in the experiment folder
 ├── fast_hippos_settings.toml  the settings of the run, to open in the window or use on the command line
 ├── settings_used.json         the same, as the program used them
 ├── run.json, hit_chunks.json  bookkeeping of the run (which files it wrote; the hits per .rgn file)
-├── example_screen_1/          the image: its dashboard and tables
-│   ├── dashboard.html         the dashboard
-│   ├── frames/                the frames of the dashboard, one file each
-│   ├── cells.tsv              all cells: position, size, values, gates, hit or not
-│   ├── lifetime_traces.tsv    the trace of every cell (and additional_traces.tsv)
-│   ├── labels.tif             the segmentation: one number per cell
-│   ├── weighted_lifetime.tif  the lifetime image (time-lapse)
-│   ├── intensity_projection.tif
-│   ├── kymograph*.tif, traces.png
-│   └── tiles/                 full-resolution parts of large images, for the dashboard
-└── …
+├── dashboard.html             the dashboard
+├── frames/                    the frames of the dashboard, one file each
+├── cells.tsv                  all cells: position, size, values, gates, hit or not
+├── lifetime_traces.tsv        the trace of every cell (and additional_traces.tsv)
+├── labels.tif                 the segmentation: one number per cell
+├── weighted_lifetime.tif      the lifetime image (time-lapse)
+├── intensity_projection.tif
+├── kymograph*.tif, traces.png
+└── tiles/                     full-resolution parts of large images, for the dashboard
 ```
 
 The `.tsv` files are tab-separated tables: open them in Excel, or in Python or R. The TIFF images open in Fiji.
 
+Results of an earlier version have the image files one level deeper (`plate 1\plate 1\dashboard.html`). They keep
+working as they are; analyzing such an image again writes it in the layout above.
+
 The experiment folder holds one such folder per image, and adds `index.html` (the overview of all images),
-`experiment_summary.tsv` (its images table, with the label and the source of each image) and, after
+`experiment_summary.tsv` (its images table, with the label and the source of each image),
+`fast_hippos_experiment.json` (the images of the experiment in the window) and, after
 *Re-apply all images*, `experiment_log.txt`; see [A screen of many images](screen.md).
 
 !!! tip "Sharing"
@@ -48,20 +50,20 @@ The experiment folder holds one such folder per image, and adds `index.html` (th
 
 ## Running again
 
-An image that already has results in the experiment folder (an image of the same name) is unticked in the Images
-list. When you tick it and click **Run analysis**, its results are replaced. FAST-HIPPOS first lists exactly what
+An image that already has results in the experiment is unticked in the Images
+table. When you tick it and click **Run analysis**, its results are replaced. FAST-HIPPOS first lists exactly what
 will be replaced (the folders and the files of the run), and moves them into a subfolder `_previous_run` of the image
 folder before it starts. When the new run is complete,
 `_previous_run` is deleted; if the run is stopped or fails, it is kept, so nothing is lost. Other files in the
 folder are never touched. To keep both runs, give the image another name.
 
-To go back to the previous run after a stopped run: delete the partial results of the stopped run (the image folders
-and the files listed above), and move the contents of `_previous_run` back into the image folder. Do this before
+To go back to the previous run after a stopped run: delete the partial results of the stopped run (the files
+listed above), and move the contents of `_previous_run` back into the image folder. Do this before
 the next complete run, which deletes `_previous_run` (the window reminds you).
 
 **Re-apply this image** keeps the segmentation and the traces of the current image, and redoes the rest with the
 current settings: stimulation detection, screening, hit lists, `.rgn` files, overview and dashboard. It takes
-seconds. It always processes the image *as analyzed*, also when the Images list in the window has changed since; the
+seconds. It always processes the image *as analyzed*, also when the settings in the window have changed since; the
 window warns when they differ. **Re-apply all images** does this for every image of the experiment.
 
 What a re-apply can change: the stimulation and calibration, the screening, the hit lists and `.rgn` files, and the

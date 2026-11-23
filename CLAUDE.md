@@ -16,11 +16,15 @@ screens. Window (GUI) in the browser, HTML dashboards and overviews, `.rgn` file
 ## How it works now (2026-10)
 - Every image (a .tif, a tile folder, or one .lif series) is analyzed in a folder of its own inside the experiment
   folder; the user only sees "images" (internally a run folder is still called a sample: `run_samples`, CLI
-  `run-samples`, `experiment_info().samples`). The Images list = images to analyze, one row each with a tick box
-  (images with results start unticked), name (= folder) and label; Run analysis runs the ticked rows, then the
-  experiment overview. `fast-hippos-cli run` can still analyze several images in one run (settings files only).
-- One browser tab: the window (templates/gui.html) has a top bar Setup | Overview | Image ▾ (the image menu picks the
-  current image = `S.input.output`, shown and re-applied; it never changes the Images list) and shows the overview and
+  `run-samples`, `experiment_info().samples`). Since 2026-11-23 its results are directly in that folder ("flat" run:
+  `<experiment>/<image>/dashboard.html`, `run.json` has `"flat": true`, image folder `"."`). Older experiments and
+  `fast-hippos-cli run` with several images keep a folder per image inside the run; both layouts must keep working.
+- The experiment comes first: a bar on the Setup page (recent, New, Open). The Images table (`IMGS` in gui.html, kept in
+  `<experiment>/fast_hippos_experiment.json`) has one row per image of the experiment, analyzed or not, with tick,
+  name (= folder), label, status, hits, Open. `S.input.files` = the files of the ticked rows. Add images without an
+  experiment proposes `<image folder>/FAST-HIPPOS`.
+- One browser tab: the window (templates/gui.html) has a top bar Setup | Overview | Image (the current image =
+  `S.input.output`, marked in the table, shown and re-applied) and shows the overview and
   the last three dashboards in frames, served by the GUI server; the pages stay stand-alone files
   (templates/common/base.js: `SHELL` hands links to the window). Purple theme (tokens in common/base.css and
   gui.html; `--accent-strong` for filled buttons).
