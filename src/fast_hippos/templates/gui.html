@@ -153,6 +153,10 @@ body.pages #expBar, body:not(.pages) #selImage { display: none; }
 .irow .src { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .irow .src .bad { color: var(--err); }
 .irow input[type=text] { min-width: 0; width: 100%; } .irow .st { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .irow .st.again, .irow .st.differs { color: var(--warn); } .irow .st.ok { color: var(--ok); } .irow .hits { color: var(--hit); font-size: 12px; text-align: right; }
+.ro { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.rorow { display: grid; grid-template-columns: 18px minmax(110px, 170px) minmax(220px, 1fr) 84px 84px; gap: 6px; align-items: center; min-width: 560px; }
+.rorow.head { color: var(--muted); font-size: 11.5px; } .rorow .src { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rorow input[type=text], .rorow input[type=number] { min-width: 0; width: 100%; }
 .itools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .itools .sp { flex: 1; }
 .results .grp { color: var(--muted); margin-top: 6px; }
 /*__HELP_CSS__*/
@@ -284,6 +288,7 @@ function shown(cond) { return !cond || Object.entries(cond).every(([k, c]) => ho
 // a setting that is not used with the current settings is greyed out; returns the reason, or "" if used
 function unusedReason(f) {
   if (f.unused) return f.unused;  // never used by this version
+  if ((f.key === "input.tau1" || f.key === "input.tau2") && fitActive()) return "read from the LAS X fit in the .lif, per readout (see FLIM readouts)";
   if (!f.enable) return "";
   const failed = Object.entries(f.enable).find(([k, c]) => !holds(k, c));
   return failed ? (SCHEMA.reasons[failed[0]] || "not used with the current settings") : "";
@@ -528,8 +533,9 @@ function widget(f) {
     case "intlist": return `<input id="${id}" type="text" value="${esc((v || []).join(", "))}" placeholder="all">`;
     case "metric": return `<select id="${id}"><option value="">(cell order)</option>${Object.keys(SCHEMA.metrics).map(m => `<option ${m === v ? "selected" : ""}>${m}</option>`).join("")}</select>`;
     case "files": return imagesHTML();
+    case "readouts": return readoutsHTML();
     case "criteria": {
-      const crit = v || [], metrics = Object.keys(SCHEMA.metrics);
+      const crit = v || [], metrics = [...Object.keys(SCHEMA.metrics), ...readoutMetrics()];
       return `<div>${crit.map((c, i) => `<div class="crit" data-crit="${i}">
           <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
           <select data-c="metric" title="${esc(SCHEMA.metrics[c.metric] || "")}">${metrics.map(m => `<option ${m === c.metric ? "selected" : ""}>${m}</option>`).join("")}</select>
@@ -592,7 +598,7 @@ function render() {
   const active = document.activeElement?.id;
   let html = "", hidden = 0;
   for (const card of SCHEMA.layout) {
-    const basic = card.basic.filter(k => k !== "input.experiment").map(k => FIELD[k]).filter(f => shown(f.show));  // (the experiment has its bar)
+    const basic = card.basic.filter(k => k !== "input.experiment" && (k !== "input.readouts" || readoutFits().length)).map(k => FIELD[k]).filter(f => shown(f.show));  // (the experiment has its bar)
     // a group's rows ("|" starts a new one), each with the fields that are shown
     const rowsOf = (keys) => keys.join(" ").split("|").map(r => r.trim().split(/\s+/).filter(Boolean).map(k => FIELD[k]).filter(f => shown(f.show))).filter(r => r.length);
     const subs = card.advanced.filter(a => shown(a.show)).map(a => { const rows = rowsOf(a.keys); return { title: a.title, column: a.column, rows, fs: rows.flat() }; }).filter(a => a.fs.length);
@@ -684,7 +690,8 @@ function serverCheck() {
     const rows = sampleRows(), chk = { ...S, input: { ...S.input, files: rows.length ? [...new Set(rows.map(r => r.file))] : S.input.files,
       output: S.input.experiment ? joinP(S.input.experiment, rows.length ? rows[0].name : "image") : "" } };
     let problems = [];  // (nothing ticked: nothing to check, and images analyzed earlier may have moved)
-    if (rows.length) try { problems = (await api("check", { settings: chk, samples: true })).problems; } catch (e) { problems = [e.message]; }
+    const only = {}; for (const r of rows) if (r.series !== null) (only[r.file] = only[r.file] || []).push(r.series);
+    if (rows.length) try { problems = (await api("check", { settings: chk, samples: true, only })).problems; } catch (e) { problems = [e.message]; }
     if (SRV.key === key) { SRV.problems = problems; SRV.checkedInputs = inputs; renderChecks(); }
   }, 350);
 }
@@ -734,7 +741,7 @@ function checks() {
   }
   if (S.display.min_lifetime != null && S.display.max_lifetime != null && S.display.max_lifetime <= S.display.min_lifetime) add("err", "Colour scale: the maximum must be larger than the minimum");
   if (S.screening.enabled) {
-    if (!S.screening.stage_positions_file && !ff.positions) add("warn", "Not every image has stage positions: their hits are found, but left out of the .rgn files (Screening, advanced: Stage positions file)");
+    if (rows.length && !S.screening.stage_positions_file && !ff.positions) add("warn", "Not every image has stage positions: their hits are found, but left out of the .rgn files (Screening, advanced: Stage positions file)");
     if (!S.screening.criteria.length && !S.screening.manual_hits && !S.screening.random_hits) add("warn", "No hit criteria: no cell becomes a hit (add criteria here or in the dashboard)");
     if (S.screening.classify_additional_channel && !S.input.additional_channel) add("warn", "Classification needs an additional channel");
     if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
@@ -791,6 +798,7 @@ function readInput(el) {
 document.addEventListener("change", (e) => {
   const el = e.target;
   if (el.dataset.rkey !== undefined) { editRow(el); return; }  // a row of the Images table
+  if (el.dataset.ro !== undefined) { editReadout(el); return; }  // a row of the FLIM readouts
   const crit = el.closest("[data-crit]");
   if (crit) {
     const c = S.screening.criteria[+crit.dataset.crit], k = el.dataset.c;
@@ -1037,7 +1045,67 @@ function syncFiles() {
   if (!S || !S.input.experiment || IMGS_FOR !== S.input.experiment) return;
   const files = [...new Set(sampleRows().map(r => r.file))];
   if (!same(files, S.input.files)) { S.input.files = files; S.input.series = null; }
-  if (files.some(f => !(f in INFO))) inspect(files);
+  const known = [...new Set([...files, ...fitRows().map(r => r.file)])];
+  if (known.some(f => !(f in INFO))) inspect(known);
+  syncReadouts();
+}
+// ---------------------------------------------------------------- FLIM readouts: the channels of a LAS X fit in a .lif
+const rowFits = (r) => (INFO[r.file] && INFO[r.file].series_fits && INFO[r.file].series_fits[r.series]) || null;
+const fitRows = () => { const ticked = sampleRows(); return ticked.length ? ticked : sampleRows(true).filter(r => r.has && r.file); };  // ticked, else analyzed
+function readoutFits() {  // the FLIM channels of the fits of those images
+  if (!S || S.input.modality !== "tcspc") return [];
+  const out = new Map();
+  for (const r of fitRows()) for (const f of rowFits(r) || []) if (!out.has(f.channel)) out.set(f.channel, f);
+  return [...out.values()].sort((a, b) => a.channel - b.channel);
+}
+function fitActive() { const rows = fitRows(); return S.input.modality === "tcspc" && rows.length > 0 && rows.every(r => rowFits(r)); }
+function readoutMetrics() {  // metrics of the further readouts, for the hit criteria
+  const used = (S.input.readouts || []).filter(r => r.use);
+  return used.slice(1).flatMap(r => READOUT_METRICS.map(m => `${r.name || "ch" + r.channel}.${m}`));
+}
+const READOUT_METRICS = ["baseline_mean", "response_mean_abs", "response_mean_diff", "response_max_abs", "response_max_diff", "response_fraction", "rise_time_frames", "rapid_response_ratio", "calibration_mean", "calibration_diff"];
+// the table follows the fits of the ticked images; τ₁ and τ₂ show those of the first readout, and come back afterwards
+let TAU_BEFORE = null;
+function syncReadouts() {
+  const fits = readoutFits(), have = S.input.readouts || [];
+  if (fits.length) {
+    const next = [...have.filter(r => fits.some(f => f.channel === r.channel))];
+    for (const f of fits) if (!next.some(r => r.channel === f.channel)) next.push({ name: `ch${f.channel}`, channel: f.channel, use: true, stimulation_frame: null, calibration_frame: null });
+    if (!same(next, have)) S.input.readouts = next;
+  }
+  const first = fits.find(f => f.channel === ((S.input.readouts || []).find(r => r.use) || {}).channel);
+  if (fitActive() && first && first.fixed && first.taus.length === 2) {
+    if (!TAU_BEFORE) TAU_BEFORE = [S.input.tau1, S.input.tau2];
+    [S.input.tau1, S.input.tau2] = first.taus;
+  } else if (!fitActive() && TAU_BEFORE) { [S.input.tau1, S.input.tau2] = TAU_BEFORE; TAU_BEFORE = null; }
+}
+function readoutsHTML() {
+  const fits = readoutFits(), rows = S.input.readouts || [];
+  const line = (r) => {
+    const f = fits.find(x => x.channel === r.channel); if (!f) return "";
+    const what = [`ch${f.channel}`, f.detector, f.emission_nm ? f.emission_nm + " nm" : "", f.fixed && f.taus.length ? f.taus.map(t => t + "").join(" / ") + " ns" : `${f.taus.length} free lifetimes`].filter(Boolean).join(" · ");
+    const frame = (k, tip) => `<input type="number" min="0" step="1" data-ro="${r.channel}" data-rf="${k}" value="${r[k] ?? ""}" placeholder="as below" title="${tip}">`;
+    return `<div class="rorow"><input type="checkbox" data-ro="${r.channel}" data-rf="use" ${r.use ? "checked" : ""} title="Analyze this readout">`
+      + `<input type="text" data-ro="${r.channel}" data-rf="name" value="${esc(r.name)}" placeholder="name, e.g. cAMP" title="The name of this readout: in the dashboards, the tables and the hit criteria">`
+      + `<span class="src" title="Read from the LAS X fit">${esc(what)}</span>`
+      + frame("stimulation_frame", "Its own stimulation frame. Empty: as under Stimulation and calibration (detected per readout when that is automatic)")
+      + frame("calibration_frame", "Its own calibration frame. Empty: as under Stimulation and calibration (detected per readout when that is automatic)") + `</div>`;
+  };
+  return `<div class="ro"><div class="rorow head"><span></span><span>Name</span><span>From the LAS X fit</span><span>Stim. frame</span><span>Cal. frame</span></div>${rows.map(line).join("")}`
+    + `<div class="muted" style="font-size:11.5px">The first ticked readout finds the cells and holds the hit criteria, which can use the metrics of the other readout.</div></div>`;
+}
+function editReadout(el) {
+  const r = (S.input.readouts || []).find(x => x.channel === +el.dataset.ro), k = el.dataset.rf; if (!r) return;
+  if (k === "use") {
+    if (!el.checked && S.input.readouts.filter(x => x.use).length === 1) { toast("At least one readout is needed", 3000); render(); return; }
+    r.use = el.checked;
+  } else if (k === "name") {
+    const name = el.value.trim().replace(/[\\/:*?"<>|.]/g, "_");
+    if (S.input.readouts.some(x => x !== r && x.name.toLowerCase() === name.toLowerCase())) { toast("Two readouts cannot have the same name", 4000); render(); return; }
+    const was = r.name; r.name = name;
+    for (const c of S.screening.criteria) if (c.metric.startsWith(was + ".")) c.metric = name + c.metric.slice(was.length);  // criteria follow the name
+  } else r[k] = el.value === "" ? null : parseInt(el.value, 10);
+  render();
 }
 function saveImages() {
   if (IMGS_FOR) api("experiment_images", { path: IMGS_FOR, images: IMGS }).catch(e => toast("The image list could not be saved: " + e.message, 6000));
@@ -1055,14 +1123,16 @@ async function addImages(paths, opts = {}) {
   const known = new Set([...IMGS, ...analyzed().filter(d => d.file)].map(imgKey));
   let added = 0, again = 0;
   for (const f of paths) {
-    const multi = hasSeries(f), names = (multi && INFO[f] && INFO[f].series_names) || [null];
+    const multi = hasSeries(f), names = (multi && INFO[f] && INFO[f].series_names) || [null], hidden = (INFO[f] && INFO[f].series_hidden) || [];
+    const count = names.length - hidden.length;  // (the parts of a FLIM analysis are no images)
     names.forEach((sn, k) => {
-      if (opts.series && opts.series.length && multi && !opts.series.includes(k)) return;
+      if (hidden.includes(k) || (opts.series && opts.series.length && multi && !opts.series.includes(k))) return;
       const im = { file: f, series: multi ? k : null, label: "" };
-      if (sn && names.length > 1) im.series_name = sn;
-      const auto = autoName(f, sn, names.length);
+      if (sn && count > 1) im.series_name = sn;
+      const auto = autoName(f, sn, count);
+      if (((INFO[f] && INFO[f].series_unfitted) || []).includes(k) && S.input.modality === "tcspc") im.use = false;  // no LAS X fit: nothing to analyze yet
       if (known.has(imgKey(im)) || (opts.adopting && analyzed().some(d => sameName(d.name, auto)))) { again++; return; }
-      im.name = freeName(auto); IMGS.push(im); known.add(imgKey(im)); added++;
+      im.name = freeName((count > 1 && safeName(sn)) || auto); IMGS.push(im); known.add(imgKey(im)); added++;
     });
   }
   if (added) saveImages();
@@ -1201,7 +1271,7 @@ function pruneOwnSettings() {
     const stem = baseName(r.file).replace(/\.[^.]*$/, "");  // as Path.stem
     for (const n of [r.image, r.name, fileBase(r.file), stem, r.seriesName ? `${stem} - ${String(r.seriesName).replace(/\//g, "-")}` : null]) if (n) keep.add(n.toLowerCase());
   }
-  const gone = Object.keys(S.image).filter(n => !keep.has(n.toLowerCase()));
+  const gone = Object.keys(S.image).filter(n => !keep.has(n.toLowerCase()) && !keep.has(n.split(" · ")[0].toLowerCase()));  // (" · ": a further readout)
   if (!gone.length) return;
   for (const n of gone) delete S.image[n];
   toast(`Own settings of ${gone.join(", ")} dropped from the window: not an image of this experiment (the analyzed image keeps them in its folder)`, 6000);

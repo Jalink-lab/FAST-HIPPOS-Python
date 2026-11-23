@@ -247,10 +247,35 @@ def run_files(image_dir: Path) -> list[str]:
     return own + ["../" + n for n in sorted(run)]
 
 
+def _readout_data(result: ImageResult, settings: Settings) -> dict:
+    """The other readouts of the image: links to their dashboards, and the traces of the other one for the cell panel."""
+    if not result.readout:
+        return {}
+    first = result.primary or result
+    group = [first, *first.secondaries]
+    data = {"readout": result.readout | {"first": result is first}}
+    if len(group) < 2:
+        return data
+    def href(other):
+        if other is result:
+            return "dashboard.html"
+        return f"{other.out_dir.name}/dashboard.html" if result is first else ("../dashboard.html" if other is first
+                                                                                  else f"../{other.out_dir.name}/dashboard.html")
+    data["readouts"] = [{"name": r.readout["name"], "href": href(r), "current": r is result} for r in group]
+    other = next(r for r in group if r is not result)
+    lo, hi = display_range(other, settings)
+    data["partner"] = {"name": other.readout["name"], "kymo": float_b64(other.kymo), "min": lo, "max": hi}
+    return data
+
+
 def write_image_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> Path:
     path = result.out_dir / "dashboard.html"
     data = build_image_data(result, viewer, settings, route, folder=result.out_dir)
     data["files"] = run_files(result.out_dir)
+    data |= _readout_data(result, settings)
+    if result.readout:
+        data["screen"]["metrics"] = data["screen"]["metrics"] | {
+            c: f"{c.split('.', 1)[1]} of the readout {c.split('.', 1)[0]}" for c in result.cells.columns if "." in c}
     exp = settings.input.experiment
     here = result.out_dir.resolve()
     if exp and here.parent == Path(exp).resolve():  # ↑ Overview: that of the experiment (a run of one image in it)

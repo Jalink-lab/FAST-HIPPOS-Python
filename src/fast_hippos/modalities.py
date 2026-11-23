@@ -56,6 +56,17 @@ def tcspc(a1: np.ndarray, a2: np.ndarray, tau1: float, tau2: float):
     return intensity, lifetime
 
 
+def lif_fit(photons: np.ndarray, weighted: np.ndarray):
+    """A LAS X fit in a .lif: photons per pixel, and photons x LAS X's mean arrival time (= the sum over the components of
+    photons x lifetime). These two can be registered and stitched like component images. The intensity and the lifetime
+    are then those of `tcspc` for the same fit, with any number of components."""
+    photons = photons.astype(np.float32)
+    weighted = weighted.astype(np.float32)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        lifetime = np.where(photons > 0, weighted / photons, np.nan).astype(np.float32)
+    return weighted, lifetime
+
+
 def tau_contrast(intensity: np.ndarray, coded: np.ndarray):
     """LAS X TauContrast: 8-bit lifetime code 0..255 -> -1..~23.7 ns."""
     lifetime = coded.astype(np.float32) * 0.097 - 1.0

@@ -51,6 +51,11 @@ screens. Window (GUI) in the browser, HTML dashboards and overviews, `.rgn` file
 - `io.py` dispatches on the file: TIFF, OME-TIFF (`_ome_metadata`), `.lif` (liffile), `.czi` (`czi.py`, pylibCZIrw, beta:
   not yet tested on a real Zeiss file). A new format: a reader returning `ImageData`, an `image_info` branch with
   `format`, `has_series` (+ `hasSeries` in gui.html), `IMAGE_SUFFIXES`/the file dialog, `manual/guide/formats.md`.
+- FLIM in a .lif (since 2026-11-23): `io.lif_fits` reads LAS X's fit images; `read_lif(flim_fit=True)` adds two channels per FLIM
+  channel (photons, photons x `FlimMeanPhotonArivalTime`, = the component formula within 1.6 ps; `FlimMeanDecayTime` is another
+  quantity). Children under `<image>/FLIM/` keep their series numbers but are `hidden`. Raw LMSRAW photons are not read: Leica IP.
+- Readouts: `input.readouts`; the first finds the cells and holds the criteria (metrics of others = `<name>.<metric>`), a further
+  readout is a result in `<image>/<name>/` (`readout.json`), named `<image> · <name>` for its own settings.
 - Screening is for Leica data only (`io.NO_SCREENING`, enforced in `checks.py`, also for re-apply).
 - The numpy override in pyproject.toml exists because Cellpose 3 declares numpy<2.1; raise it only after comparing masks.
 

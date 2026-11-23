@@ -90,6 +90,8 @@ experiment of one image.
   results. **▶ Run analysis (n images)** analyzes the ticked rows one after the other and then updates the overview,
   so when you add one new image and run, only that image is analyzed. A label can be changed at any time, also of an
   analyzed image, without analyzing it again. **✕** removes an image that has no results from the experiment.
+- **FLIM readouts**: for a `.lif` with a LAS X fit, one row per FLIM channel, e.g. cAMP and calcium, on the same cells;
+  the lifetimes are read from the file. See [FLIM data in a .lif file](formats.md#flim-in-lif).
 - **Image type**: what the pixel values mean, and so how the value per cell is computed: two-component TCSPC fits
   (with τ₁ and τ₂), Fast FLIM, TauContrast, frequency-domain FLIM, ratio imaging, or intensity only.
 - **Additional channel**: optionally a channel whose intensity is measured per cell, e.g. a transfection marker.

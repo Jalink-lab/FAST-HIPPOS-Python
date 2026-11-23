@@ -48,6 +48,11 @@ function initControls() {
   const fr = $("frame"); fr.max = T - 1; fr.oninput = () => setFrame(+fr.value);
   $("play").onclick = togglePlay;
   if (D.overview_href) $("ovlink").href = D.overview_href;
+  if (D.readouts) {  // the other readout of this image: its dashboard, at the same frame
+    const el = $("readout"); $("readoutL").hidden = false;
+    D.readouts.forEach(r => { el.add(new Option(r.name, r.href)); if (r.current) el.value = r.href; });
+    el.onchange = () => { try { sessionStorage.setItem("fh-readout-frame", S.frame); } catch { /* no storage */ } location.replace(el.value); };
+  }
   // the files of the run of this image (tables, .rgn files, plots, log), grouped
   const groups = [["Tables", /\.tsv$/i], ["Stage positions (.rgn)", /\.rgn$/i], ["Plots", /\.png$/i], ["Logs and settings", /\.(txt|toml)$/i]];
   $("filesMenu").innerHTML = groups.map(([g, re]) => { const fs = (D.files || []).filter(f => re.test(f)); return fs.length ? `<div class="grp">${g}</div>`
@@ -87,6 +92,7 @@ function initControls() {
 
 initControls(); initScreening(); initViewer(); initTraces(); initKymo(); initScatter(); initTable();
 recompute(); routeFromRun(); restoreSession(); drawColorbar(); updateChips();
+try { const f = sessionStorage.getItem("fh-readout-frame"); if (f !== null) { sessionStorage.removeItem("fh-readout-frame"); setFrame(+f); } } catch { /* no storage */ }
 new ResizeObserver(() => invalidate("traces", "tracesSel", "tracesHov", "kymo", "kymoOvl", "hist", "scatter", "scatterSel", "scatterHov", "cell")).observe(document.querySelector("main"));
 matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { hitRGB = hexToRgb(css("--hit")); outlinesChanged(); invalidate(...ALL()); });
 invalidate(...ALL());

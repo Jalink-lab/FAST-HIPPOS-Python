@@ -44,9 +44,10 @@ def screening_problems(settings: Settings) -> list[str]:
     return out
 
 
-def check_inputs(settings: Settings, samples: bool = False) -> list[str]:
+def check_inputs(settings: Settings, samples: bool = False, only: dict[str, list[int]] | None = None) -> list[str]:
     """All problems found, as readable sentences; empty if the run can start. samples: every image is a sample in a
-    folder of its own (the window, run-samples), so images of the same name do not share a result folder."""
+    folder of its own (the window, run-samples), so images of the same name do not share a result folder. only: for a
+    file with series, which of them will be analyzed ({file: [series]}; the ticked rows of the window)."""
     s_in, seg, ev = settings.input, settings.segmentation, settings.events
     problems: list[str] = []
     if not s_in.files:
@@ -71,12 +72,17 @@ def check_inputs(settings: Settings, samples: bool = False) -> list[str]:
         if settings.screening.enabled and infos and infos[0].get("format") in NO_SCREENING:
             problems.append(_no_screening(path, infos[0]["format"]))
         n_series = len(infos)
-        if has_series(path) and s_in.series:
-            infos = [infos[i] for i in s_in.series if 0 <= i < len(infos)]
+        if has_series(path):
+            chosen = s_in.series or (only or {}).get(str(path))
+            infos = [infos[i] for i in chosen if 0 <= i < len(infos)] if chosen else [i for i in infos if not i.get("hidden")]
         for info in infos:
             # the image name as the analysis gives it, and so the name of its result folder
             name = image_name(path, info, n_series)
             label = path.name if len(infos) == 1 else f"{path.name} ({info['name']})"
+            if s_in.modality == Modality.TCSPC and info.get("flim") and not info.get("fits"):
+                problems.append(f"{path.name} ({info['name']}) holds FLIM data without a LAS X fit: fit it in LAS X and save "
+                                "the file, or leave this image out (Images).")
+                continue
             key = safe_name(name).lower()
             if key in folders and not samples:
                 problems.append(f"{label} and {folders[key]} would share the result folder '{safe_name(name)}': rename one "

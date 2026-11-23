@@ -8,12 +8,13 @@ function scatterValues(key) {
   const o = new Float64Array(N);
   if (key === "@value") { const k = K(); for (let i = 0; i < N; i++) o[i] = k[S.frame * N + i]; return o; }
   if (key === "@additional") { for (let i = 0; i < N; i++) o[i] = KA[S.frame * N + i]; return o; }
+  if (key === "@partner") { for (let i = 0; i < N; i++) o[i] = KOTHER[S.frame * N + i]; return o; }
   const a = C[key]; for (let i = 0; i < N; i++) o[i] = a[i] === null || a[i] === undefined ? NaN : a[i]; return o;
 }
 // per-cell quantities in the same unit as the traces (lifetime or ratio)
 const VALUE_METRICS = ["baseline_mean", "response_mean_abs", "response_max_abs", "calibration_mean"];
 const isValueAxis = (k) => k === "@value" || VALUE_METRICS.includes(k);
-const scatterLabel = (k) => k === "@value" ? VALUE_LABEL : k === "@additional" ? "additional channel @ frame" : k;
+const scatterLabel = (k) => k === "@value" ? VALUE_LABEL : k === "@additional" ? "additional channel @ frame" : k === "@partner" ? `${D.partner.name} @ frame` : k;
 function drawScatter() {
   SP.resize(); SP.logx = S.slogx; SP.logy = S.slogy;
   const xs = scatterValues(S.sx), ys = scatterValues(S.sy), ids = [];
@@ -50,6 +51,7 @@ function drawScatterHov() {
 layer("scatter", drawScatter); layer("scatterSel", drawScatterSel); layer("scatterHov", drawScatterHov);
 function initScatter() {
   const opts = [["@value", VALUE_LABEL]]; if (KA) opts.push(["@additional", "additional channel @ frame"]);
+  if (KOTHER) opts.push(["@partner", `${D.partner.name} @ frame`]);
   NUMERIC.forEach(k => opts.push([k, k]));
   for (const id of ["sx", "sy"]) { const el = $(id); opts.forEach(([v, l]) => el.add(new Option(l, v))); }
   $("sx").value = S.sx; $("sy").value = S.sy;

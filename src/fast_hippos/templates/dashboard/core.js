@@ -3,7 +3,8 @@ const D = JSON.parse(document.getElementById("fh-data").textContent);
 const N = D.n_cells, T = D.n_frames, FI = D.frame_interval;
 const C = D.cells;
 
-const KR = b64f32(D.kymo), KA = b64f32(D.additional);
+const KR = b64f32(D.kymo), KA = b64f32(D.additional), KOTHER = D.partner ? b64f32(D.partner.kymo) : null;  // KOTHER: the other FLIM readout
+for (const k of Object.keys(C)) if (k.includes(".")) C[k] = C[k].map(v => v === null ? NaN : v);  // metrics of another readout: no value never passes
 const LUTS = {}; for (const [k, v] of Object.entries(D.luts)) LUTS[k] = b64bytes(v);
 Object.keys(C).filter(k => k.startsWith("pass_")).forEach(k => delete C[k]);  // recomputed live
 const HAS_ABS = (C.abs_x_m || []).some(v => v !== null);

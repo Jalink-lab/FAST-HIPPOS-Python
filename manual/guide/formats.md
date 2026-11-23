@@ -20,6 +20,37 @@ microscope can revisit them. It is therefore available for Leica data only. CZI 
 full (segmentation, traces, metrics, dashboards and overviews), but without hits. With such an image in the list and
 *Screen for hits* on, the Run card says what to change before the analysis starts.
 
+
+## FLIM data in a .lif file { #flim-in-lif }
+
+A Leica `.lif` holds the FLIM fit that you made in LAS X, so you do not have to export TIFFs. Add the `.lif` with
+**Add images…**, with the image type *Fitted TCSPC data / TauSeparation*:
+
+- Every image of the file gets one row. The parts of its FLIM analysis (phasor, decay and fit maps) are not listed.
+- FAST-HIPPOS reads LAS X's photon counts and mean photon arrival time per pixel. That image is the photon-weighted mean
+  of the lifetimes of the components, so it works for a fit with any number of components.
+- The lifetimes **τ₁** and **τ₂** are read from the file and greyed out in the window.
+- An image with FLIM data **that was not fitted** in LAS X starts unticked. Fit it in LAS X and save the file first.
+
+### Several FLIM readouts { #flim-readouts }
+
+When the fit has several FLIM channels, for instance cAMP and calcium, the *Images* card shows a **FLIM readouts** table.
+Give each readout a name, and untick one to leave it out.
+
+- The **first ticked readout** finds the cells. All readouts are measured in exactly the same cells.
+- **Timing.** Each readout has its own stimulation and calibration, detected in its own trace. To set a frame by hand,
+  fill it in for that readout; empty means *as under Stimulation and calibration*. In the dashboard of a readout, *Apply as
+  own settings* keeps a timing for that readout of that one image.
+- **Dashboards.** *Readout* in the top bar of a dashboard switches to the other readout, at the same frame. The cell panel
+  shows the trace of the other readout as a dashed line on its own scale, and the scatter plot can use its values
+  (`Calcium.response_max_diff`, or *Calcium @ frame*).
+- **Hits.** Hit criteria belong to the first readout and can use the metrics of the other one, for instance
+  `response_max_diff > 0.3` AND `Calcium.response_max_diff < 0.1`. There is one hit list and one set of `.rgn` files, and
+  every readout shows the same hits.
+- **Files.** The first readout is directly in the folder of the image, a further readout in a subfolder with its name
+  (`plate 1\Calcium\`). `cells.tsv` and `hits.tsv` of the first readout also hold the metrics of the other readout.
+- The overview of the experiment shows the first readout.
+
 ## Zeiss CZI (beta)
 
 - Every scene is an image. A tile scan is read as one image, already stitched by the Zeiss reader.

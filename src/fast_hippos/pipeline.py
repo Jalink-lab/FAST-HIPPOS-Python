@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import math
@@ -51,6 +52,10 @@ class ImageResult:
     classification_threshold: float | None = None
     source: str = ""  # the input file (or tile folder) the image came from
     stage_known: bool = True  # False: no stage position was found and (0, 0) stands in for it
+    # several FLIM readouts of one image: this one, the further ones (first readout) or the first one (a further readout)
+    readout: dict | None = None
+    secondaries: list[ImageResult] = field(default_factory=list)
+    primary: ImageResult | None = None
 
     @property
     def n_cells(self) -> int:
@@ -117,6 +122,8 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
             result = load_result(folder)
             analyze(result, settings)
             save_tables(result, settings)
+            for further in result.secondaries:
+                save_tables(further, _further_settings(settings))
             results.append(result)
         results.sort(key=lambda r: r.index)
     else:
@@ -134,7 +141,8 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
             if Path(path).is_dir():
                 images = [_stitch(Path(path), settings, out)]
             else:
-                images = iter_images(Path(path), settings.input.series, bidirectional, _reg_channels(settings))
+                images = iter_images(Path(path), settings.input.series, bidirectional, _reg_channels(settings),
+                                     settings.input.modality == Modality.TCSPC)
             for image in images:
                 log.info("--- %s (file %d of %d: %s)", image.name, f, n_files, Path(path).name)
                 if image.extra.get("tiles") and not Path(path).is_dir():  # a tile scan in a .lif, stitched
@@ -157,8 +165,12 @@ def run(settings: Settings, reapply: bool = False, experiment_overview: bool = T
     thumbs = {}
     for result in results:
         viewer = ViewerData.load(result.out_dir / "viewer.npz")
-        _write_dashboard(result, viewer, settings.for_image(result.name), routes.get(result.name))
+        _write_dashboard(result, viewer, _for_readout(settings, result).for_image(result.name), routes.get(result.name))
         thumbs[result.name] = thumbnail(viewer.projection8)
+        for further in result.secondaries:
+            shown = copy.deepcopy(_for_readout(settings, further).for_image(further.name))
+            shown.screening.criteria = []  # its hits are those of the first readout
+            _write_dashboard(further, ViewerData.load(further.out_dir / "viewer.npz"), shown)
     started = info["started"] if reapply else _read_run_file(out).get("started")
     write_overview(results, settings, out, hits, thumbs, {"started": started,
                                                           "reapplied": time.strftime("%Y-%m-%d %H:%M") if reapply else None})
@@ -216,10 +228,11 @@ def sample_list(settings: Settings) -> list[dict]:
         p = Path(f)
         multi = has_series(p)
         infos = image_info(p) if multi else [{"name": None}]
+        n_images = sum(not x.get("hidden") for x in infos)
         for i, info in enumerate(infos):
-            if multi and settings.input.series and i not in settings.input.series:
+            if info.get("hidden") or (multi and settings.input.series and i not in settings.input.series):
                 continue
-            name = base = sample_name(p, info.get("name") or f"series {i}", len(infos))  # (as the window)
+            name = base = sample_name(p, info.get("name") or f"series {i}", n_images)  # (as the window)
             for k in range(2, 1000):
                 if name.lower() not in taken:
                     break
@@ -233,8 +246,6 @@ def run_samples(settings: Settings, samples: list[dict] | None = None) -> list[s
     """Every image a sample: each one analyzed in a run of its own, in <experiment folder>/<sample name> (a sample of
     that name is replaced), then the experiment overview once. samples: [{file, series, name, label}] (default: one per
     image, sample_list). Returns the samples that failed."""
-    import copy
-
     from .experiment import LOG_FILE, write_experiment_overview
     from .io import has_series
 
@@ -284,7 +295,7 @@ def reapply_experiment(experiment: Path, changes: dict) -> list[str]:
     if isinstance(changes.get("screening"), dict):  # hand-picked hits belong to one sample
         changes["screening"] = {k: v for k, v in changes["screening"].items() if k != "manual_hits"}
     # (the image type only tells reapply_settings which quality gates fit: lifetime gates are not for ratio data)
-    changes["input"] = {k: v for k, v in (changes.get("input") or {}).items() if k in ("experiment", "modality")}
+    changes["input"] = {k: v for k, v in (changes.get("input") or {}).items() if k in ("experiment", "modality", "readouts")}
     changes["input"]["experiment"] = str(experiment)
     failed, reasons = [], []
     for k, folder in enumerate(folders, 1):
@@ -325,6 +336,7 @@ _IMAGE_OUTPUTS = re.compile(r"(labels\.tif|intensity_projection\.tif|weighted_li
                             r"kymograph(_smoothed|_additional|_sorted)?\.tif|traces\.npz|traces\.png|meta\.json|cells_base\.tsv|"
                             r"cells\.tsv|events\.json|lifetime_traces\.tsv|additional_traces\.tsv|viewer\.npz|dashboard\.html)")
 _IMAGE_FOLDERS = ("frames", "tiles")
+READOUT_FILE = "readout.json"  # marks the folder of a further FLIM readout, inside the folder of its image
 
 
 def _image_meta(folder: Path) -> dict | None:
@@ -349,6 +361,11 @@ def _result_folders(out: Path) -> list[tuple[Path, dict]]:
         if folder.name != PREVIOUS_RUN and not (folder / RUN_FILE).exists() and (meta := _image_meta(folder)):
             found.append((folder, meta))
     return found
+
+
+def _readout_folders(folder: Path) -> list[Path]:
+    """The folders of the further FLIM readouts of an image."""
+    return sorted(d for d in Path(folder).iterdir() if d.is_dir() and (d / READOUT_FILE).is_file())
 
 
 def is_flat(out: Path) -> bool:
@@ -403,7 +420,7 @@ def clear_plan(out: Path, keep: list[Path] = (), flat: bool = False) -> dict:
     names = [d.name for d in folders]
     if out.is_dir():
         image_files = {p for p in out.iterdir() if p.is_file() and _IMAGE_OUTPUTS.fullmatch(p.name)}
-        image_dirs = [out / n for n in _IMAGE_FOLDERS if (out / n).is_dir()]
+        image_dirs = [out / n for n in _IMAGE_FOLDERS if (out / n).is_dir()] + _readout_folders(out)
         was_flat = is_flat(out)
         if flat or was_flat:
             blocked += [f"{k} is a result file that a new run replaces: move it out of the folder first"
@@ -514,6 +531,11 @@ def reapply_settings(out: Path, changes: dict) -> dict:
             base[section] = base.get(section, {}) | changes[section] | kept
     if isinstance(changes.get("image"), dict):
         base["image"] = changes["image"]
+    # the timing per readout can change (which readouts there are, and their names, only with a new run)
+    frames = {r.get("channel"): r for r in (changes.get("input") or {}).get("readouts") or []}
+    for r in base["input"].get("readouts") or []:
+        if r.get("channel") in frames:
+            r |= {k: frames[r["channel"]].get(k) for k in ("stimulation_frame", "calibration_frame")}
     for key in ("experiment", "sample_label"):  # labels, not analysis settings: a re-apply may set them (an empty
         if (changes.get("input") or {}).get(key):  # one, e.g. from a settings file without them, keeps the run's)
             base["input"][key] = changes["input"][key]
@@ -568,7 +590,10 @@ def _stitch(folder: Path, settings: Settings, out: Path) -> ImageData:
 
 def _save_stitched(image: ImageData, out: Path) -> str:
     path = out / f"{_safe(image.name)}{'' if image.name.endswith('_STITCHED') else '_STITCHED'}.tif"
-    write_tiff(path, image.data, "TCYX", image.pixel_size, image.frame_interval, image.info)
+    data = image.data
+    if "raw_channels" in image.extra:  # the channels of the image itself (the fit stays in the .lif)
+        data = data[:, : image.extra["raw_channels"]].astype(image.extra["raw_dtype"])
+    write_tiff(path, data, "TCYX", image.pixel_size, image.frame_interval, image.info)
     log.info("Stitched image saved: %s", path)
     return path.name
 
@@ -610,7 +635,12 @@ def process_image(
         p = settings.preprocess
         image.data, _ = preprocess.correct_drift(image.data, reg_channels, p.drift_reference, p.drift_edge_detect, p.drift_blur_sigma)
 
-    intensity, lifetime = modalities.compute(image, s_in, settings.fdflim)
+    readouts = chosen_readouts(settings, image)
+    if readouts:
+        log.info("LAS X fit: readout%s %s", "s" if len(readouts) > 1 else "", ", ".join(_describe_readout(r) for r in readouts))
+        intensity, lifetime = modalities.lif_fit(image.channel(readouts[0]["photons"]), image.channel(readouts[0]["weighted"]))
+    else:
+        intensity, lifetime = modalities.compute(image, s_in, settings.fdflim)
     n_frames, height, width = intensity.shape
     pixel_size = s_in.pixel_size or image.pixel_size
     if not pixel_size:
@@ -670,24 +700,120 @@ def process_image(
     })
     base["abs_x_m"] = base["abs_y_m"] = np.nan  # filled in by analyze (stage_to_rgn)
     result.base = base
+    further = []  # (result, its images): the further readouts, on the same cells
+    if readouts:
+        result.readout = _readout_entry(readouts[0])
+        for r in readouts[1:]:
+            i2, l2 = modalities.lif_fit(image.channel(r["photons"]), image.channel(r["weighted"]))
+            folder = out_dir / readout_folder(r["name"])
+            folder.mkdir(parents=True, exist_ok=True)
+            kymo2 = kymograph.cell_values(i2, l2, labels, s_in.modality)
+            other = ImageResult(
+                name=f"{image.name} · {r['name']}", out_dir=folder, index=index, pixel_size=pixel_size, frame_interval=frame_interval,
+                shape=result.shape, unit=result.unit, kymo=kymo2, kymo_smoothed=kymograph.smooth_time(kymo2, s_disp.smooth_traces),
+                additional=additional, base=base.copy(), source=result.source, stage_xy=result.stage_xy,
+                tile_size=result.tile_size, tiles=result.tiles, stage_info_block=result.stage_info_block,
+                stage_known=result.stage_known, readout=_readout_entry(r), primary=result)
+            other.base["image"] = other.name
+            result.secondaries.append(other)
+            further.append((other, i2, l2))
 
     analyze(result, settings)
     save_image_outputs(result, labels, proj, lifetime, settings)
     from .dashboard import display_range
 
-    tiles_dir = out_dir / "tiles"
-    if tiles_dir.exists():
-        shutil.rmtree(tiles_dir)
-    big = max(height, width) > s_disp.dashboard_max_size
-    viewer = prepare(
-        intensity, lifetime, proj, labels, display_range(result, settings),
-        s_disp.dashboard_max_size, s_disp.dashboard_max_megapixels,
-        tiles_dir if (big and s_disp.dashboard and s_disp.dashboard_tiles) else None,
-        # the additional channel without a copy (the viewer takes only the frames it shows)
-        additional=image.data[:, s_in.additional_channel - 1] if s_in.additional_channel else None,
-    )
-    viewer.save(out_dir / "viewer.npz")  # the dashboard is written at the end of the run
+    addition = image.data[:, s_in.additional_channel - 1] if s_in.additional_channel else None
+    for res, inten, life in [(result, intensity, lifetime), *further]:
+        projection = proj
+        if res is not result:
+            projection = segmentation.projection(inten, s_seg.start_frame, s_seg.end_frame)
+            save_image_outputs(res, labels, projection, life, _further_settings(settings))
+            (res.out_dir / READOUT_FILE).write_text(json.dumps(res.readout | {"image": result.name}, indent=2), encoding="utf-8")
+        tiles_dir = res.out_dir / "tiles"
+        if tiles_dir.exists():
+            shutil.rmtree(tiles_dir)
+        big = max(height, width) > s_disp.dashboard_max_size
+        viewer = prepare(
+            inten, life, projection, labels, display_range(res, settings),
+            s_disp.dashboard_max_size, s_disp.dashboard_max_megapixels,
+            tiles_dir if (big and s_disp.dashboard and s_disp.dashboard_tiles) else None,
+            # the additional channel without a copy (the viewer takes only the frames it shows)
+            additional=addition,
+        )
+        viewer.save(res.out_dir / "viewer.npz")  # the dashboard is written at the end of the run
     return result
+
+
+# ---------------------------------------------------------------- several FLIM readouts of one image
+
+
+def chosen_readouts(settings: Settings, image: ImageData) -> list[dict]:
+    """The FLIM channels of the LAS X fit to analyze, the first one being the first readout (its cells and hits)."""
+    fits = image.extra.get("flim_fit") or []
+    if not fits:
+        return []
+    if not settings.input.readouts:
+        return [f | {"name": f"ch{f['channel']}"} for f in fits]
+    out = []
+    for r in settings.input.readouts:
+        if r.use:
+            fit = next((f for f in fits if f["channel"] == r.channel), None)
+            if fit is None:
+                log.warning("%s has no FLIM channel %d in its fit: readout %s left out", image.name, r.channel, r.name)
+            else:
+                out.append(fit | {"name": r.name.strip() or f"ch{r.channel}"})
+    if not out:
+        raise ValueError(f"{image.name}: none of the chosen readouts is in its LAS X fit")
+    return out
+
+
+def readout_folder(name: str) -> str:
+    folder = safe_name(name).strip(" .") or "readout"
+    return f"readout {folder}" if folder.lower() in (*_IMAGE_FOLDERS, PREVIOUS_RUN) else folder
+
+
+def _readout_entry(r: dict) -> dict:
+    return {k: r[k] for k in ("name", "channel", "taus", "fixed", "detector", "emission_nm")}
+
+
+def _describe_readout(r: dict) -> str:
+    taus = " / ".join(f"{t:g}" for t in r["taus"]) + " ns" if r["fixed"] and r["taus"] else "free lifetimes"
+    return f"{r['name']} (ch{r['channel']}, {taus})"
+
+
+def _for_readout(settings: Settings, result: ImageResult) -> Settings:
+    """The settings of a result, with the stimulation and calibration frames of its readout where it has its own."""
+    if not result.readout:
+        return settings
+    own = next((r for r in settings.input.readouts if r.channel == result.readout["channel"]), None)
+    if own is None or (own.stimulation_frame is None and own.calibration_frame is None):
+        return settings
+    s = copy.deepcopy(settings)
+    if own.stimulation_frame is not None:
+        s.events.stimulation_frame = own.stimulation_frame
+    if own.calibration_frame is not None:
+        s.events.calibration_frame = own.calibration_frame
+    return s
+
+
+def _further_settings(settings: Settings) -> Settings:
+    """For measuring a further readout: its hits are those of the first readout, so no screening of its own."""
+    s = copy.deepcopy(settings)
+    s.screening.enabled = False
+    s.screening.criteria = []
+    s.screening.manual_hits = None
+    s.screening.random_hits = None
+    return s
+
+
+READOUT_METRICS = ("baseline_mean", "response_mean_abs", "response_mean_diff", "response_max_abs", "response_max_diff",
+                   "response_fraction", "rise_time_frames", "rapid_response_ratio", "calibration_mean", "calibration_diff")
+
+
+def _metrics_of(result: ImageResult) -> pd.DataFrame:
+    """The metrics of a readout as columns for the other readouts: '<readout>.<metric>'."""
+    cols = [m for m in READOUT_METRICS if m in result.cells]
+    return result.cells[cols].reset_index(drop=True).rename(columns={m: f"{result.readout['name']}.{m}" for m in cols})
 
 
 _safe = safe_name
@@ -747,7 +873,23 @@ def stage_to_rgn(result: ImageResult, sc) -> None:
 
 def analyze(result: ImageResult, settings: Settings) -> None:
     """Events, sorting, metrics, classification and hits (cheap; re-run by `reapply`), with the image's own settings
-    where it has them (Settings.image)."""
+    where it has them (Settings.image). With several readouts each has its own timing and metrics, and the hit criteria
+    of the first readout can use the metrics of the others; every readout shows the same hits."""
+    linked = None
+    if result.secondaries:
+        measured = _further_settings(settings)
+        for further in result.secondaries:
+            _analyze_one(further, measured)
+        linked = pd.concat([_metrics_of(f) for f in result.secondaries], axis=1)
+    _analyze_one(result, settings, linked)
+    for further in result.secondaries:
+        further.cells["hit"] = result.cells["hit"].to_numpy()
+        others = [_metrics_of(result)] + [_metrics_of(f) for f in result.secondaries if f is not further]
+        further.cells = pd.concat([further.cells.reset_index(drop=True), *others], axis=1)
+
+
+def _analyze_one(result: ImageResult, settings: Settings, linked: pd.DataFrame | None = None) -> None:
+    settings = _for_readout(settings, result)
     if settings.image.get(result.name):
         log.info("Own settings of this image: %s", _describe_own(settings.image[result.name]))
     settings = settings.for_image(result.name)
@@ -759,6 +901,8 @@ def analyze(result: ImageResult, settings: Settings) -> None:
     result.order = events.response_order(result.kymo, ev)
     metrics = screening.compute_metrics(result.hit_kymo, ev, sc, result.additional)
     cells = pd.concat([result.base.reset_index(drop=True), metrics.drop(columns="cell")], axis=1)
+    if linked is not None:
+        cells = pd.concat([cells, linked], axis=1)
     if result.additional is not None and sc.classify_additional_channel:
         cells["class_additional"], result.classification_threshold = screening.classify_additional(
             cells["additional_intensity"], sc.classification_threshold
@@ -797,7 +941,7 @@ def save_image_outputs(result: ImageResult, labels, projection, lifetime, settin
         "shape": list(result.shape), "n_cells": result.n_cells, "unit": result.unit,
         "stage_xy_m": result.stage_xy, "tile_size_m": result.tile_size, "tiles": result.tiles,
         "stage_info_block": result.stage_info_block, "version": __version__, "source": result.source,
-        "stage_known": result.stage_known,
+        "stage_known": result.stage_known, "readout": result.readout,
     }
     (d / "meta.json").write_text(json.dumps(meta, indent=2))
     result.base.to_csv(d / "cells_base.tsv", sep="\t", index=False)
@@ -832,7 +976,7 @@ def load_result(d: Path) -> ImageResult:
     with np.load(d / "traces.npz") as z:
         kymo = z["kymo"]
         additional = z["additional"] if "additional" in z.files else None
-    return ImageResult(
+    result = ImageResult(
         name=meta["name"], out_dir=d, index=meta["index"], pixel_size=meta["pixel_size_um"],
         frame_interval=meta["frame_interval_s"], shape=tuple(meta["shape"]), unit=meta["unit"],
         kymo=kymo, kymo_smoothed=kymo, additional=additional,
@@ -840,8 +984,13 @@ def load_result(d: Path) -> ImageResult:
         stage_xy=tuple(meta["stage_xy_m"]) if meta["stage_xy_m"] else None,
         tile_size=tuple(meta["tile_size_m"]) if meta["tile_size_m"] else None,
         tiles=[tuple(t) for t in meta["tiles"]], stage_info_block=meta["stage_info_block"],
-        source=meta.get("source", ""), stage_known=meta.get("stage_known", True),
+        source=meta.get("source", ""), stage_known=meta.get("stage_known", True), readout=meta.get("readout"),
     )
+    if result.readout and not (d / READOUT_FILE).exists():  # the first readout: with the further ones
+        result.secondaries = [load_result(f) for f in _readout_folders(d)]
+        for further in result.secondaries:
+            further.primary = result
+    return result
 
 
 def _write_dashboard(result: ImageResult, viewer: ViewerData, settings: Settings, route=None) -> None:
@@ -926,7 +1075,7 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
     elif len(hits):
         log.warning("Hits found but no stage positions: no .rgn files written")
     log.info("Screening total: %d hits in %d cells", len(all_hits), len(all_cells))
-    names = {r.name for r in results}
+    names = {r.name for r in results} | {f.name for r in results for f in r.secondaries}
     for name in settings.image:
         if name not in names:
             log.warning("Own settings for image '%s' match no image of this run (images: %s)", name, ", ".join(sorted(names)))

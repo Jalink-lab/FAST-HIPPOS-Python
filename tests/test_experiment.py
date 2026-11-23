@@ -2,6 +2,7 @@
 
 import json
 
+import numpy as np
 import pytest
 
 from fast_hippos.config import Criterion, Settings
@@ -269,6 +270,66 @@ def test_the_previous_layout_still_works(tmp_path):
     assert [i["folder"] for i in run_info(exp / "p1")["images"]] == ["p1"]
     assert reapply_experiment(exp, {"screening": {"logic": "OR"}}) == []
     assert read_overview_data(exp / "index.html")["images"][0]["href"] == "p1/p1/dashboard.html"
+
+
+def _two_readouts(monkeypatch, tmp_path):
+    """An image as read from a .lif with a LAS X fit: two more channels (photons, photons x mean arrival) per readout."""
+    from fast_hippos import pipeline
+    from fast_hippos.config import Modality, ReadoutSettings
+
+    file = save_tiff(make_timelapse(seed=3)[0], tmp_path / "fit.tif")
+    original = pipeline.iter_images
+
+    def with_fit(path, series=None, bidirectional=None, channels=None, flim_fit=False):
+        for image in original(path, series, bidirectional, channels):
+            photons = image.data[:, :1].astype(np.float32) + 1
+            first, second = photons * 2.5, photons * (3.0 + 0.2 * (np.arange(len(photons)) >= 30)[:, None, None, None])
+            image.data = np.concatenate([image.data.astype(np.float32), photons, first, photons, second], axis=1)
+            n = image.data.shape[1] - 4
+            fit = {"taus": [0.6, 3.4], "fixed": True, "detector": "", "emission_nm": None}
+            image.extra |= {"flim_fit": [fit | {"channel": 1, "photons": n + 1, "weighted": n + 2},
+                                         fit | {"channel": 2, "photons": n + 3, "weighted": n + 4}]}
+            yield image
+
+    monkeypatch.setattr(pipeline, "iter_images", with_fit)
+    s = Settings()
+    s.input.files = [file]
+    s.input.modality = Modality.TCSPC
+    s.input.experiment = tmp_path / "screen"
+    s.input.readouts = [ReadoutSettings("cAMP", 1), ReadoutSettings("Calcium", 2, stimulation_frame=30)]
+    s.segmentation.method = "threshold"
+    s.segmentation.diameter = 18
+    s.segmentation.min_cell_size = 30
+    s.screening.enabled = True
+    s.screening.baseline_calibration_diff = None
+    s.screening.max_baseline_deviation = None
+    s.screening.criteria = [Criterion("Calcium.response_max_diff", ">", 0.1)]
+    return s, [{"file": str(file), "series": None, "name": "image", "label": None}], tmp_path / "screen" / "image"
+
+
+def test_two_readouts_share_cells_and_hits(tmp_path, monkeypatch):
+    """Every readout has its own folder, traces and timing on the same cells; criteria can use the other readout."""
+    import pandas as pd
+
+    from fast_hippos import gui
+    from fast_hippos.pipeline import clear_plan, run_info, run_samples
+
+    s, samples, image = _two_readouts(monkeypatch, tmp_path)
+    assert run_samples(s, samples) == []
+    first, second = (pd.read_csv(d / "cells.tsv", sep="\t") for d in (image, image / "Calcium"))
+    assert len(first) == len(second) and first["hit"].any() and (first["hit"] == second["hit"]).all()
+    assert np.allclose(first["Calcium.response_max_diff"], second["response_max_diff"], equal_nan=True)
+    assert json.loads((image / "Calcium" / "events.json").read_text())["stimulation"] == 30
+    assert [i["folder"] for i in run_info(image)["images"]] == ["."]  # the readout is not another image
+    assert "Calcium" in clear_plan(image)["folders"]
+    assert gui._run_folder(image / "Calcium" / "dashboard.html") == image
+    page = (image / "Calcium" / "dashboard.html").read_text(encoding="utf-8")
+    assert '"overview_href":"../../index.html"' in page and '"href":"../dashboard.html"' in page
+
+    assert reapply_experiment(s.input.experiment, {"screening": {"criteria": [
+        {"metric": "Calcium.response_max_diff", "op": ">", "value": 99.0}]}}) == []
+    assert not pd.read_csv(image / "cells.tsv", sep="\t")["hit"].any()
+    assert not pd.read_csv(image / "Calcium" / "cells.tsv", sep="\t")["hit"].any()
 
 
 def test_the_experiment_remembers_its_images(tmp_path):

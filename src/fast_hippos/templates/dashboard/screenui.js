@@ -27,9 +27,10 @@ function recompute() {
   const m = FHScreen.metrics(KS, T, N, ev, p, KA);
   Object.assign(C, m.cols);
   const hasCal = m.windows.calibration[1] > m.windows.calibration[0];
-  const h = FHScreen.hits(m.cols, N, p, hasCal);
+  const h = FHScreen.hits(C, N, p, hasCal);  // (C: also the metrics of another readout)
   C.valid = Array.from(h.valid); SCR.pass = h.pass; SCR.hasCal = hasCal;
   if (!SCR.on) HIT = new Array(N).fill(false);  // no screening: no hits
+  else if (D.readout && !D.readout.first) HIT = D.cells.hit.map(Boolean);  // the hits of the first readout
   else if (SCR.mode === "selection") HIT = Array.from({ length: N }, (_, i) => SCR.manual.has(i));
   else if (D.screening.random && JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on }) === SCR0) HIT = D.cells.hit.map(Boolean);
   else HIT = Array.from(h.hit, Boolean);
@@ -220,7 +221,11 @@ function initScreening() {
   $("route").onclick = () => computeRoute(); $("vroute2").checked = S.showRoute;
   $("vroute2").onchange = () => { S.showRoute = $("vroute2").checked; $("vroute").checked = S.showRoute; invalidate("viewerHov"); };
   $("scrtoml").onclick = exportTOML;
-  if (window.FH_GUI) { for (const [id, scope] of [["scrapply", "all"], ["scrapplyimg", "image"]]) { $(id).hidden = false; $(id).onclick = () => applyTo(scope); } } $("hitstsv").onclick = exportHitsTSV; $("hitsrgn").onclick = exportHitsRGN; $("hitsrgn").disabled = !HAS_ABS || !SCR.on;
+  if (window.FH_GUI) { for (const [id, scope] of (D.readout && !D.readout.first ? [["scrapplyimg", "image"]] : [["scrapply", "all"], ["scrapplyimg", "image"]])) { $(id).hidden = false; $(id).onclick = () => applyTo(scope); } }
+  if (D.readout && !D.readout.first) {  // the hits and criteria belong to the first readout; the timing here is this readout's own
+    for (const h of document.querySelectorAll("#scrbody .card h3")) if (/criteria/i.test(h.dataset.help || h.textContent)) h.closest(".card").hidden = true;
+    $("applymsg").textContent = `The hits come from the first readout (${D.readouts[0].name}). Here you can set the timing of ${D.readout.name}.`;
+  } $("hitstsv").onclick = exportHitsTSV; $("hitsrgn").onclick = exportHitsRGN; $("hitsrgn").disabled = !HAS_ABS || !SCR.on;
   initTimeline(); fillParams();
   new ResizeObserver(() => updateScreenUI()).observe(body);
 }

@@ -31,6 +31,16 @@ GATES = ("baseline_calibration_diff", "max_baseline_deviation")
 
 
 @dataclass
+class ReadoutSettings:
+    """One FLIM channel of a .lif with a LAS X fit, analyzed on the cells of the first readout."""
+    name: str = ""  # e.g. cAMP; also the folder of a further readout and the prefix of its metrics
+    channel: int = 1  # the FLIM channel of the fit (ch1, ch2, ...)
+    use: bool = True
+    stimulation_frame: int | None = None  # None: as under Stimulation and calibration
+    calibration_frame: int | None = None
+
+
+@dataclass
 class InputSettings:
     files: list[Path] = field(default_factory=list)
     output: Path = Path("output")
@@ -47,6 +57,7 @@ class InputSettings:
     remove_last_frame: bool = False
     additional_channel: int | None = None  # measure mean intensity of this channel per cell
     series: list[int] | None = None  # .lif series to analyze (0-based); None = all
+    readouts: list[ReadoutSettings] = field(default_factory=list)  # empty: every FLIM channel of the fit
 
 
 @dataclass

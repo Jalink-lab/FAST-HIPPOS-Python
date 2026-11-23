@@ -55,9 +55,10 @@ def safe_name(name: str) -> str:
 
 
 def iter_images(path: Path, series: list[int] | None = None, bidirectional: str | None = None,
-                channels: list[int] | None = None) -> Iterator[ImageData]:
+                channels: list[int] | None = None, flim_fit: bool = False) -> Iterator[ImageData]:
     """Yield all images (series) in a file; a folder of tiles, or a tile scan in a .lif, is stitched into one image
-    (bidirectional, channels: per-tile phase correction, see stitch.stitch_folder)."""
+    (bidirectional, channels: per-tile phase correction, see stitch.stitch_folder). flim_fit: a .lif series with a
+    LAS X fit also brings the fit (read_lif)."""
     suffix = path.suffix.lower()
     if path.is_dir():
         from .stitch import stitch_folder
@@ -69,7 +70,7 @@ def iter_images(path: Path, series: list[int] | None = None, bidirectional: str 
         for i in ([k for k in series if 0 <= k < n] if series and n > 1 else range(n)):
             yield read_tiff(path, i)
     elif suffix == ".lif":
-        yield from read_lif(path, series, bidirectional, channels)
+        yield from read_lif(path, series, bidirectional, channels, flim_fit)
     elif suffix == ".czi":
         from .czi import read_czi
 
@@ -181,6 +182,12 @@ def image_info(path: Path, lif: Path | None = None) -> list[dict]:
                 d = _lif_dims(img)
                 info = {"name": img.path, "frames": max(d["t"], d["z"], 1), "channels": d["c"],
                         "width": d["x"], "height": d["y"], "format": "lif"}
+                if _lif_is_result(img):  # part of the FLIM analysis of an image: keeps its series number, but is no image
+                    info["hidden"] = True
+                elif any(i.is_flim and i.path == f"{img.path}/FLIM" for i in doc.images):
+                    info["flim"] = True
+                    info["fits"] = [{k: v for k, v in f.items() if k not in ("photons_image", "arrival_image")}
+                                    for f in lif_fits(doc, img)]
                 scan = scans.get(_lif_full_name(doc, img))
                 if scan is not None:
                     info["positions"] = True
@@ -271,9 +278,10 @@ def _to_tcyx(arr: np.ndarray, axes: str) -> np.ndarray:
 
 
 def read_lif(path: Path, series: list[int] | None = None, bidirectional: str | None = None,
-             channels: list[int] | None = None) -> Iterator[ImageData]:
+             channels: list[int] | None = None, flim_fit: bool = False) -> Iterator[ImageData]:
     """The images (series) of a .lif file, with their own stage position and pixel size from the header. A tile scan
-    is stitched by the positions of its tiles."""
+    is stitched by the positions of its tiles. flim_fit: for a series with a LAS X fit, two more channels per FLIM channel
+    (photons, and photons x mean arrival time; extra["flim_fit"] says which), registered and stitched with the image."""
     from liffile import LifFile
 
     from .stitch import TileLayout, lif_images, stitch_tiles
@@ -281,10 +289,12 @@ def read_lif(path: Path, series: list[int] | None = None, bidirectional: str | N
     scans = lif_images(path)
     with LifFile(path) as lif:
         images = _lif_series(lif)
-        for i in (series if series is not None else range(len(images))):
+        for i in (series if series is not None else [k for k, im in enumerate(images) if not _lif_is_result(im)]):
             img = images[i]
             d = _lif_dims(img)
             nt, nz, nm = d["t"], d["z"], d["m"]
+            fits = lif_fits(lif, img) if flim_fit else []
+
             if nz > 1 and nt > 1:
                 raise ValueError(f"{path.name} series {i}: z-stacks with time frames are not supported")
             scan = scans.get(_lif_full_name(lif, img))
@@ -298,16 +308,81 @@ def read_lif(path: Path, series: list[int] | None = None, bidirectional: str | N
                     raise ValueError(f"{path.name} series {i} ('{img.path}'): tile scan of {nm} tiles without their positions")
                 layout = TileLayout([f"tile {m}" for m in range(nm)], scan.positions, (d["x"], d["y"]), pixel_size,
                                     f"{path.name} ({scan.flags})")
-                data, info = stitch_tiles([_lif_tile(img, m) for m in range(nm)], layout, bidirectional, channels, name)
-                yield ImageData(data, name, path, pixel_size, frame_interval, info, extra={"series": i, "tiles": nm})
+                data, info = stitch_tiles([_with_fit(_lif_tile(img, m), fits, m) for m in range(nm)], layout, bidirectional, channels, name)
+                yield ImageData(data, name, path, pixel_size, frame_interval, info,
+                                extra={"series": i, "tiles": nm} | _fit_extra(fits, d["c"], img.dtype))
             else:
                 stage = tuple(float(v) for v in scan.positions[0]) if scan is not None else None
-                yield ImageData(_lif_tile(img, 0), name, path, pixel_size, frame_interval, stage_position=stage, extra={"series": i})
+                yield ImageData(_with_fit(_lif_tile(img, 0), fits, 0), name, path, pixel_size, frame_interval, stage_position=stage,
+                                extra={"series": i} | _fit_extra(fits, d["c"], img.dtype))
 
 
 def _lif_series(lif) -> list:
     """The images of a .lif file that FAST-HIPPOS can read, in file order (the series numbers in settings and runs)."""
     return [img for img in lif.images if not img.is_flim]
+
+
+def _lif_is_result(img) -> bool:
+    """An image inside the FLIM analysis of another image (Intensity, Phasor, fit maps, ...)."""
+    return "/FLIM/" in img.path
+
+
+def lif_fits(lif, img) -> list[dict]:
+    """The LAS X fit of a series, per FLIM channel: {channel, taus, fixed, detector, emission_nm, photons_image,
+    arrival_image}. Empty when the series was not fitted. LAS X's FlimMeanPhotonArivalTime is the photon-weighted mean of
+    the lifetimes of the components, for any number of components."""
+    prefix = f"{img.path}/FLIM/"
+    kids = {i.path[len(prefix):]: i for i in lif.images if i.path.startswith(prefix)}
+    raw = next((i for i in lif.images if i.is_flim and i.path == f"{img.path}/FLIM"), None)
+    items = raw.xml_element.findall(".//RawData/Sequence/SequenceItem") if raw is not None else []
+    out = []
+    for k in range(1, 17):
+        photons, arrival = kids.get(f"FlimIntensitySum 1 ch{k}"), kids.get(f"FlimMeanPhotonArivalTime 1 ch{k}")
+        if photons is None or arrival is None:
+            break
+        taus, fixed = [], True
+        for j in range(1, 9):
+            decay = kids.get(f"FlimDecayTime {j} ch{k}")
+            if decay is None:
+                break
+            at = {a: 0 for a in ("T", "M", "Z") if a in decay.sizes}
+            v = np.asarray(decay.frame(**at), dtype=float)
+            v = v[np.isfinite(v) & (v > 0)]
+            if v.size:
+                fixed = fixed and float(v.max() - v.min()) < 1e-3
+                taus.append(round(float(np.median(v)), 3))
+        fit = {"channel": k, "taus": taus, "fixed": fixed, "detector": "", "emission_nm": None,
+               "photons_image": photons, "arrival_image": arrival}
+        if len(items) >= k:
+            det = items[k - 1].find(".//Detectors/Detectors")
+            if det is not None:
+                fit["detector"] = det.findtext("Name") or ""
+                try:
+                    fit["emission_nm"] = round(float(det.findtext("Emission")) * 1e9)
+                except (TypeError, ValueError):
+                    pass
+        out.append(fit)
+    return out
+
+
+def _with_fit(raw: np.ndarray, fits: list[dict], m: int) -> np.ndarray:
+    """Tile m as (T, C, Y, X), float32: the channels of the image, then photons and photons x mean arrival time per fit."""
+    if not fits:
+        return raw
+    extra = []
+    for fit in fits:
+        photons = _lif_tile(fit["photons_image"], m).astype(np.float32)
+        arrival = _lif_tile(fit["arrival_image"], m).astype(np.float32)
+        extra += [photons, photons * np.nan_to_num(arrival)]
+    return np.concatenate([raw.astype(np.float32), *extra], axis=1)
+
+
+def _fit_extra(fits: list[dict], n_channels: int, dtype) -> dict:
+    if not fits:
+        return {}
+    plain = [{k: v for k, v in f.items() if k not in ("photons_image", "arrival_image")}
+             | {"photons": n_channels + 2 * q + 1, "weighted": n_channels + 2 * q + 2} for q, f in enumerate(fits)]
+    return {"flim_fit": plain, "raw_channels": n_channels, "raw_dtype": str(dtype)}
 
 
 def _lif_dims(img) -> dict[str, int]:

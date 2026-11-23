@@ -77,6 +77,8 @@ FIELDS: dict[str, dict] = {
         "help": "The folder of one image (one run); the window sets it per image: <experiment folder>/<name>"},
     "input.experiment": {"label": "Experiment folder", "widget": "folder",
         "help": "One folder per image inside it, and the overview of all images"},
+    "input.readouts": {"label": "FLIM readouts", "widget": "readouts", "wide": True,
+        "help": "The FLIM channels of the LAS X fit, on the same cells"},
     "input.sample_label": {"label": "Sample label", "wide": True, "show": {"input.experiment": {"set": True}},
         "placeholder": "e.g. the condition or library of this image",
         "help": "Shown in the experiment overview, to tell or group the samples"},
@@ -219,6 +221,9 @@ TIPS: dict[str, str] = {
         "exported from LAS X (stitched into one image), or each series or scene of a .lif, .czi or OME-TIFF file (untick "
         "the ones to leave out). All are analyzed with the same settings, each in a run of its own. Screening, with its "
         "hits and .rgn files, is available for Leica data only.",
+    "input.readouts": "The FLIM channels of a .lif with a LAS X fit, each with its own name and, if needed, its own "
+        "stimulation and calibration frames. The cells are found once, in the first readout; its hit criteria can use the "
+        "metrics of the other readout.",
     "input.output": "The folder of one image (one run): tables, plots, dashboards and .rgn files. The window sets "
         "it per image (<experiment folder>/<name>); a new run replaces the results in it.",
     "input.experiment": "The folder that holds one folder per sample, and the overview of all samples (index.html), "
@@ -432,7 +437,7 @@ FD = {"input.modality": ["fd_flim"]}
 # set per sample by the rows of the Images table (each image a sample), not as fields of their own
 PER_SAMPLE = ["input.output", "input.sample_label"]
 LAYOUT = [
-    {"title": "Images", "basic": ["input.experiment", "input.files", "input.modality", "input.tau1", "input.tau2",
+    {"title": "Images", "basic": ["input.experiment", "input.files", "input.readouts", "input.modality", "input.tau1", "input.tau2",
                                   "input.additional_channel"],
      "advanced": [
          ("Channels and metadata", ["input.intensity_channel", "input.series", "|", "input.pixel_size",
@@ -683,12 +688,16 @@ def inspect_file(path: Path) -> dict:
         from .io import has_series, image_info
 
         infos = image_info(path)
-        first ={k: v for k, v in infos[0].items() if k != "name"}
+        shown = [i for i in infos if not i.get("hidden")] or infos  # (not the parts of a FLIM analysis)
+        first = {k: v for k, v in shown[0].items() if k not in ("name", "fits", "flim", "hidden")}
         out |= first
-        if len(infos) > 1:
-            out |= {"series": len(infos), "channels": min(i["channels"] for i in infos), "frames": min(i["frames"] for i in infos)}
+        if len(shown) > 1:
+            out |= {"series": len(shown), "channels": min(i["channels"] for i in shown), "frames": min(i["frames"] for i in shown)}
         if has_series(path):  # every series or scene becomes a sample of its own
             out["series_names"] = [i.get("name") or f"series {k}" for k, i in enumerate(infos)]
+            out["series_hidden"] = [k for k, i in enumerate(infos) if i.get("hidden")]
+            out["series_fits"] = {str(k): i["fits"] for k, i in enumerate(infos) if i.get("fits")}
+            out["series_unfitted"] = [k for k, i in enumerate(infos) if i.get("flim") and not i.get("fits")]
     except Exception as e:  # noqa: BLE001 - shown to the user
         out["error"] = f"{type(e).__name__}: {e}"
     return out
@@ -709,10 +718,10 @@ _CELLPOSE_PROBE = (
 )
 
 
-def _check(settings: dict, samples: bool = False) -> list[str]:
+def _check(settings: dict, samples: bool = False, only: dict | None = None) -> list[str]:
     from .checks import check_inputs
 
-    return check_inputs(settings_from_plain(settings), samples)
+    return check_inputs(settings_from_plain(settings), samples, {str(Path(f)): s for f, s in (only or {}).items()})
 
 
 def output_info(path: str, job: Job | None = None, settings: dict | None = None) -> dict:
@@ -1124,6 +1133,9 @@ def _page(token: str) -> bytes:
 def _run_folder(page: Path) -> Path:
     """The run a page belongs to: the folder of an overview, or of a dashboard in a run of one image; else the parent."""
     page = Path(page)
+    if (page.parent / "readout.json").exists():  # a further FLIM readout, in the folder of its image
+        image = page.parent.parent
+        return image if (image / "run.json").exists() else image.parent
     return page.parent if page.name == "index.html" or (page.parent / "run.json").exists() else page.parent.parent
 
 
@@ -1218,7 +1230,7 @@ def make_handler(token: str, job: Job, ctx: dict | None = None):
         "load": lambda q: {"settings": load_toml(Path(q["path"]))},
         "save": lambda q: (Path(q["path"]).write_text(to_toml(q["settings"]), encoding="utf-8"), {"ok": True})[1],
         "validate": lambda q: (settings_from_plain(q["settings"]), {"ok": True})[1],
-        "check": lambda q: {"problems": _check(q["settings"], bool(q.get("samples")))},
+        "check": lambda q: {"problems": _check(q["settings"], bool(q.get("samples")), q.get("only"))},
         "run": lambda q: {"run_id": start_reapply_experiment(job, q["settings"]) if q.get("experiment")
                           else start_reapply(job, q["settings"]) if q.get("reapply")
                           else job.start(q["settings"], False, remember=q["settings"], samples=q.get("samples"))},
