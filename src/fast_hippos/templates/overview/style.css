@@ -66,3 +66,12 @@ main { display: grid; gap: 12px; padding: 12px 16px 24px; grid-template-columns:
 #hitstbl th { position: sticky; top: 0; background: var(--panel2); text-align: right; font-weight: 600; padding: 5px 8px; border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; }
 #hitstbl td { padding: 0 8px; height: 24px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
 #hitstbl th.l, #hitstbl td.l { text-align: left; } #hitstbl tr { cursor: pointer; } #hitstbl tr:hover td { background: var(--panel2); }
+
+/* curve fits of the scatter plot */
+#fitres:empty { display: none; } #fitres { padding: 4px 10px 8px; font-size: 12px; }
+.fiteq { margin-bottom: 4px; overflow-wrap: anywhere; }
+.fittbl { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.fittbl th, .fittbl td { padding: 2px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.fittbl th { color: var(--muted); font-weight: 600; } .fittbl .l { text-align: left; }
+.fittbl td.l:first-child { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.fitnote { margin-top: 3px; }

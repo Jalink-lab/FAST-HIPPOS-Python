@@ -21,6 +21,7 @@
     <button data-x="hitsTsv" title="The hits of the selected images as a table (TSV, opens in Excel)">Hits → TSV</button>
     <button data-x="imagesTsv" title="The images table as shown (sorting and columns), with the QC flags">Images table → TSV</button>
     <button data-x="cellsTsv" title="The values of the cells of the selected images that this page holds (all hits; for large images a sample of the other cells)">Cells → TSV</button>
+    <button data-x="fitsTsv" title="The curve fits of the scatter plot (Cells panel) for the selected images: parameters, standard errors, R² and number of cells">Curve fits → TSV</button>
   </div></div>
   <button id="helpBtn" title="The manual of this page. ? or F1 over a panel: the part about that panel">? Help</button>
   <button id="theme" title="Switch between light and dark">◐</button>
@@ -50,8 +51,10 @@
       <label title="The value on the horizontal axis"><span id="mxl">value</span> <select id="metric"></select></label>
       <label id="myl" title="The value on the vertical axis (scatter)">y <select id="metricY"></select></label>
       <label title="Logarithmic horizontal axis"><input type="checkbox" id="logx"> <span id="logxl">log</span></label>
-      <label id="logyl" title="Logarithmic vertical axis"><input type="checkbox" id="logy"> log y</label></div>
+      <label id="logyl" title="Logarithmic vertical axis"><input type="checkbox" id="logy"> log y</label>
+      <label id="fitl" title="Fit a curve to the valid cells of each image (least squares); the parameters are in a table below the plot">fit <select id="fit"><option value="">none</option></select></label></div>
     <div class="stack" id="mstack"><canvas id="mpb"></canvas><canvas id="mph"></canvas></div>
+    <div id="fitres"></div>
     <div class="note muted" id="mnote"></div>
   </section>
   <section class="panel maps" id="mapsPanel">

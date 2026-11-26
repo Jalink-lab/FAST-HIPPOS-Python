@@ -21,11 +21,12 @@ layer("chips", drawChips);
 const STORE = "fast-hippos-overview:" + location.pathname;
 const readStore = (st) => { try { return JSON.parse(st.getItem(STORE) || "null"); } catch { return null; } };
 const writeStore = (st, v) => { try { st.setItem(STORE, JSON.stringify(v)); } catch { /* storage unavailable */ } };
-const PREF_KEYS = ["metric", "metricY", "cmode", "logx", "logy", "align", "hitsOnly", "sameScale", "hitsOpen", "sortCol", "sortDir"];
+const PREF_KEYS = ["metric", "metricY", "cmode", "fit", "logx", "logy", "align", "hitsOnly", "sameScale", "hitsOpen", "sortCol", "sortDir"];
 function restore() {
   const p = readStore(localStorage) || {};
   for (const k of PREF_KEYS) if (k in p && typeof p[k] === typeof S[k]) S[k] = p[k];
   if (!METRIC_KEYS.includes(S.metric)) S.metric = METRIC_KEYS[0] || ""; if (!METRIC_KEYS.includes(S.metricY)) S.metricY = METRIC_KEYS[0] || "";
+  if (S.fit && !(S.fit in FIT_MODELS)) S.fit = "";
   if (!COLS.some(c => c.key === S.sortCol)) { S.sortCol = "index"; S.sortDir = 1; }
   if (!hasStim) S.align = false;
   if (p.theme) document.documentElement.dataset.theme = p.theme;

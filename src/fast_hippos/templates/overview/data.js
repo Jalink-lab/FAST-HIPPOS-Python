@@ -25,7 +25,7 @@ const FLAG_LABEL = { few_cells: "few cells", low_valid: "low fraction valid", no
 const S = {
   sel: new Set(IM.slice(0, 6).map(im => im.k)), hidden: new Set(), hover: -1, last: -1, sortCol: "index", sortDir: 1,
   metric: METRIC_KEYS.includes(D.response_metric) ? D.response_metric : (METRIC_KEYS[0] || ""), metricY: METRIC_KEYS.includes("baseline_mean") ? "baseline_mean" : (METRIC_KEYS[0] || ""),
-  cmode: "dist", logx: false, logy: false, align: hasStim, hitsOnly: false, sameScale: false, hitsOpen: false,
+  cmode: "dist", fit: "", logx: false, logy: false, align: hasStim, hitsOnly: false, sameScale: false, hitsOpen: false,
 };
 // the selected images, in the order of the table; 'shown' leaves out the curves switched off in the legend
 function selected() { return tableOrder().filter(k => S.sel.has(k)); }

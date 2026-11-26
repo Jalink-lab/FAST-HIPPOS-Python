@@ -74,15 +74,15 @@ function sharedRange(ks, m, log) {
 }
 function drawMetric() {
   const ks = shown(), m = S.metric, dist = S.cmode === "dist";
-  $("myl").style.display = dist ? "none" : ""; $("logyl").style.display = dist ? "none" : "";
+  $("myl").style.display = dist ? "none" : ""; $("logyl").style.display = dist ? "none" : ""; $("fitl").style.display = dist ? "none" : "";
   $("mxl").textContent = dist ? "value" : "x"; $("logxl").textContent = dist ? "log" : "log x";
   $("mstack").style.height = (dist ? Math.max(220, ks.length * ROW_H + 50) : 340) + "px";
   MP.m.l = dist ? 150 : 56; MP.logx = S.logx; MP.logy = dist ? false : S.logy;
   MP.resize(); const ctx = MP.clear(0); MP.clear(1);
-  if (!ks.length || !m) { ctx.fillStyle = css("--muted"); ctx.font = "13px system-ui"; ctx.fillText("Select images in the table", 20, 30); $("mnote").textContent = ""; return; }
+  if (!ks.length || !m) { ctx.fillStyle = css("--muted"); ctx.font = "13px system-ui"; ctx.fillText("Select images in the table", 20, 30); $("mnote").textContent = ""; showFits([]); return; }
   const sampled = ks.filter(k => IM[k].n_shown < IM[k].n_cells);
   $("mnote").textContent = sampled.length ? `Large images are shown with a sample of ${D.max_cells.toLocaleString("en")} cells (all hits included): ${sampled.map(k => IM[k].name).join(", ")}` : "";
-  dist ? drawDistributions(ctx, ks, m) : drawScatter(ctx, ks);
+  if (dist) { drawDistributions(ctx, ks, m); showFits([]); } else drawScatter(ctx, ks);
 }
 function drawDistributions(ctx, ks, m) {
   const [a, b] = sharedRange(ks, m, S.logx); MP.range(a, b, 0, ks.length);
@@ -130,7 +130,66 @@ function drawScatter(ctx, ks) {
     for (let i = 0; i < im.n_shown; i++) { if (!Number.isFinite(X[i]) || !Number.isFinite(Y[i])) continue; ctx.fillRect(MP.X(X[i]) - 1.2, MP.Y(Y[i]) - 1.2, 2.4, 2.4); }
     if (hit) { ctx.strokeStyle = withAlpha(css("--hit"), dim ? 0.2 : 1); ctx.lineWidth = 1.2; for (let i = 0; i < im.n_shown; i++) { if (!hit[i] || !Number.isFinite(X[i]) || !Number.isFinite(Y[i])) continue; ctx.beginPath(); ctx.arc(MP.X(X[i]), MP.Y(Y[i]), 3.2, 0, 7); ctx.stroke(); } }
   }
+  const fits = S.fit ? ks.map(k => ({ k, ...scatterFit(k) })) : [];
+  for (const fr of fits) {  // the curve over the x range of the cells it was fitted to, on a halo of the background
+    if (!fr.p) continue;
+    const model = FIT_MODELS[S.fit], dim = hov >= 0 && hov !== fr.k, a = MP.tx(fr.x0), b = MP.tx(fr.x1), pts = [];
+    for (let j = 0; j <= 200; j++) {
+      const t = a + (b - a) * j / 200, x = MP.logx ? Math.pow(10, t) : t, y = model.f(x, fr.p);
+      pts.push(Number.isFinite(y) && (!MP.logy || y > 0) ? [MP.X(x), MP.Y(y)] : null);
+    }
+    for (const [col, w] of [[css("--panel"), 4.5], [withAlpha(imgColor(fr.k), dim ? 0.3 : 1), 2]]) {
+      ctx.beginPath(); let on = false;
+      for (const q of pts) { if (!q) { on = false; continue; } on ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); on = true; }
+      ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineJoin = "round"; ctx.stroke();
+    }
+  }
   ctx.restore();
+  showFits(fits);
+}
+// ---------------------------------------------------------------- curve fits (fit.js): one per image, to its valid cells
+// The page holds a sample of the cells of a large image that keeps every hit: the other cells then also count for the
+// ones left out (weights), so that the fit is that of all valid cells and not pulled towards the hits.
+const FIT_CACHE = new Map();
+function scatterFit(k) {
+  const key = `${k}|${S.fit}|${S.metric}|${S.metricY}`;
+  if (FIT_CACHE.has(key)) return FIT_CACHE.get(key);
+  const im = IM[k], X = im.C[S.metric], Y = im.C[S.metricY], V = im.C.valid, H = im.C.hit, model = FIT_MODELS[S.fit];
+  let r;
+  if (!X || !Y) r = { error: "no values" };
+  else {
+    const xs = [], ys = [], hit = [];
+    for (let i = 0; i < im.n_shown; i++) { if (V && !V[i]) continue; xs.push(X[i]); ys.push(Y[i]); hit.push(!!(H && H[i])); }
+    const hv = hit.filter(Boolean).length, shownRest = xs.length - hv, rest = (V ? im.n_valid : im.n_cells) - hv;
+    const wRest = im.n_shown < im.n_cells && shownRest > 0 && rest > shownRest ? rest / shownRest : 1;
+    r = fitCurve(S.fit, xs, ys, hit.map(h => (h ? 1 : wRest)));
+    const ok = (i) => Number.isFinite(xs[i]) && Number.isFinite(ys[i]);
+    const used = xs.filter((x, i) => ok(i) && (!model.positiveX || x > 0));
+    r.weighted = wRest !== 1;
+    r.x0 = Math.min(...used); r.x1 = Math.max(...used);
+    r.dropped = model.positiveX ? xs.filter((x, i) => ok(i) && !(x > 0)).length : 0;
+  }
+  FIT_CACHE.set(key, r); return r;
+}
+let FIT_SHOWN = "";
+function fitTable(fits) {
+  if (!fits.length) return "";
+  const model = FIT_MODELS[S.fit], names = model.names;
+  const rows = fits.map(fr => {
+    const im = IM[fr.k], name = `<td class="l" title="${esc(im.name)}"><span class="sw" style="background:${imgColor(fr.k)}"></span> ${esc(im.name)}</td>`;
+    if (!fr.p) return `<tr>${name}<td class="l muted" colspan="${names.length + 2}">${esc(fr.error)}</td></tr>`;
+    const notes = [fr.weighted ? "weighted for the sample of cells of this large image" : "", fr.dropped ? `${fr.dropped} cells with x ≤ 0 left out` : ""].filter(Boolean).join("; ");
+    return `<tr${notes ? ` title="${esc(notes)}"` : ""}>${name}${fr.p.map((v, j) => `<td>${fitFmt(v)} <span class="muted">± ${fitFmt(fr.se[j])}</span></td>`).join("")}`
+      + `<td>${fitFmt(fr.r2)}</td><td>${fr.n.toLocaleString("en")}${notes ? " *" : ""}</td></tr>`;
+  });
+  const anyNote = fits.some(fr => fr.p && (fr.weighted || fr.dropped));
+  return `<div class="fiteq"><b>${esc(model.label)}</b>: ${esc(model.eq)} <span class="muted">· x = ${esc(S.metric)}, y = ${esc(S.metricY)} · fitted to the valid cells of each image · ± standard error</span></div>`
+    + `<table class="fittbl"><thead><tr><th class="l">image</th>${names.map(n => `<th>${esc(n)}</th>`).join("")}<th>R²</th><th>n</th></tr></thead><tbody>${rows.join("")}</tbody></table>`
+    + (anyNote ? `<div class="muted fitnote">* weighted for the sample of cells of a large image, or cells with x ≤ 0 left out (hover the row)</div>` : "");
+}
+function showFits(fits) {
+  const html = fitTable(fits);
+  if (html !== FIT_SHOWN) { $("fitres").innerHTML = html; FIT_SHOWN = html; }
 }
 function metricPick(e) {  // what is under the mouse: a row of the distributions, or the nearest point of the scatter
   const [px, py] = localXY(e, $("mph")), ks = shown(); if (!ks.length || !MP.inside(px, py)) return null;
@@ -164,6 +223,8 @@ function initPanels() {
   const tipSel = () => { $("metric").title = metricTip(S.metric); $("metricY").title = metricTip(S.metricY); }; tipSel();
   $("metric").onchange = () => { S.metric = $("metric").value; tipSel(); invalidate("metric"); };
   $("metricY").onchange = () => { S.metricY = $("metricY").value; tipSel(); invalidate("metric"); };
+  for (const [v, m] of Object.entries(FIT_MODELS)) { const o = new Option(m.label, v); o.title = m.eq; $("fit").add(o); }
+  $("fit").value = S.fit; $("fit").onchange = () => { S.fit = $("fit").value; invalidate("metric"); };
   $("logx").onchange = () => { S.logx = $("logx").checked; invalidate("metric"); }; $("logy").onchange = () => { S.logy = $("logy").checked; invalidate("metric"); };
   const seg = () => document.querySelectorAll("#cmode button").forEach(b => b.classList.toggle("on", b.dataset.v === S.cmode)); seg();
   $("cmode").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; S.cmode = b.dataset.v; seg(); invalidate("metric"); });

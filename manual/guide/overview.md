@@ -73,6 +73,30 @@ One cell value compared between the images. *distribution* shows a histogram per
 median and middle half (box), the hits as pink ticks and the threshold of the hit criterion as a dashed line.
 *scatter* plots two values against each other, with the hits ringed. *log* makes an axis logarithmic.
 
+### Curve fits
+
+In the scatter plot, *fit* draws a curve through the cells of each selected image (in the colour of the image) and
+lists its parameters below the plot, each with its standard error, the coefficient of determination R² and the number
+of cells n.
+
+| Fit | Function |
+|---|---|
+| linear | y = a + b·x |
+| exponential | y = a·e^(b·x) + c |
+| logarithmic | y = a + b·ln(x); cells with x ≤ 0 are left out |
+| sigmoid | y = bottom + (top − bottom) / (1 + e^((x50 − x) / slope)): x50 is the midpoint, a negative slope a falling curve |
+
+- The fit uses the valid cells of the image (those that pass the quality gates), invalid cells are left out.
+- It is an ordinary least-squares fit of y on x, also when an axis is logarithmic; the curve covers the x range of the
+  cells.
+- For a large image the page holds all hits and a sample of the other cells. These then count for the cells that were
+  left out (weights), so that the fit is that of all valid cells and is not pulled towards the hits (marked * in the
+  table).
+- A large standard error, for example of a sigmoid whose midpoint lies outside the cells, means that the data do not
+  determine that parameter: choose a simpler function.
+
+*Export → Curve fits → TSV* saves the table.
+
 ## Hit positions
 
 <figure markdown>
@@ -102,5 +126,6 @@ in it, their position and the value of the hit criterion. Click a row to open th
 | *Hits → TSV* | the hits of the selected images as a table |
 | *Images table → TSV* | the images table as shown, with the QC flags |
 | *Cells → TSV* | the values of the cells of the selected images |
+| *Curve fits → TSV* | the [curve fits](#curve-fits) of the scatter plot: function, parameters with standard errors, R² and n per image |
 
 When nothing was screened, the overview has no hit columns, maps or exports, and is a comparison of the responses of the images.

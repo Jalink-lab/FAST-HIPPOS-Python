@@ -256,7 +256,7 @@ def summary_table(data: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-OVERVIEW_JS = ["data.js", "table.js", "panels.js", "maps.js", "export.js", "main.js"]
+OVERVIEW_JS = ["data.js", "fit.js", "table.js", "panels.js", "maps.js", "export.js", "main.js"]
 
 
 def write_overview(results: list[ImageResult], settings: Settings, out: Path, hits: pd.DataFrame | None = None,

@@ -50,11 +50,23 @@ function exportCellsTsv() {
   for (const k of ks) { const im = IM[k]; for (let i = 0; i < im.n_shown; i++) lines.push([...(EXP ? [im.sample, im.label || ""] : []), im.image || im.name, ...keys.map(c => (im.C[c] ? im.C[c][i] : ""))].map(tsvCell).join("\t")); }
   download(`${runName}_cells_selected_images.tsv`, lines.join("\n"), "text/tab-separated-values");
 }
+function exportFitsTsv() {
+  if (S.cmode !== "scatter" || !S.fit) { fhAlert("Choose a fit in the scatter plot of the Cells panel first."); return; }
+  const ks = shown(); if (!ks.length) { fhAlert("Select one or more images in the table first."); return; }
+  const model = FIT_MODELS[S.fit], lines = [
+    [...(EXP ? ["sample", "label"] : []), "image", "model", "equation", "x", "y", ...model.names.flatMap(n => [n, `${n}_se`]), "r2", "n", "weighted", "x_le_0_left_out", "error"].join("\t")];
+  for (const k of ks) {
+    const im = IM[k], fr = scatterFit(k);
+    lines.push([...(EXP ? [im.sample, im.label || ""] : []), im.image || im.name, S.fit, model.eq, S.metric, S.metricY,
+      ...model.names.flatMap((_, j) => (fr.p ? [fr.p[j], fr.se[j]] : ["", ""])), fr.p ? fr.r2 : "", fr.n ?? "", fr.weighted ? "yes" : "no", fr.dropped || 0, fr.error || ""].map(tsvCell).join("\t"));
+  }
+  download(`${runName}_${S.fit}_fit_${safeName(S.metricY)}_vs_${safeName(S.metric)}.tsv`, lines.join("\n"), "text/tab-separated-values");
+}
 function initExports() {
   const menus = [["filesBtn", "filesMenu"], ["exportBtn", "exportMenu"]];
   for (const [b, m] of menus) $(b).onclick = (e) => { e.stopPropagation(); for (const [, o] of menus) if (o !== m) $(o).classList.remove("open"); $(m).classList.toggle("open"); };
   document.addEventListener("click", () => menus.forEach(([, m]) => $(m).classList.remove("open")));
-  const act = { rgnImages: exportRgnImages, rgnSelection: exportRgnSelection, hitsTsv: exportHitsTsv, imagesTsv: exportImagesTsv, cellsTsv: exportCellsTsv };
+  const act = { rgnImages: exportRgnImages, rgnSelection: exportRgnSelection, hitsTsv: exportHitsTsv, imagesTsv: exportImagesTsv, cellsTsv: exportCellsTsv, fitsTsv: exportFitsTsv };
   $("exportMenu").addEventListener("click", (e) => { const b = e.target.closest("[data-x]"); if (b) act[b.dataset.x](); });
   if (!SCREEN) $("exportMenu").querySelectorAll('[data-x^="rgn"], [data-x="hitsTsv"]').forEach(b => b.remove());
   if (EXP) { // the samples are different specimens: one route through several of them makes no sense
