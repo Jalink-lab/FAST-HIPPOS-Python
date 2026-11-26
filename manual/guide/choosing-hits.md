@@ -102,7 +102,10 @@ cells, with the passing cells in pink, and *… pass* counts them. Drag the blac
     `additional_intensity` (log) against the lifetime during the response, 64 of the 75 hits are marker-positive.
 
 **Hits from *selection*.** Instead of criteria, you can also pick the hits by hand: select cells (click, lasso,
-table), switch *Hits from* to *selection* and click *Use selection*. *Add selection* adds more cells.
+table), switch *Hits from* to *selection* and click *Use selection*. *Add selection* adds more cells,
+*Remove selection* takes the selected cells out of the hits, and *Clear* removes them all. To start from the hits of
+the criteria, show them in the table (*Rows: hits*), select them, and then switch to *selection* and click *Use
+selection*.
 
 ## Output
 

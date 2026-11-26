@@ -212,6 +212,7 @@ function initScreening() {
   };
   $("usesel").onclick = () => { SCR.manual = new Set(S.sel); SCR.mode = "selection"; setSrc("selection"); renderCriteria(); recompute(); };
   $("addsel").onclick = () => { S.sel.forEach(i => SCR.manual.add(i)); recompute(); };
+  $("remsel").onclick = () => { S.sel.forEach(i => SCR.manual.delete(i)); recompute(); };
   $("clearmanual").onclick = () => { SCR.manual.clear(); recompute(); };
   $("scrreset").onclick = () => { const o = JSON.parse(SCR0); Object.assign(e, o.events); Object.assign(p, o.params); SCR.mode = o.mode; SCR.on = o.on; setScreenOn(); eventsTouched = false; fillParams(); recompute(); };
   const readOut = () => { p.sort_by = $("sortby").value || null; p.sort_descending = $("sortdir").value === "1"; p.max_hits_per_rgn = Math.max(1, numOrNull($("chunk")) ?? 1000); p.optimize_path = $("optpath").checked;
