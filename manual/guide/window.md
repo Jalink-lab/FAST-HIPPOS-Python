@@ -62,7 +62,7 @@ them. The bar at the top of the Setup page shows the open experiment:
 - **New…** starts one in an empty folder, **Open…** opens an existing one, **Show folder** shows it in the file explorer.
 
 **Just one or a few images?** You do not have to create anything first. Click **Add images…**; with no experiment
-open, the window proposes a folder *FAST-HIPPOS* next to the images. Press *OK* and **▶ Run analysis**. Screening is
+open, the window proposes a folder *FAST-HIPPOS* next to the images. Press *Use this folder* and **▶ Run analysis**. Screening is
 off by default. With a single image, its dashboard opens when the analysis is done.
 
 An experiment remembers its images, also those not analyzed yet, so the Images table is complete when you open it

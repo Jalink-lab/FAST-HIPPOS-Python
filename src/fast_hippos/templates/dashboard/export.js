@@ -12,11 +12,11 @@ function exportHitsTSV() {
   download(`${D.name}_hits.tsv`, lines.join("\n"), "text/tab-separated-values");
 }
 function exportRGN() {
-  const ids = [...S.sel].filter(i => C.abs_x_m[i] !== null); if (!ids.length) { alert("Select cells first (with stage positions)."); return; }
+  const ids = [...S.sel].filter(i => C.abs_x_m[i] !== null); if (!ids.length) { fhAlert("Select cells first (with stage positions)."); return; }
   download(`SELECTED_${D.name}.rgn`, rgnXml(ids.map(i => [C.abs_x_m[i], C.abs_y_m[i], `Cell_${C.cell[i]}`]), "selection"), "application/xml");
 }
 async function exportHitsRGN() {
-  if (!nHits()) { alert("No hits."); return; }
+  if (!nHits()) { fhAlert("No hits."); return; }
   const route = SCR.route && !SCR.route.stale ? SCR.route : await computeRoute();
   let a = 1;
   route.chunks.forEach((chunk, k) => {
@@ -111,10 +111,10 @@ async function applyTo(scope) {
   let toml, manual = null;
   if (scope === "image") {
     const own = ownSettings(), lines = describeOwn(own);
-    if (!lines.length) { alert("Nothing to apply to this image only: change its stimulation frames (Timing) or its response window first."); return; }
-    if (!confirm(`Use these settings for ${D.name} only?\n\n${lines.map(l => "  • " + l).join("\n")}\n\nThe other images keep their settings. `
+    if (!lines.length) { fhAlert("Nothing to apply to this image only: change its stimulation frames (Timing) or its response window first."); return; }
+    if (!await fhConfirm(`Use these settings for ${D.name} only?\n\n${lines.map(l => "  • " + l).join("\n")}\n\nThe other images keep their settings. `
         + `Criteria, quality gates and the other screening settings are not changed by this (use 'Apply to all images' for those). `
-        + `Because the hit list and the .rgn files cover all images, ${all} are re-applied (segmentation and traces are kept); this dashboard reloads when it is done.\n\nContinue?`)) return;
+        + `Because the hit list and the .rgn files cover all images, ${all} are re-applied (segmentation and traces are kept); this dashboard reloads when it is done.\n\nContinue?`, { ok: "Apply to this image" })) return;
     toml = ownToml(own);
   } else {
     const e = SCR.events, p = SCR.params, p0 = D.screen.params, mine = (D.own_settings && D.own_settings.screening) || {};
@@ -126,10 +126,10 @@ async function applyTo(scope) {
     const windowNote = (kept.length ? `\n${D.name} keeps its own ${kept.map(k => `${OWN_NAMES[k]} ${ownValue(mine[k])}`).join(", ")}.` : "")
       + (replaced.length ? `\nThe ${replaced.map(k => `${OWN_NAMES[k]} ${p[k]}`).join(", ")} set here is used for all images, ${D.name} included (instead of its own).` : "")
       + (ownWindow.length ? `\nImages that keep their own response window: ${ownWindow.join(", ")}.` : "");
-    if (!confirm(`Use these screening settings for ${all} of this output folder${info ? ` (run of ${info.started})` : ""}?` + (n ? `\n\n${list}` : "")
+    if (!await fhConfirm(`Use these screening settings for ${all} of this output folder${info ? ` (run of ${info.started})` : ""}?` + (n ? `\n\n${list}` : "")
         + `\n\n${timing}` + windowNote
         + "\n\nFor every image, stimulation detection, screening, hit lists, .rgn files and the dashboard are redone; segmentation and traces are kept. "
-        + "This dashboard reloads when it is done.\n\nContinue?")) return;
+        + "This dashboard reloads when it is done.\n\nContinue?", { ok: "Apply to all images" })) return;
     ({ toml, manual } = screeningToml());
   }
   const msg = $("applymsg"), btns = [$("scrapply"), $("scrapplyimg")];

@@ -108,7 +108,7 @@ def _embed(template: str, data: dict) -> str:
 
 
 # page modules, in load order; screening.js is shared with the tests, templates/common by the dashboard and the Overview
-COMMON_JS = ["base.js", "plot.js", "help.js"]
+COMMON_JS = ["base.js", "dialog.js", "plot.js", "help.js"]
 DASHBOARD_JS = ["core.js", "persist.js", "viewer.js", "traces.js", "kymo.js", "dist.js", "scatter.js", "cellcard.js",
                 "table.js", "screenui.js", "export.js", "main.js"]
 
@@ -120,7 +120,7 @@ def _bundle(folder: str, css: list[str], js: list[str]) -> str:
     def read(*parts: str) -> str:
         return t.joinpath(*parts).read_text(encoding="utf-8")
 
-    styles = "\n".join([read("common", "base.css"), read("common", "help.css")] + [read(folder, f) for f in css])
+    styles = "\n".join([read("common", "base.css"), read("common", "help.css"), read("common", "dialog.css")] + [read(folder, f) for f in css])
     scripts = "\n".join([read("screening.js")] + [read("common", f) for f in COMMON_JS] + [read(folder, f) for f in js])
     return read(folder, "page.html").replace("/*__CSS__*/", styles).replace("/*__JS__*/", scripts)
 

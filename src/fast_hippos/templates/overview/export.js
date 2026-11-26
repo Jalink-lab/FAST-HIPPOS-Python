@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------- exports (downloads; they also work when the page is opened as a file)
 const runName = safeName(D.title);
-function needSelection() { const ks = selected(); if (!ks.length) alert("Select one or more images in the table first."); return ks; }
+function needSelection() { const ks = selected(); if (!ks.length) fhAlert("Select one or more images in the table first."); return ks; }
 // hits with stage positions, in the visiting order of the run (its .rgn files), else by rank
 function routeOrder(im) { return (im.has_positions ? im.hits : []).filter(h => h.x !== null).sort((a, b) => (a.chunk ?? 1e9) - (b.chunk ?? 1e9) || (a.visit ?? 0) - (b.visit ?? 0) || (a.rank ?? 0) - (b.rank ?? 0)); }
 function downloadChunks(base, items, label) {  // split as the run does: files of at most max_hits_per_rgn positions
@@ -15,14 +15,14 @@ function exportRgnImages() {
   let n = 0, files = 0, skipped = [];
   ks.forEach((k, j) => { const im = IM[k], hits = routeOrder(im); if (!hits.length) { skipped.push(im.name); return; }
     setTimeout(() => { files += downloadChunks(`HITS_${runName}_${safeName(im.name)}`, hits.map(h => [h.x, h.y, `Cell_${h.cell}`]), "hits"); }, 400 * n++); });
-  if (skipped.length) setTimeout(() => alert(`No .rgn file for (no hits, or no stage positions): ${skipped.join(", ")}`), 400 * n + 100);
+  if (skipped.length) setTimeout(() => fhAlert(`No .rgn file for (no hits, or no stage positions): ${skipped.join(", ")}`), 400 * n + 100);
 }
-function exportRgnSelection() {
+async function exportRgnSelection() {
   const ks = needSelection(); if (!ks.length) return;
   const items = [], skipped = ks.filter(k => IM[k].hits.length && !IM[k].has_positions).map(k => IM[k].name);
   for (const k of ks) if (IM[k].has_positions) for (const h of IM[k].hits) if (h.x !== null) items.push([h.x, h.y, `${safeName(IM[k].name)}_Cell_${h.cell}`, h.rank ?? 1e9]);
-  if (!items.length) { alert("The selected images have no hits with stage positions."); return; }
-  if (skipped.length && !confirm(`These images have no stage positions, so their hits are left out:\n${skipped.join("\n")}\n\nContinue?`)) return;
+  if (!items.length) { fhAlert("The selected images have no hits with stage positions."); return; }
+  if (skipped.length && !await fhConfirm(`These images have no stage positions, so their hits are left out:\n${skipped.map(s => "• " + s).join("\n")}\n\nContinue?`, { ok: "Export the others" })) return;
   items.sort((a, b) => a[3] - b[3]);
   let ordered = items;
   if (D.optimize_path && items.length > 2) {  // one route through all of them, starting at the first tile of the first selected image

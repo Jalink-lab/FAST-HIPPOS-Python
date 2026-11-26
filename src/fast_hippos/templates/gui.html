@@ -160,6 +160,7 @@ body.pages #expBar, body:not(.pages) #selImage { display: none; }
 .itools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .itools .sp { flex: 1; }
 .results .grp { color: var(--muted); margin-top: 6px; }
 /*__HELP_CSS__*/
+/*__DIALOG_CSS__*/
 /* Cellpose on this computer (Cell segmentation card) */
 .cps { border-top: 1px dashed var(--line); padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
 .cps-h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: hsl(var(--h) var(--t-h3)); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
@@ -244,6 +245,7 @@ body.pages #expBar, body:not(.pages) #selImage { display: none; }
 <script>
 "use strict";
 /*__HELP_JS__*/
+/*__DIALOG_JS__*/
 </script>
 <script>
 "use strict";
@@ -424,7 +426,7 @@ async function cellposeAction(b) {
       const r = (await api("browse", { kind: "file", title: `The python.exe of your Cellpose ${v} environment`, initial: S.segmentation[key] || "", types: "python" })).result;
       if (r) { delete CP[`${v}|${r}`]; chosen(r); }
     } else if (a === "install") {
-      if (!confirm(`Install Cellpose ${v} with FAST-HIPPOS?\n\nThis downloads about ${CPS.size_gb} GB and can take 5 to 20 minutes. You can keep working meanwhile.`)) return;
+      if (!await fhConfirm(`Install Cellpose ${v} with FAST-HIPPOS?\n\nThis downloads about ${CPS.size_gb} GB and can take 5 to 20 minutes. You can keep working meanwhile.`, { ok: "Install" })) return;
       CPS = await api("cellpose_install", { version: v }); paintCellpose(); setTimeout(loadCellpose, 800);
     } else if (a === "search" || a === "full") {
       CPS = await api("cellpose_search", { full: a === "full" }); paintCellpose(); setTimeout(loadCellpose, 400);
@@ -472,7 +474,7 @@ async function checkUpdatesNow() {
 }
 $("updInstall").onclick = async () => {
   if (JOB.state === "running") { toast("An analysis is running. Update when it has finished.", 4000); return; }
-  if (!confirm(`Install FAST-HIPPOS ${UPD.latest.version} now?\n\nFAST-HIPPOS closes, updates and restarts in this tab. Your settings and results stay as they are.`)) return;
+  if (!await fhConfirm(`Install FAST-HIPPOS ${UPD.latest.version} now?\n\nFAST-HIPPOS closes, updates and restarts in this tab. Your settings and results stay as they are.`, { ok: "Install and restart" })) return;
   try { await api("remember", { settings: S }); UPD = await api("update_start"); } catch (e) { toast(e.message, 5000); return; }
   UPDATING = true; $("updDlg").close();
   $("stopTitle").textContent = "Updating FAST-HIPPOS…"; $("stopText").textContent = "Your settings and results stay as they are.";
@@ -854,7 +856,7 @@ document.addEventListener("click", async (e) => {
     if (addsImages) {
       const added = kind === "tiles" ? [r] : r;
       if (!S.input.experiment) {  // a single image needs no separate step: one question, with a proposal
-        const folder = prompt("The results go in an experiment folder, with one folder per image. Use this one?", joinP(parentPath(added[0]), "FAST-HIPPOS"));
+        const folder = await fhPrompt("The results go in an experiment folder, with one folder per image. Use this one?", joinP(parentPath(added[0]), "FAST-HIPPOS"), { ok: "Use this folder" });
         if (!folder || !folder.trim()) return;
         if (!(await openExperiment(folder.trim(), { create: true }))) return;
       }
@@ -890,8 +892,8 @@ $("bTheme").onclick = () => {
   api("prefs", { theme: document.documentElement.dataset.theme }).catch(() => {});
 };
 $("bQuit").onclick = async () => {
-  if (!confirm(JOB.state === "running" ? "An analysis is running. Stop it and quit FAST-HIPPOS?"
-    : "Are you sure you want to quit FAST-HIPPOS?\n\nThe settings are kept for the next start.")) return;
+  if (!await fhConfirm(JOB.state === "running" ? "An analysis is running. Stop it and quit FAST-HIPPOS?"
+    : "Are you sure you want to quit FAST-HIPPOS?\n\nThe settings are kept for the next start.", { ok: JOB.state === "running" ? "Stop and quit" : "Quit" })) return;
   // say at once that it is stopping (this can take a few seconds), and when it has
   const stopped = (title, text, busy) => { $("stopTitle").textContent = title; $("stopText").textContent = text; $("stopped").classList.toggle("busy", busy); $("stopped").classList.add("on"); };
   stopped("Stopping FAST-HIPPOS…", JOB.state === "running" ? "Stopping the analysis and closing the program; this can take a few seconds."
@@ -943,20 +945,20 @@ async function start(reapply) {
   const own = Object.entries(S.image || {}), dropped = Object.keys((o.run && o.run.image_settings) || {}).filter(x => !(x in (S.image || {})));
   const ownNote = (own.length ? `\n\nOwn settings of single images (Stimulation and calibration) are used for:\n${bulletList(own.map(([x, v]) => `${x}: ${ownText(v)}`))}` : "")
     + (reapply && dropped.length ? `\n\nThe own settings of the run are removed for: ${dropped.join(", ")} (they then use the settings of this window).` : "");
-  if (reapply && !confirm(`Re-apply screening to the ${plural(imgs.length, "image")} of the run of ${o.run.started} in\n${folder}:\n\n`
+  if (reapply && !await fhConfirm(`Re-apply screening to the ${plural(imgs.length, "image")} of the run of ${o.run.started} in\n${folder}:\n\n`
       + bulletList(names) + "\n\nSegmentation and traces of that run are kept. The stimulation, screening and display settings of this "
       + "window are used (except the dashboard size and tiles and the stage positions file, which only change "
-      + "with a new run); all other settings (images, segmentation, …) stay those of the run." + ownNote + "\n\nContinue?")) return;
-  if (!reapply && plan.blocked.length) { alert("Not started:\n\n" + plan.blocked.join("\n\n")); return; }
-  if (!reapply && (plan.folders.length || plan.files.length) && !confirm(`The output folder\n${folder}\nholds the results of `
+      + "with a new run); all other settings (images, segmentation, …) stay those of the run." + ownNote + "\n\nContinue?", { ok: "Re-apply" })) return;
+  if (!reapply && plan.blocked.length) { fhAlert("Not started:\n\n" + plan.blocked.join("\n\n")); return; }
+  if (!reapply && (plan.folders.length || plan.files.length) && !await fhConfirm(`The output folder\n${folder}\nholds the results of `
       + (o.run ? `the run of ${o.run.started}` : "an earlier run") + ". Running the analysis first moves them into the subfolder "
       + "_previous_run, which is deleted when the new run is complete (and kept if it does not finish):\n\n"
       + (o.run && o.run.previous_run && o.run.complete === false ? "Note: the run in the folder did not finish, and _previous_run holds the complete run before it. "
         + "That one is deleted when the new run is complete: move it back first to keep it.\n\n" : "")
       + (names.length ? `Results of ${plural(names.length, "image")}:\n${bulletList(names)}\n\n` : "")
       + (plan.files.length ? `Files of that run:\n${bulletList(plan.files, 20)}\n\n` : "")
-      + `Then it analyzes:\n${bulletList((S.input.files || []).map(fileName))}\n\nNothing else in the folder is touched.` + ownNote + "\n\nContinue?")) return;
-  else if (!reapply && !(plan.folders.length || plan.files.length) && own.length && !confirm(`Run the analysis?${ownNote}\n\nContinue?`)) return;
+      + `Then it analyzes:\n${bulletList((S.input.files || []).map(fileName))}\n\nNothing else in the folder is touched.` + ownNote + "\n\nContinue?", { ok: "Run the analysis" })) return;
+  else if (!reapply && !(plan.folders.length || plan.files.length) && own.length && !await fhConfirm(`Run the analysis?${ownNote}\n\nContinue?`, { ok: "Run the analysis" })) return;
   let r; try { r = await api("run", { settings: S, reapply }); } catch (e) { toast(e.message, 6000); return; }
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 }
@@ -966,10 +968,10 @@ let OPEN_AFTER = false;
 async function startSamples() {
   const rows = sampleRows(), x = experimentState();
   const again = rows.filter(r => ((x && x.samples) || []).some(s => sameName(s.name, r.name))).map(r => r.name);
-  if (!confirm(`Analyze ${plural(rows.length, "image")} in\n${S.input.experiment}:\n\n`
+  if (!await fhConfirm(`Analyze ${plural(rows.length, "image")} in\n${S.input.experiment}:\n\n`
       + bulletList(rows.map(r => r.name + (r.label ? ` (${r.label})` : "")), 20)
       + (again.length ? `\n\nThese have results already, which are replaced (kept in _previous_run in their folder until the new run is complete):\n${bulletList(again, 20)}` : "")
-      + "\n\nEach image is analyzed in a run of its own, then the experiment overview is updated.\n\nContinue?")) return;
+      + "\n\nEach image is analyzed in a run of its own, then the experiment overview is updated.\n\nContinue?", { ok: "Analyze" })) return;
   const samples = rows.map(r => ({ file: r.file, series: r.series, name: r.name, label: r.label || null }));
   const before = S.input.output; S.input.output = joinP(S.input.experiment, rows[rows.length - 1].name);  // shown afterwards
   OPEN_AFTER = sampleRows(true).length === 1;  // an experiment of one image: its dashboard when it is done
@@ -984,13 +986,13 @@ $("bReapplyAll").onclick = async () => {
   let x; try { x = await api("experiment", { path: S.input.experiment, settings: S }); } catch (e) { toast(e.message, 6000); return; }
   if (!x.samples.length) { toast("No analyzed images in the experiment folder", 5000); return; }
   const otherType = Object.entries(x.differs || {}).filter(([, ks]) => ks.includes("input.modality")).map(([n]) => n);
-  if (!confirm(`Re-apply all ${plural(x.samples.length, "image")} of the experiment in\n${S.input.experiment}:\n\n`
+  if (!await fhConfirm(`Re-apply all ${plural(x.samples.length, "image")} of the experiment in\n${S.input.experiment}:\n\n`
       + bulletList(x.samples.map(s => s.name + (s.label ? ` (${s.label})` : "")), 20) + "\n\nThe stimulation, screening and display settings "
       + "of this window are used for every image (except the dashboard size and tiles and the stage positions file, "
       + "which only change with a new run). Each image keeps its own segmentation and traces, its label and the "
       + "own settings of its single images. Then the experiment overview is updated."
       + (otherType.length ? `\n\nOf another image type than this window: ${otherType.join(", ")}. They keep their quality gates, hit criteria and colour range (in the units of their values).` : "")
-      + "\n\nContinue?")) return;
+      + "\n\nContinue?", { ok: "Re-apply" })) return;
   let r; try { r = await api("run", { settings: S, experiment: true }); } catch (e) { toast(e.message, 6000); return; }
   JOB = { n: 0, state: "running", run_id: r.run_id }; $("log").innerHTML = ""; $("results").innerHTML = "";
 };
@@ -1257,7 +1259,7 @@ $("expOpen").onclick = async () => {
   const initial = S.input.experiment ? parentPath(S.input.experiment) : "";
   const r = (await api("browse", { kind: "folder", title: "Open an experiment folder", initial })).result; if (!r) return;
   let x; try { x = await api("experiment", { path: r }); } catch (e) { toast(e.message, 6000); return; }
-  if (!x.samples.length && !x.saved.length && !confirm(`${r}\n\nThis folder holds no FAST-HIPPOS experiment yet. Use it as a new experiment?`)) return;
+  if (!x.samples.length && !x.saved.length && !await fhConfirm(`${r}\n\nThis folder holds no FAST-HIPPOS experiment yet. Use it as a new experiment?`, { ok: "Use as new experiment" })) return;
   openExperiment(r, { create: true });
 };
 // the own settings of single images belong to images: only those of the images in the list and of the current image
