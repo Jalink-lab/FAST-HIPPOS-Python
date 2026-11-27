@@ -16,6 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import __version__
+from .config import page_names
 from .overview import QC, _flags, _level, summary_table
 
 log = logging.getLogger(__name__)
@@ -229,7 +230,7 @@ def build_experiment_data(experiment: Path, failed: list[str] | None = None) -> 
         notes.append("The images hold different kinds of values: " + ", ".join(sorted(units)))
     base = first or {}
     return {
-        "version": __version__, "kind": "experiment", "title": experiment.name, "screening": screening,
+        "version": __version__, "names": page_names(), "kind": "experiment", "title": experiment.name, "screening": screening,
         "unit": base.get("unit", ""), "is_lifetime": base.get("is_lifetime", False),
         "response_metric": base.get("response_metric", "response_max_diff"), "criteria": base.get("criteria", []),
         "max_hits_per_rgn": base.get("max_hits_per_rgn", 1000), "optimize_path": base.get("optimize_path", True),

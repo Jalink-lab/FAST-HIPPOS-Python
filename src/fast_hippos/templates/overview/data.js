@@ -1,5 +1,6 @@
 // ---------------------------------------------------------------- data of the run and the state of the page
 const D = JSON.parse($("fh-data").textContent);
+useNames(D.names);  // readable names of the cell values (pages of before 0.1.0b3: the keys)
 const SCREEN = D.screening;
 // the overview of an experiment folder: the images of all its samples (one run each), each with its sample and label
 const EXP = D.kind === "experiment", RUNS = D.runs || [], HAS_LABEL = RUNS.some(r => r.label);
@@ -19,7 +20,7 @@ const EXTRA_TIPS = { area_um2: "Cell area in µm²", area_px: "Cell area in pixe
 // the area in µm² (results of before it existed: in pixels, until they are re-applied)
 const METRIC_KEYS = [...Object.keys(D.metrics), IM.some(im => im.C.area_um2) ? "area_um2" : "area_px", "mean_intensity", "circularity"]
   .filter(m => IM.some(im => im.C[m] && im.C[m].some(Number.isFinite)));
-const metricTip = (m) => D.metrics[m] || EXTRA_TIPS[m] || "";
+const metricTip = (m) => tipOf(m, D.metrics[m] || EXTRA_TIPS[m] || "");
 const FLAG_LABEL = { few_cells: "few cells", low_valid: "low fraction valid", no_stimulation: "no stimulation", no_calibration: "no calibration",
   event_offset: "stimulation at another frame", no_cal_response: "no calibration response", no_positions: "no stage positions", no_hits: "no hits" };
 

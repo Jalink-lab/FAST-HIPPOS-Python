@@ -533,21 +533,21 @@ function widget(f) {
       return `<div class="row"><input id="${id}_0" type="number" step="any" value="${a ?? ""}" placeholder="off"> – <input id="${id}_1" type="number" step="any" value="${b ?? ""}" placeholder="off"></div>`;
     }
     case "intlist": return `<input id="${id}" type="text" value="${esc((v || []).join(", "))}" placeholder="all">`;
-    case "metric": return `<select id="${id}"><option value="">(cell order)</option>${Object.keys(SCHEMA.metrics).map(m => `<option ${m === v ? "selected" : ""}>${m}</option>`).join("")}</select>`;
+    case "metric": return `<select id="${id}"><option value="">(cell order)</option>${Object.keys(SCHEMA.metrics).map(m => `<option value="${m}" ${m === v ? "selected" : ""} title="${esc(metricTipW(m))}">${esc(metricName(m))}</option>`).join("")}</select>`;
     case "files": return imagesHTML();
     case "readouts": return readoutsHTML();
     case "criteria": {
       const crit = v || [], metrics = [...Object.keys(SCHEMA.metrics), ...Object.keys(SCHEMA.measures || {}), ...readoutMetrics()];
-      const tip = (m) => SCHEMA.metrics[m] || (SCHEMA.measures || {})[m] || "";
+      const tip = metricTipW;
       const isGate = (c) => c.op === "inside" || c.op === "outside";
       return `<div>${crit.map((c, i) => isGate(c) ? `<div class="crit" data-crit="${i}">
           <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
-          <span title="A region drawn in the scatter plot of a dashboard: cells whose two values lie inside (or outside) it pass">gate: ${esc(c.metric2)} vs ${esc(c.metric)}</span>
+          <span title="A region drawn in the scatter plot of a dashboard: cells whose two values lie inside (or outside) it pass">gate: ${esc(metricName(c.metric2))} vs ${esc(metricName(c.metric))}</span>
           <select data-c="op" title="inside: cells in the gate pass · outside: cells outside it pass">${["inside", "outside"].map(k => `<option ${k === c.op ? "selected" : ""}>${k}</option>`).join("")}</select>
           <span class="muted" title="Draw or change a gate in the scatter plot of a dashboard (✎ Gate)">${(c.polygon || []).length} points</span><span></span>
           <button class="small" data-c="remove" title="Remove this gate">✕</button></div>` : `<div class="crit" data-crit="${i}">
           <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
-          <select data-c="metric" title="${esc(tip(c.metric))}">${metrics.map(m => `<option ${m === c.metric ? "selected" : ""} title="${esc(tip(m))}">${m}</option>`).join("")}</select>
+          <select data-c="metric" title="${esc(tip(c.metric))}">${metrics.map(m => `<option value="${esc(m)}" ${m === c.metric ? "selected" : ""} title="${esc(tip(m))}">${esc(metricName(m))}</option>`).join("")}</select>
           <select data-c="op" title="&lt; below the value · &gt; above the value · between: from the first to the second value">${[["<", "<"], [">", ">"], ["between", "between"]].map(([k, l]) => `<option value="${k}" ${k === c.op ? "selected" : ""}>${l}</option>`).join("")}</select>
           <input data-c="value" type="number" step="any" value="${c.value ?? ""}" title="Threshold, in the unit of the metric (e.g. ns for lifetimes)">
           ${c.op === "between" ? `<input data-c="value2" type="number" step="any" value="${c.value2 ?? ""}" title="Upper limit of the range">` : "<span></span>"}
@@ -647,6 +647,15 @@ function outputState() {
 }
 // the run in the output folder (one folder = one run): which images, from when, and whether it matches the list
 function runImages(o) { return o && o.run ? o.run.images : []; }
+// readable names of the cell values and their meaning (config.METRIC_LABELS / METRIC_TIPS); keys stay in the files
+function metricName(key) {
+  const k = String(key), i = k.lastIndexOf('.'), base = i > 0 ? k.slice(i + 1) : k, n = ((SCHEMA.names || {}).labels || {})[base] || base.replace(/_/g, ' ');
+  return i > 0 ? k.slice(0, i) + ' · ' + n : n;
+}
+function metricTipW(key) {
+  const base = String(key).split('.').pop(), d = ((SCHEMA.names || {}).tips || {})[base] || '';
+  return (d ? d + "\n" : "") + "Column in the tables (.tsv): " + key;
+}
 function bulletList(names, max = 12) {
   return names.slice(0, max).map(n => "  • " + n).join("\n") + (names.length > max ? `\n  … and ${names.length - max} more` : "");
 }

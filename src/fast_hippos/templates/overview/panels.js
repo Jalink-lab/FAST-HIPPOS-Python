@@ -94,7 +94,7 @@ function drawDistributions(ctx, ks, m) {
     const cnt = new Float64Array(nb), fin = [];
     for (let i = 0; i < im.n_shown; i++) { const v = vals ? vals[i] : NaN; if (!Number.isFinite(v) || (S.logx && v <= 0)) continue; fin.push(v); const j = Math.floor((tx(v) - tx(a)) / bw); if (j >= 0 && j < nb) cnt[j]++; }
     const mx = Math.max(1, ...cnt);
-    if (!fin.length) { ctx.fillStyle = css("--muted"); ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillText(`no values of ${m} in this image`, MP.m.l + 8, top + h / 2); }
+    if (!fin.length) { ctx.fillStyle = css("--muted"); ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillText(`no values of ${nameOf(m)} in this image`, MP.m.l + 8, top + h / 2); }
     ctx.fillStyle = withAlpha(col, 0.55 * fade);
     for (let j = 0; j < nb; j++) { if (!cnt[j]) continue; const x0 = MP.X(S.logx ? Math.pow(10, tx(a) + j * bw) : a + j * bw), x1 = MP.X(S.logx ? Math.pow(10, tx(a) + (j + 1) * bw) : a + (j + 1) * bw); const bh = (cnt[j] / mx) * h; ctx.fillRect(x0, top + h - bh, Math.max(1, x1 - x0 - 1), bh); }
     const [q1, q2, q3] = quantiles(fin, [0.25, 0.5, 0.75]);
@@ -116,11 +116,11 @@ function drawDistributions(ctx, ks, m) {
   ctx.fillStyle = css("--muted"); ctx.textAlign = "center"; ctx.textBaseline = "top";
   const ticks = S.logx ? logTicks(a, b) : niceTicks(a, b, Math.max(2, Math.floor(MP.pw / 80)));
   for (const v of ticks) { const x = MP.X(v); if (x < MP.m.l || x > MP.m.l + MP.pw) continue; ctx.fillText(tickFmt(v), x, MP.m.t + MP.ph + 4); }
-  ctx.textBaseline = "bottom"; ctx.fillText(m, MP.m.l + MP.pw / 2, MP.h - 1);
+  ctx.textBaseline = "bottom"; ctx.fillText(nameOf(m), MP.m.l + MP.pw / 2, MP.h - 1);
 }
 function drawScatter(ctx, ks) {
   const mx = S.metric, my = S.metricY, [x0, x1] = sharedRange(ks, mx, S.logx), [y0, y1] = sharedRange(ks, my, S.logy);
-  MP.range(x0, x1, y0, y1); MP.axes(ctx, mx, my); ctx.save(); MP.clip(ctx);
+  MP.range(x0, x1, y0, y1); MP.axes(ctx, nameOf(mx), nameOf(my)); ctx.save(); MP.clip(ctx);
   const hov = ks.includes(S.hover) ? S.hover : -1;
   // the image under the mouse on top; the others dimmed, their hit rings too
   for (const k of [...ks.filter(k => k !== hov), ...ks.filter(k => k === hov)]) {
@@ -183,7 +183,7 @@ function fitTable(fits) {
       + `<td>${fitFmt(fr.r2)}</td><td>${fr.n.toLocaleString("en")}${notes ? " *" : ""}</td></tr>`;
   });
   const anyNote = fits.some(fr => fr.p && (fr.weighted || fr.dropped));
-  return `<div class="fiteq"><b>${esc(model.label)}</b>: ${esc(model.eq)} <span class="muted">· x = ${esc(S.metric)}, y = ${esc(S.metricY)} · fitted to the valid cells of each image · ± standard error</span></div>`
+  return `<div class="fiteq"><b>${esc(model.label)}</b>: ${esc(model.eq)} <span class="muted">· x = ${esc(nameOf(S.metric))}, y = ${esc(nameOf(S.metricY))} · fitted to the valid cells of each image · ± standard error</span></div>`
     + `<table class="fittbl"><thead><tr><th class="l">image</th>${names.map(n => `<th>${esc(n)}</th>`).join("")}<th>R²</th><th>n</th></tr></thead><tbody>${rows.join("")}</tbody></table>`
     + (anyNote ? `<div class="muted fitnote">* weighted for the sample of cells of a large image, or cells with x ≤ 0 left out (hover the row)</div>` : "");
 }
@@ -204,10 +204,10 @@ function metricHover(e) {
   const im = IM[p.k], m = S.metric;
   if (p.i === undefined) {
     const fin = finite(im.C[m], S.logx), [q1, q2, q3] = quantiles(fin, [0.25, 0.5, 0.75]), nh = im.C.hit ? Array.from(im.C.hit).filter(Boolean).length : 0;
-    showTip(`<b>${esc(im.name)}</b><br>${m}: median ${fmt(q2)} <span class="muted">(25–75 %: ${fmt(q1)}–${fmt(q3)})</span><br>${fin.length.toLocaleString("en")} cells shown${SCREEN ? ` · ${nh} hits` : ""}`, e);
+    showTip(`<b>${esc(im.name)}</b><br>${esc(nameOf(m))}: median ${fmt(q2)} <span class="muted">(25–75 %: ${fmt(q1)}–${fmt(q3)})</span><br>${fin.length.toLocaleString("en")} cells shown${SCREEN ? ` · ${nh} hits` : ""}`, e);
   } else {
     const c = im.C.cell[p.i];
-    showTip(`<b>${esc(im.name)} · cell ${c}</b>${im.C.hit && im.C.hit[p.i] ? ' · <span class="h">hit</span>' : ""}<br>${S.metric}: ${fmt(im.C[S.metric][p.i])}<br>${S.metricY}: ${fmt(im.C[S.metricY][p.i])}${im.href ? '<br><span class="muted">click to open in the dashboard</span>' : ""}`, e);
+    showTip(`<b>${esc(im.name)} · cell ${c}</b>${im.C.hit && im.C.hit[p.i] ? ' · <span class="h">hit</span>' : ""}<br>${esc(nameOf(S.metric))}: ${fmt(im.C[S.metric][p.i])}<br>${esc(nameOf(S.metricY))}: ${fmt(im.C[S.metricY][p.i])}${im.href ? '<br><span class="muted">click to open in the dashboard</span>' : ""}`, e);
   }
 }
 function initPanels() {
@@ -218,7 +218,7 @@ function initPanels() {
   $("align").onchange = () => { S.align = $("align").checked; invalidate("resp"); };
   $("hitsOnlyL").style.display = SCREEN ? "" : "none"; $("hitsOnly").onchange = () => { S.hitsOnly = $("hitsOnly").checked; invalidate("resp"); };
   $("rph").addEventListener("mousemove", respHover); $("rph").addEventListener("mouseleave", () => showTip(null));
-  for (const id of ["metric", "metricY"]) { const sel = $(id); METRIC_KEYS.forEach(m => { const o = new Option(m, m); o.title = metricTip(m); sel.add(o); }); }
+  for (const id of ["metric", "metricY"]) { const sel = $(id); METRIC_KEYS.forEach(m => { const o = new Option(nameOf(m), m); o.title = metricTip(m); sel.add(o); }); }
   $("metric").value = S.metric; $("metricY").value = S.metricY;
   const tipSel = () => { $("metric").title = metricTip(S.metric); $("metricY").title = metricTip(S.metricY); }; tipSel();
   $("metric").onchange = () => { S.metric = $("metric").value; tipSel(); invalidate("metric"); };

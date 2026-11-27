@@ -18,7 +18,7 @@ function kymoColumns() {
   }
   return order.filter(visible);
 }
-function kymoSortLabel() { return S.ksort === "@response" ? "mean response" : S.ksort || "cell number"; }
+function kymoSortLabel() { return S.ksort === "@response" ? "mean response" : S.ksort ? nameOf(S.ksort).toLowerCase() : "cell number"; }
 // zoom: S.kzoom >= 1 shows n / kzoom columns from S.kstart (at least 20)
 function kymoView(nAll) {
   const shown = Math.min(nAll, Math.max(Math.min(20, nAll), Math.round(nAll / S.kzoom)));
@@ -82,8 +82,8 @@ function initKymo() {
   }, { rangeOnly: true });
   // sort menu: mean response (default), cell number, the screening metrics and the other per-cell values
   const ks = $("ksort");
-  [["@response", "mean response"], ["", "cell number"], ...METRIC_KEYS.map(k => [k, k]),
-    ...[("area_um2" in C ? "area_um2" : "area_px"), "mean_intensity", "circularity"].filter(k => k in C).map(k => [k, k])].forEach(([v, l]) => ks.add(new Option(l, v)));
+  ks.add(new Option("mean response", "@response")); ks.add(new Option("cell number", ""));
+  [...METRIC_KEYS, ...[("area_um2" in C ? "area_um2" : "area_px"), "mean_intensity", "circularity"].filter(k => k in C)].forEach(k => ks.add(nameOpt(k)));
   const resort = () => { S.ksort = ks.value; S.kdesc = $("kdir").value === "1"; S.kstart = 0; invalidate("kymo", "kymoOvl"); };
   ks.onchange = resort; $("kdir").onchange = resort;
   // zoom slider (logarithmic): zooms around the selected cells if they are in view, else around the middle

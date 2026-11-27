@@ -12,7 +12,7 @@ const OWN_VALUES = { after_stimulation: "after S", before_calibration: "before C
 const ownList = (im) => Object.values(im.own || {}).flatMap(sec => Object.entries(sec).map(([k, v]) => `${OWN_NAMES[k] || k} ${k === "response_window" && !(v > 0) ? "full" : v === null || v === ""
   ? (k === "calibration_frame" && im.own.events && im.own.events.no_calibration ? "none" : "automatic") : v === true ? "yes" : v === false ? "no" : OWN_VALUES[v] || v}`));
 const frameTag = (im, key) => (im.own && im.own.events && key in im.own.events ? (im.own.events[key] === null ? "auto" : "image") : im.events.detected ? "auto" : "set");
-const shortMetric = (m) => m.replace("response_", "resp. ").replace("_diff", " Δ").replace("_abs", "").replace("_", " ");
+const shortMetric = (m) => nameOf(m).toLowerCase();
 
 // columns: key, label, tip, value (for sorting), cell (html), optional condition; QC flags tint the cell they concern
 // the folder an image was read from (without the series of a .lif); the hit columns of images that were not screened
@@ -41,8 +41,8 @@ const COLS = [
     v: im => pct(im.n_hits, im.n_valid), cell: (im, k) => { const p = pct(im.n_hits, im.n_valid);
       return Number.isFinite(p) ? `<span class="bar" style="width:${Math.max(1, 40 * p / maxHitPct)}px;background:${imgColor(k)}"></span>${num(p, 2)}` : "–"; } },
   { key: "baseline", label: "Baseline", tip: `Median baseline (lifetime before the stimulation) of the valid cells${UNIT ? `, in ${UNIT}` : ""}`, v: im => im.baseline, cell: im => num(im.baseline) },
-  { key: "response", label: shortMetric(D.response_metric), if: hasStim, tip: `Median ${D.response_metric} of the valid cells: ${metricTip(D.response_metric)}`, v: im => im.response, cell: im => num(im.response) },
-  { key: "hitresp", label: "hits: " + shortMetric(D.response_metric), if: SCREEN && hasStim, tip: `Median ${D.response_metric} of the hits only`, v: im => im.hit_response, cell: im => num(im.hit_response) },
+  { key: "response", label: shortMetric(D.response_metric), if: hasStim, tip: `Median ${nameOf(D.response_metric).toLowerCase()} of the valid cells. ${metricTip(D.response_metric)}`, v: im => im.response, cell: im => num(im.response) },
+  { key: "hitresp", label: "hits: " + shortMetric(D.response_metric), if: SCREEN && hasStim, tip: `Median ${nameOf(D.response_metric).toLowerCase()} of the hits only`, v: im => im.hit_response, cell: im => num(im.hit_response) },
   { key: "cal", label: "Cal Δ", if: hasCal, tip: "Median calibration − baseline of the valid cells: shows that the calibration (and the sensor) worked", v: im => im.cal_delta, cell: im => num(im.cal_delta), flag: "no_cal_response" },
   { key: "frames", label: "Frames · Δt", tip: "Number of frames and the time between frames", v: im => im.frames, cell: im => `${im.frames} · ${num(im.frame_interval, 2)} s` },
   { key: "stim", label: "Stim", if: hasStim, tip: "First frame with the stimulation (0-based); auto = detected, set = from the settings of all images, image = set for this image only; – = none",

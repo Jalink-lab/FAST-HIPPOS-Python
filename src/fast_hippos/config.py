@@ -391,7 +391,7 @@ METRICS = {
     "response_mean_diff": "Average change of the lifetime in the response window, compared with the cell's own "
         "baseline (lifetime − baseline).",
     "response_fraction": "How much of its maximal response the cell keeps in the response window: "
-        "response_mean_diff ÷ response_max_diff (1 = sustained, near 0 = transient).",
+        "mean response ÷ peak response (1 = sustained, near 0 = transient).",
     "response_max_abs": "Highest lifetime of the cell between the stimulation and the calibration.",
     "response_max_diff": "Largest change of the lifetime after the stimulation, compared with the cell's own baseline. "
         "The usual measure of how strongly a cell responds.",
@@ -404,7 +404,7 @@ METRICS = {
     "rapid_response_ratio": "Average response in the second half of the response period divided by that in the first "
         "half. Above 1 = still rising, below 1 = fading.",
     "calibration_mean": "Average lifetime of the cell during the calibration (maximal stimulation).",
-    "calibration_diff": "Response to the calibration: calibration_mean − baseline_mean. Shows whether the sensor works "
+    "calibration_diff": "Response to the calibration: mean during calibration − baseline. Shows whether the sensor works "
         "in this cell.",
     "baseline_dev_pop": "How much the baseline of the cell differs from the average baseline of all cells.",
     "additional_intensity": "Intensity of the additional channel in the cell (mean over time, or the first frame).",
@@ -416,3 +416,52 @@ CELL_MEASURES = {
     "area_um2": "Area of the cell in µm² (its area in pixels times the pixel size squared).",
     "circularity": "Roundness of the cell, 4πA/P²: 1 for a circle, lower for elongated or irregular cells.",
 }
+
+# The names shown in the pages and the window. The keys stay the names in the files (cells.tsv, settings): a
+# "response" is a change from the cell's own baseline, "during" means the value itself (e.g. the lifetime).
+METRIC_LABELS = {
+    "baseline_mean": "Baseline",
+    "response_mean_diff": "Mean response",
+    "response_max_diff": "Peak response",
+    "response_mean_abs": "Mean during response",
+    "response_max_abs": "Peak during response",
+    "response_max_diff_pop": "Peak response vs. population baseline",
+    "response_fraction": "Sustained fraction",
+    "rise_time_frames": "Rise time (frames)",
+    "rapid_response_ratio": "Late/early response ratio",
+    "calibration_mean": "Mean during calibration",
+    "calibration_diff": "Calibration response",
+    "baseline_dev_pop": "Baseline offset from population",
+    "additional_intensity": "Additional channel intensity",
+    "mean_intensity": "Mean intensity",
+    "area_um2": "Area (µm²)",
+    "area_px": "Area (pixels)",
+    "circularity": "Circularity",
+    "class_additional": "Additional channel class",
+    "response_rank": "Response rank",
+    "centroid_x": "Centre x (px)", "centroid_y": "Centre y (px)",
+    "pos_x_px": "Position x (px)", "pos_y_px": "Position y (px)",
+    "abs_x_m": "Stage x (m)", "abs_y_m": "Stage y (m)",
+}
+# what the labels mean, for the tooltips (the metrics and measures above, and the other columns of the cell table)
+METRIC_TIPS = {**METRICS, **CELL_MEASURES,
+               "area_px": "Area of the cell in pixels.",
+               "class_additional": "1 when the cell is positive for the additional channel (classification on), else 0.",
+               "response_rank": "Rank of the cell in the order of mean response (0 = lowest).",
+               "centroid_x": "Centre of the cell in the image (pixels).", "centroid_y": "Centre of the cell in the image (pixels).",
+               "pos_x_px": "The position used for the hit: the centre of the cell, or of its nucleus (pixels).",
+               "pos_y_px": "The position used for the hit: the centre of the cell, or of its nucleus (pixels).",
+               "abs_x_m": "The position of the hit as a stage position (metres), as in the .rgn files.",
+               "abs_y_m": "The position of the hit as a stage position (metres), as in the .rgn files."}
+
+
+def page_names() -> dict:
+    """The names and tooltips of the cell values, for the pages and the window."""
+    return {"labels": METRIC_LABELS, "tips": METRIC_TIPS}
+
+
+def metric_label(key: str) -> str:
+    """The readable name of a cell value; a value of another readout as 'cAMP · Peak response'."""
+    readout, _, base = key.rpartition(".")
+    name = METRIC_LABELS.get(base, base.replace("_", " "))
+    return f"{readout} · {name}" if readout else name

@@ -49,7 +49,7 @@ function drawCell() {
   if (p.max_baseline_deviation !== null && p.max_baseline_deviation !== undefined) { const v = C.baseline_dev_pop[i]; rows.push([mark(Math.abs(v) <= p.max_baseline_deviation), "gate: |baseline − population|", fmt(Math.abs(v))]); }
   p.criteria.forEach((cr, k) => { const v = C[cr.metric] ? C[cr.metric][i] : NaN, v2 = FHScreen.isGate(cr) && C[cr.metric2] ? C[cr.metric2][i] : null;
     rows.push([SCR.pass[k] ? mark(SCR.pass[k][i]) : "", `<span class="pill ${cr.logic.toLowerCase()}">${cr.logic}</span> ${critText(cr)}`, v2 === null ? fmt(v) : `${fmt(v)}, ${fmt(v2)}`]); });
-  for (const m of ["baseline_mean", "response_max_diff", "rise_time_frames", "additional_intensity"]) if (C[m] && !p.criteria.some(cr => cr.metric === m)) rows.push(["", m, fmt(C[m][i])]);
+  for (const m of ["baseline_mean", "response_max_diff", "rise_time_frames", "additional_intensity"]) if (C[m] && !p.criteria.some(cr => cr.metric === m)) rows.push(["", `<span title="${esc(tipOf(m))}">${esc(nameOf(m))}</span>`, fmt(C[m][i])]);
   $("cclist").innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
 }
 let cellTimer = null;

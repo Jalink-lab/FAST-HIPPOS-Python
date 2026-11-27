@@ -40,13 +40,13 @@ The plot shows the average trace of all cells, with the baseline (blue), the res
   movies without stimulation. An empty *cal* means: no calibration (for experiments without one).
 - **margin**: frames left out before each transition, so that a stimulus halfway through a frame doesn't count as
   baseline.
-- **response window**: the frames whose average is the *mean response* (`response_mean_diff` and
-  `response_mean_abs`). *full* uses the whole response (in the window and in settings files: an empty *Response
+- **response window**: the frames whose average is the *Mean response* and *Mean during
+  response*. *full* uses the whole response (in the window and in settings files: an empty *Response
   window*); *frames* uses a number of frames, counted *after S* (the early response) or *before C* (the late
   response), with an optional margin.
 - **time smoothing** averages the traces over ± this number of frames, for noisy data (and the image, see
   [the dashboard](dashboard.md#image)). **rise** is the fraction of the maximal response that
-  defines the rise time (`rise_time_frames`).
+  defines the *Rise time (frames)*.
 
 ## Quality gates
 
@@ -90,8 +90,9 @@ Each criterion is a cell value, *<*, *>* or *between* (↔), and a threshold. Th
 cells, with the passing cells in pink, and *… pass* counts them. Drag the black marker to change the threshold.
 
 - **+ criterion** adds a criterion. Hover over a value in the list for its meaning, or see
-  [Cell values](../reference/metrics.md). Besides the values of the response, the list has the measures of the cell
-  from the segmentation: `mean_intensity`, `area_um2` (in µm²) and `circularity`.
+  [Cell values](../reference/metrics.md) (which also gives the names of the columns in the files). Besides the values
+  of the response, the list has the measures of the cell from the segmentation: *Mean intensity*, *Area (µm²)* and
+  *Circularity*.
 - **AND / OR**: click the label of a criterion to switch. **AND** criteria are all required; of the **OR** criteria at
   least one must pass. For example *AND baseline < 2.4*, *OR response < 0.5*, *OR rise time > 5* gives cells with a
   low baseline that either respond weakly or slowly. (The rise time is only meaningful for cells that respond:
@@ -101,11 +102,11 @@ cells, with the passing cells in pink, and *… pass* counts them. Drag the blac
 !!! example "In the example"
     The [example screen](../start/first-analysis.md#what-the-experiment-is-about) looks for ADRB2 knock-out cells
     among wild-type cells: cells that hardly respond to isoproterenol. Wild-type cells saturate the sensor at about
-    3.25 ns, so the criteria are `response_max_abs` **<** 3.1 (the lifetime stays low) **AND** `baseline_mean`
-    **between** 2.0 and 2.7 (a normal baseline). The gate *calibration − baseline* (0.5–1.2 ns) makes sure that
+    3.25 ns, so the criteria are *Peak during response* **<** 3.1 (the lifetime stays low) **AND**
+    *Baseline* **between** 2.0 and 2.7 (a normal baseline). The gate *calibration − baseline* (0.5–1.2 ns) makes sure that
     every hit still responds to the forskolin calibration; the *|baseline − population|* gate is off. The knock-out
     cells carry a marker (the additional channel), so here you can check the result: in the scatter plot of
-    `additional_intensity` (log) against the lifetime during the response, 64 of the 75 hits are marker-positive.
+    *Additional channel intensity* (log) against the lifetime during the response, 64 of the 75 hits are marker-positive.
 
 ### Gates
 
@@ -115,7 +116,7 @@ separates, for instance cells with a high marker intensity *and* a low response,
 
 1. In the scatter plot, choose two cell values for x and y, with *log* where the values span orders of magnitude.
    These can be the values of the response (as for the other criteria) and the measures of the cell from the
-   segmentation: `mean_intensity`, `area_um2` and `circularity`. Not a value at a frame, nor a position.
+   segmentation: *Mean intensity*, *Area (µm²)* and *Circularity*. Not a value at a frame, nor a position.
 2. Click **✎ Gate** and drag a box or a lasso around the cells (++l++ switches between them, ++esc++ cancels).
 3. The gate appears in the plot and in the criteria list, as an **AND** criterion. Its cells turn pink.
 

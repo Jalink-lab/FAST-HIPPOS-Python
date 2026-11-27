@@ -101,9 +101,9 @@ of all cells. You can always correct them later, in the dashboard.
 
 1. Tick **Screen for hits**.
 2. Click **+ criterion** twice, and set the two criteria (both **AND**: a hit must meet both):
-    - `response_max_abs` **<** **3.1**: the highest lifetime of the cell after the isoproterenol stays below 3.1 ns.
+    - *Peak during response* **<** **3.1**: the highest lifetime of the cell after the isoproterenol stays below 3.1 ns.
       Wild-type cells saturate the sensor at about 3.25 ns; cells that stay lower respond weakly.
-    - `baseline_mean` **between** **2.0** and **2.7**: a normal baseline, which leaves out odd cells.
+    - *Baseline* **between** **2.0** and **2.7**: a normal baseline, which leaves out odd cells.
 
     Hover over a name for its meaning. Don't worry about the exact values: you will
     [fine-tune them in the dashboard](../guide/choosing-hits.md), while you watch the hits change.

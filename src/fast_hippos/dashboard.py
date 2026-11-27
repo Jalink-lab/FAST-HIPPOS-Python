@@ -15,7 +15,7 @@ import pandas as pd
 from matplotlib import colormaps
 
 from . import __version__
-from .config import CELL_MEASURES, METRICS
+from .config import CELL_MEASURES, METRICS, page_names
 from .screening import criterion_dict, criterion_text, timed_window
 from .viewer_data import FRAMES_DIR, ViewerData, float_b64, frame_urls, labels_url, png_data_url, write_frames
 
@@ -148,6 +148,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
     t, h, w = result.shape
     return {
         "version": __version__,
+        "names": page_names(),  # readable names and tooltips of the cell values
         "name": result.name,
         # the image's own settings (Settings.image), if any: shown in the dashboard and kept by 'Apply to all images'
         "own_settings": settings.image.get(result.name) or None,

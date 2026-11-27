@@ -94,7 +94,7 @@ function drawHits() {
   const cols = [...(EXP ? [["sample", "Sample", "The sample (run) of the hit"]] : []), ["image", "Image", "The image of the hit"],
     ["rank", "Rank", EXP ? "Rank of the hit in the hit list of its sample (run)" : "Rank of the hit in the hit list of the run"], ["chunk", ".rgn file", "Number of the .rgn file (chunk) of the run that holds this hit"],
     ["visit", "Stop", "Place in the visiting order of that .rgn file"], ["cell", "Cell", "Cell number in its image"], ["x", "x (mm)", "Stage x"], ["y", "y (mm)", "Stage y"],
-    ...metrics.map(m => [m, m, metricTip(m)])];
+    ...metrics.map(m => [m, nameOf(m), metricTip(m)])];
   const head = "<tr>" + cols.map(([k, l, t]) => `<th class="${k === "image" || k === "sample" ? "l" : ""}" data-k="${k}" title="${esc(t)}">${esc(l)}${HIT_SORT.col === k ? (HIT_SORT.dir > 0 ? " ▴" : " ▾") : ""}</th>`).join("") + "</tr>";
   const body = rows.slice(0, 5000).map(r => `<tr data-k="${r.k}" data-c="${r.h.cell}">${EXP ? `<td class="l">${esc(r.im.sample)}</td>` : ""}<td class="l"><span class="sw" style="background:${imgColor(r.k)}"></span> ${esc(r.im.name)}</td><td>${r.h.rank ?? "–"}</td><td>${r.h.chunk ?? "–"}</td><td>${r.h.visit ?? "–"}</td><td>${r.h.cell}</td>` +
     `<td>${r.h.x === null ? "–" : fmt(r.h.x * 1e3, 3)}</td><td>${r.h.y === null ? "–" : fmt(r.h.y * 1e3, 3)}</td>` + metrics.map(m => `<td>${r.i !== undefined && r.im.C[m] ? fmt(r.im.C[m][r.i]) : "–"}</td>`).join("") + "</tr>").join("");

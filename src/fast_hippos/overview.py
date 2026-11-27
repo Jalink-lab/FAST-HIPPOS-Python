@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 
 from . import __version__
-from .config import METRICS
+from .config import METRICS, page_names
 from .screening import criterion_dict
 from .viewer_data import float_b64
 
@@ -221,7 +221,7 @@ def build_overview_data(results: list[ImageResult], settings: Settings, out: Pat
     files = sorted(p.name for p in out.iterdir() if p.is_file() and p.suffix.lower() in (".tsv", ".rgn", ".png", ".txt",
                                                                                              ".json", ".toml", ".tif"))
     return {
-        "version": __version__, "title": out.name, "screening": sc.enabled,
+        "version": __version__, "names": page_names(), "title": out.name, "screening": sc.enabled,
         "unit": results[0].unit if results else "", "is_lifetime": bool(results) and results[0].unit.startswith("Lifetime"),
         "response_metric": metric,
         "criteria": [criterion_dict(c, sc.logic) for c in sc.criteria],

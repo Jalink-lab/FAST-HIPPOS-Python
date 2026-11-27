@@ -34,7 +34,16 @@ from pathlib import Path
 from typing import get_args, get_origin, get_type_hints
 
 from . import __version__, cellpose_envs, updates
-from .config import CELL_MEASURES, METRICS, Criterion, Modality, Settings, _from_dict
+from .config import (
+    CELL_MEASURES,
+    METRICS,
+    Criterion,
+    Modality,
+    Settings,
+    _from_dict,
+    metric_label,
+    page_names,
+)
 
 log = logging.getLogger(__name__)
 
@@ -62,8 +71,7 @@ UNUSED_TILES = ("not used by the Python version: the tile layout and overlap com
 # what the scatter plot of the dashboard can show on an axis
 SCATTER_AXES = {"value_at_frame": "lifetime (or ratio) at the current frame",
                 "additional_at_frame": "additional channel at the current frame",
-                "mean_intensity": "mean_intensity", "area_um2": "area_um2", "area_px": "area_px", "circularity": "circularity",
-                **{k: k for k in METRICS}}
+                **{k: metric_label(k) for k in (*METRICS, "mean_intensity", "area_um2", "area_px", "circularity")}}
 
 # label, help, level ("basic" or "advanced"), optional: widget, choices, show (field -> allowed values).
 # Settings that are not listed here are shown in the advanced tab with a generated label.
@@ -617,7 +625,7 @@ def schema() -> dict:
                "advanced": [{"title": a[0], "keys": a[1], "show": a[2] if len(a) > 2 else None,
                              "column": len(a) > 3 and a[3] == "column"} for a in c["advanced"]]}
               for c in LAYOUT]
-    return {"version": __version__, "sections": sections, "layout": layout, "metrics": METRICS, "measures": CELL_MEASURES,
+    return {"version": __version__, "sections": sections, "layout": layout, "metrics": METRICS, "measures": CELL_MEASURES, "names": page_names(),
             "reasons": REASONS}
 
 

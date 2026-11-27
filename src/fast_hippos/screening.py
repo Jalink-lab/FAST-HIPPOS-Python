@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from skimage.filters import threshold_otsu
 
-from .config import CELL_MEASURES, METRICS, Criterion, ScreeningSettings
+from .config import CELL_MEASURES, METRICS, Criterion, ScreeningSettings, metric_label
 from .events import Events
 
 log = logging.getLogger(__name__)
@@ -138,8 +138,9 @@ def criterion_text(c) -> str:
     """A criterion (or its dict) in words: 'response_max_diff > 0.3', 'inside a gate on x vs y'."""
     get = c.get if isinstance(c, dict) else lambda k, d=None: getattr(c, k, d)
     if get("op") in GATE_OPS:
-        return f"{get('op')} a gate on {get('metric2')} vs {get('metric')} ({len(get('polygon') or [])} points)"
-    return f"{get('metric')} {get('op')} {get('value')}" + (f" and {get('value2')}" if get("op") == "between" else "")
+        return (f"{get('op')} a gate on {metric_label(get('metric2'))} vs {metric_label(get('metric'))} "
+                f"({len(get('polygon') or [])} points)")
+    return f"{metric_label(get('metric'))} {get('op')} {get('value')}" + (f" and {get('value2')}" if get("op") == "between" else "")
 
 
 def criterion_dict(c: Criterion, default_logic: str) -> dict:

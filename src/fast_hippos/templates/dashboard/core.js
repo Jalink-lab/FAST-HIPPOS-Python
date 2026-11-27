@@ -1,5 +1,6 @@
 // ---------------------------------------------------------------- data and shared state
 const D = JSON.parse(document.getElementById("fh-data").textContent);
+useNames(D.names);  // readable names of the cell values (pages of before 0.1.0b3: the keys)
 const N = D.n_cells, T = D.n_frames, FI = D.frame_interval;
 const C = D.cells;
 
@@ -81,7 +82,7 @@ function showTip(i, ev) {
   if (i < 0 || !ev) { tip.style.display = "none"; return; }
   const v = val(S.frame, i);
   tip.innerHTML = `<b>Cell ${C.cell[i]}</b> · ${fmt(v)} ${D.is_lifetime ? "ns" : ""}` + (HIT[i] ? ` · <span class="h">hit</span>` : "") +
-    (C.response_max_diff ? `<br><span class="muted">max Δ ${fmt(C.response_max_diff[i])} · baseline ${fmt(C.baseline_mean[i])}</span>` : "");
+    (C.response_max_diff ? `<br><span class="muted">${nameOf("response_max_diff").toLowerCase()} ${fmt(C.response_max_diff[i])} · baseline ${fmt(C.baseline_mean[i])}</span>` : "");
   tip.style.display = "block";
   tip.style.left = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
   tip.style.top = Math.min(ev.clientY + 14, innerHeight - tip.offsetHeight - 8) + "px";

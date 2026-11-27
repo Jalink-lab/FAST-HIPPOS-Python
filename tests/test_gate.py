@@ -131,3 +131,15 @@ def test_area_in_square_micrometres():
     assert list(out.columns) == ["cell", "area_px", "area_um2", "mean_intensity"]
     assert out["area_um2"].tolist() == [25.0, 62.5]
     assert with_area_um2(out, 2.0)["area_um2"].tolist() == [25.0, 62.5]  # an existing value is kept
+
+
+def test_readable_names():
+    """Every cell value has a readable name (no underscores, units in brackets) and a tooltip; the keys stay."""
+    from fast_hippos.config import CELL_MEASURES, METRIC_LABELS, METRIC_TIPS, METRICS, metric_label
+
+    for key in [*METRICS, *CELL_MEASURES]:
+        assert key in METRIC_LABELS and key in METRIC_TIPS, key
+    assert not [n for n in METRIC_LABELS.values() if "_" in n]
+    assert metric_label("area_um2") == "Area (µm²)"
+    assert metric_label("cAMP.response_max_diff") == "cAMP · Peak response"
+    assert metric_label("something_new") == "something new"

@@ -14,7 +14,7 @@ function scatterValues(key) {
 // per-cell quantities in the same unit as the traces (lifetime or ratio)
 const VALUE_METRICS = ["baseline_mean", "response_mean_abs", "response_max_abs", "calibration_mean"];
 const isValueAxis = (k) => k === "@value" || VALUE_METRICS.includes(k);
-const scatterLabel = (k) => k === "@value" ? VALUE_LABEL : k === "@additional" ? "additional channel @ frame" : k === "@partner" ? `${D.partner.name} @ frame` : k;
+const scatterLabel = (k) => k === "@value" ? VALUE_LABEL : k === "@additional" ? "additional channel @ frame" : k === "@partner" ? `${D.partner.name} @ frame` : nameOf(k);
 function drawScatter() {
   SP.resize(); SP.logx = S.slogx; SP.logy = S.slogy;
   const xs = scatterValues(S.sx), ys = scatterValues(S.sy), ids = [];
@@ -65,7 +65,7 @@ function gateState() {  // the Gate button: only for two per-cell metrics
   const ok = gateMetric(S.sx) && gateMetric(S.sy);
   $("sgate").disabled = !ok && !GATE_DRAW;
   $("sgate").title = ok ? "Draw a gate: a region of this plot that becomes a hit criterion (cells inside it pass). Works for any image when the screening is applied."
-    : `A gate needs two values that criteria can use on the axes (not a value at a frame, nor a position): ${CRIT_KEYS.join(", ")}`;
+    : `A gate needs two values that criteria can use on the axes (not a value at a frame, nor a position): ${CRIT_KEYS.map(nameOf).join(", ")}`;
   $("sgate").classList.toggle("drawing", GATE_DRAW); $("sgate").textContent = GATE_DRAW ? "Cancel gate" : "✎ Gate";
   $("gatehint").textContent = GATE_DRAW ? `drag a ${S.tool === "lasso" ? "lasso" : "box"} around the cells (L: box/lasso, Esc: cancel)` : "";
   $("sch").closest(".stack").classList.toggle("drawgate", GATE_DRAW);
@@ -99,8 +99,7 @@ layer("scatter", drawScatter); layer("scatterSel", drawScatterSel); layer("scatt
 function initScatter() {
   const opts = [["@value", VALUE_LABEL]]; if (KA) opts.push(["@additional", "additional channel @ frame"]);
   if (KOTHER) opts.push(["@partner", `${D.partner.name} @ frame`]);
-  NUMERIC.forEach(k => opts.push([k, k]));
-  for (const id of ["sx", "sy"]) { const el = $(id); opts.forEach(([v, l]) => el.add(new Option(l, v))); }
+  for (const id of ["sx", "sy"]) { const el = $(id); opts.forEach(([v, l]) => el.add(new Option(l, v))); NUMERIC.forEach(k => el.add(nameOpt(k))); }
   $("sx").value = S.sx; $("sy").value = S.sy;
   $("sx").onchange = () => { S.sx = $("sx").value; gateState(); invalidate("scatter", "scatterSel", "scatterHov"); };
   $("sy").onchange = () => { S.sy = $("sy").value; gateState(); invalidate("scatter", "scatterSel", "scatterHov"); };

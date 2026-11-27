@@ -3,11 +3,11 @@ let TCOLS = [], tableRows = [];
 const hasValues = (k) => k in C && Array.prototype.some.call(C[k], v => v !== null && !Number.isNaN(v));
 function tableColumns() {
   const crit = SCR.params.criteria.flatMap(c => (FHScreen.isGate(c) ? [c.metric, c.metric2] : [c.metric]));
-  return [["cell", "cell", 0], ["hit", "hit", -1], ["@value", D.is_lifetime ? "τ @ frame" : "value @ frame", 3]].concat(
-    ["valid", "class_additional"].filter(k => k in C).map(k => [k, k.replace("class_additional", "class"), 0]),
+  return [["cell", "Cell", 0], ["hit", "Hit", -1], ["@value", D.is_lifetime ? "τ @ frame" : "value @ frame", 3]].concat(
+    ["valid", "class_additional"].filter(k => k in C).map(k => [k, k === "class_additional" ? "Class" : "Valid", 0]),
     [...new Set([...crit, "area_um2" in C ? "area_um2" : "area_px", "mean_intensity", "baseline_mean", "response_mean_abs", "response_mean_diff", "response_max_diff",
       "response_fraction", "rise_time_frames", "rapid_response_ratio", "calibration_diff", "additional_intensity", "pos_x_px", "pos_y_px", "abs_x_m", "abs_y_m"])]
-      .filter(hasValues).map(k => [k, k, k.startsWith("abs_") ? 7 : k.endsWith("_px") || k === "area_px" ? 0 : k === "area_um2" ? 1 : 3]));
+      .filter(hasValues).map(k => [k, nameOf(k), k.startsWith("abs_") ? 7 : k.endsWith("_px") || k === "area_px" ? 0 : k === "area_um2" ? 1 : 3]));
 }
 function cellValue(key, i) { if (key === "@value") return val(S.frame, i); const v = C[key][i]; return v === null ? NaN : v; }
 function drawTable() {
@@ -16,7 +16,7 @@ function drawTable() {
   for (let i = 0; i < N; i++) { if (S.rows === "hits" && !HIT[i]) continue; if (S.rows === "sel" && !S.sel.has(i)) continue; if (S.rows === "valid" && !C.valid[i]) continue; rows.push(i); }
   if (S.sortCol) { const k = S.sortCol, dir = S.sortDir; rows.sort((a, b) => { const va = cellValue(k, a), vb = cellValue(k, b); if (Number.isNaN(va)) return 1; if (Number.isNaN(vb)) return -1; return (va - vb) * dir; }); }
   tableRows = rows;
-  const head = TCOLS.map(([k, l]) => `<th data-k="${k}" title="${(D.screen.metrics[k] || "").replace(/"/g, "")}">${l}${S.sortCol === k ? (S.sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("");
+  const head = TCOLS.map(([k, l]) => `<th data-k="${k}" title="${k.startsWith("@") ? "" : esc(tipOf(k))}">${l}${S.sortCol === k ? (S.sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("");
   $("tbl").innerHTML = `<table><thead><tr>${head}</tr></thead><tbody></tbody></table>`;
   $("tbl").querySelectorAll("th").forEach(th => th.onclick = () => { const k = th.dataset.k; if (S.sortCol === k) S.sortDir *= -1; else { S.sortCol = k; S.sortDir = k === "cell" ? 1 : -1; } drawTable(); });
   $("tinfo").textContent = `${rows.length} rows`;

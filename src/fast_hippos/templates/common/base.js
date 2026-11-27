@@ -2,6 +2,18 @@
 // Helpers that do not depend on the data of a page (templates/common, loaded before the page's own scripts).
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// Readable names of the cell values and what they mean (config.METRIC_LABELS / METRIC_TIPS, in D.names). The keys
+// (response_max_diff) stay the names in the files; a value of another readout is shown as 'cAMP · Peak response'.
+const FH_NAMES = { labels: {}, tips: {} };
+function useNames(n) { if (n) { Object.assign(FH_NAMES.labels, n.labels || {}); Object.assign(FH_NAMES.tips, n.tips || {}); } }
+function nameOf(key) {
+  const k = String(key), i = k.lastIndexOf("."), base = i > 0 ? k.slice(i + 1) : k, name = FH_NAMES.labels[base] || base.replace(/_/g, " ");
+  return i > 0 ? `${k.slice(0, i)} · ${name}` : name;
+}
+function tipOf(key, extra = "") {  // for a title: the meaning, and the name of the column in the files
+  const base = String(key).split(".").pop(), d = FH_NAMES.tips[base] || extra;
+  return (d ? d + "\n" : "") + `Column in the tables (.tsv): ${key}`;
+}
 // Inside the FAST-HIPPOS window (gui.html shows this page in a frame, with its own top bar): links to other pages
 // (overviews, dashboards) open in the window, not in new tabs; Ctrl+click still opens a new tab.
 const SHELL = (() => { try { return (window.parent !== window && window.parent.FH_SHELL) || null; } catch { return null; } })();

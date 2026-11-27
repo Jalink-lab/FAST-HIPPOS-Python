@@ -521,7 +521,7 @@ function initViewer() {
   }
   $("bright").oninput = () => { S.bright = Math.pow(10, +$("bright").value); imageChanged(); };
   $("vroute").checked = S.showRoute; $("vroute").onchange = () => { S.showRoute = $("vroute").checked; invalidate("viewerHov"); };
-  const fm = $("vfill"); fm.add(new Option(`${$("vsmoothl").textContent.toLowerCase()} image`, "")); METRIC_KEYS.forEach(k => fm.add(new Option(k, k)));
+  const fm = $("vfill"); fm.add(new Option(`${$("vsmoothl").textContent.toLowerCase()} image`, "")); METRIC_KEYS.forEach(k => fm.add(nameOpt(k)));
   fm.onchange = () => { S.fillMetric = fm.value; fillsChanged(); };
   $("v100").onclick = () => { const r = vwrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1 / viewTarget().s); };
   hitRGB = hexToRgb(css("--hit"));

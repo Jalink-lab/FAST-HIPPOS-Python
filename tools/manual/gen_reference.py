@@ -8,7 +8,7 @@ import html
 from pathlib import Path
 
 from fast_hippos import gui
-from fast_hippos.config import METRICS
+from fast_hippos.config import METRICS, metric_label
 
 REF = Path(__file__).resolve().parents[2] / "manual" / "reference"
 
@@ -63,12 +63,14 @@ def metrics_page() -> str:
            ("FAST-HIPPOS measures these values for every cell. They can be used in hit criteria, for sorting the hits, as "
            "axes of the scatter plots and for colouring the cells in the dashboard. *Lifetime* stands for the measured "
            "quantity: the ratio for ratio imaging, the intensity for intensity-only data."), "",
-           "| Name | Meaning |", "|---|---|"]
-    out += [f"| `{k}` | {v} |" for k, v in METRICS.items()]
+           ("The pages and the window show the names of the first column (with this meaning as the tooltip); the files "
+            "(`cells.tsv`, the hit lists, the settings) use the column names of the second."), "",
+           "| Name | Column in the files | Meaning |", "|---|---|---|"]
+    out += [f"| {metric_label(k)} | `{k}` | {v} |" for k, v in METRICS.items()]
     out += ["", "## Other values in the tables", "",
             "These are in `cells.tsv` and in the Cells table of the dashboard (and can be shown in the scatter plot).", "",
-            "| Name | Meaning |", "|---|---|"]
-    out += [f"| `{k}` | {v} |" for k, v in OTHER_VALUES.items()]
+            "| Name | Column in the files | Meaning |", "|---|---|---|"]
+    out += [f"| {metric_label(k) if ',' not in k else ''} | `{k}` | {v} |" for k, v in OTHER_VALUES.items()]
     return "\n".join(out) + "\n"
 
 
