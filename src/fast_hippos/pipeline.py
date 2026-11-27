@@ -24,7 +24,7 @@ from .viewer_data import ViewerData, prepare
 log = logging.getLogger("fast_hippos")
 
 BASE_COLUMNS = [
-    "image", "tile", "cell", "area_px", "mean_intensity", "circularity", "centroid_x", "centroid_y",
+    "image", "tile", "cell", "area_px", "area_um2", "mean_intensity", "circularity", "centroid_x", "centroid_y",
     "pos_x_px", "pos_y_px", "abs_x_m", "abs_y_m",
 ]
 
@@ -698,6 +698,7 @@ def process_image(
         "pos_x_px": positions[:, 0], "pos_y_px": positions[:, 1],
         **{c: stats[c].to_numpy() for c in ("bbox_x0", "bbox_y0", "bbox_x1", "bbox_y1")},
     })
+    base = with_area_um2(base, pixel_size)
     base["abs_x_m"] = base["abs_y_m"] = np.nan  # filled in by analyze (stage_to_rgn)
     result.base = base
     further = []  # (result, its images): the further readouts, on the same cells
@@ -971,6 +972,14 @@ def save_tables(result: ImageResult, settings: Settings) -> None:
         plots.traces(d / "traces.png", result.kymo_smoothed, result.frame_interval, result.events, result.unit, ylim, hits, result.name)
 
 
+def with_area_um2(base: pd.DataFrame, pixel_size: float) -> pd.DataFrame:
+    """The cell area in µm² (area_px x pixel size²) next to area_px; also for results saved before it existed."""
+    if "area_px" in base and "area_um2" not in base:
+        base = base.copy()
+        base.insert(base.columns.get_loc("area_px") + 1, "area_um2", base["area_px"] * float(pixel_size) ** 2)
+    return base
+
+
 def load_result(d: Path) -> ImageResult:
     meta = json.loads((d / "meta.json").read_text())
     with np.load(d / "traces.npz") as z:
@@ -980,7 +989,7 @@ def load_result(d: Path) -> ImageResult:
         name=meta["name"], out_dir=d, index=meta["index"], pixel_size=meta["pixel_size_um"],
         frame_interval=meta["frame_interval_s"], shape=tuple(meta["shape"]), unit=meta["unit"],
         kymo=kymo, kymo_smoothed=kymo, additional=additional,
-        base=pd.read_csv(d / "cells_base.tsv", sep="\t"),
+        base=with_area_um2(pd.read_csv(d / "cells_base.tsv", sep="\t"), meta["pixel_size_um"]),
         stage_xy=tuple(meta["stage_xy_m"]) if meta["stage_xy_m"] else None,
         tile_size=tuple(meta["tile_size_m"]) if meta["tile_size_m"] else None,
         tiles=[tuple(t) for t in meta["tiles"]], stage_info_block=meta["stage_info_block"],

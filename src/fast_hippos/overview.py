@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 MAX_CELLS = 5000  # per image in the page (a subsample that keeps every hit); counts and medians use all cells
 BANDS = (10, 25, 50, 75, 90)  # percentiles of the response over time
 THUMB = 128  # px, longest side of the thumbnail
-CELL_COLUMNS = ["cell", "hit", "valid", "abs_x_m", "abs_y_m", "area_px", "mean_intensity", "circularity",
+CELL_COLUMNS = ["cell", "hit", "valid", "abs_x_m", "abs_y_m", "area_px", "area_um2", "mean_intensity", "circularity",
                 "class_additional", *METRICS]
 RESPONSE_METRICS = ("response_mean_diff", "response_max_diff", "response_mean_abs", "response_max_abs",
                     "response_max_diff_pop", "response_fraction")

@@ -62,7 +62,7 @@ UNUSED_TILES = ("not used by the Python version: the tile layout and overlap com
 # what the scatter plot of the dashboard can show on an axis
 SCATTER_AXES = {"value_at_frame": "lifetime (or ratio) at the current frame",
                 "additional_at_frame": "additional channel at the current frame",
-                "mean_intensity": "mean_intensity", "area_px": "area_px", "circularity": "circularity",
+                "mean_intensity": "mean_intensity", "area_um2": "area_um2", "area_px": "area_px", "circularity": "circularity",
                 **{k: k for k in METRICS}}
 
 # label, help, level ("basic" or "advanced"), optional: widget, choices, show (field -> allowed values).

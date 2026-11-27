@@ -413,6 +413,6 @@ METRICS = {
 # measures of the cell from the segmentation (not from its trace), which hit criteria and gates can use as well
 CELL_MEASURES = {
     "mean_intensity": "Mean intensity of the cell: the mean pixel value per frame, in the units of the image.",
-    "area_px": "Area of the cell in pixels (depends on the pixel size: compare images of the same magnification).",
+    "area_um2": "Area of the cell in µm² (its area in pixels times the pixel size squared).",
     "circularity": "Roundness of the cell, 4πA/P²: 1 for a circle, lower for elongated or irregular cells.",
 }

@@ -28,6 +28,7 @@ These are in `cells.tsv` and in the Cells table of the dashboard (and can be sho
 
 | Name | Meaning |
 |---|---|
+| `area_um2` | Size of the cell in µm²: the area in pixels times the pixel size squared. |
 | `area_px` | Size of the cell in pixels. |
 | `mean_intensity` | Mean pixel value of the cell per frame, over the frames used for the segmentation, in the units of the image (photon counts or amplitudes). The *Minimum cell intensity* filter uses the same value. |
 | `circularity` | 4π · area / perimeter²: 1 for a circle, lower for irregular shapes. |

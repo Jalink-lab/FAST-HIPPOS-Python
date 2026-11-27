@@ -15,8 +15,9 @@ const imgColor = (k) => css(`--img-${k % 8}`);
 const UNIT = D.is_lifetime ? "ns" : "";
 const hasStim = IM.some(im => im.events.stimulation !== null), hasCal = IM.some(im => im.events.calibration !== null);
 const hasPositions = SCREEN && IM.some(im => im.has_positions || im.hits.length);
-const EXTRA_TIPS = { area_px: "Cell area in pixels", mean_intensity: "Mean intensity of the cell", circularity: "Circularity 4πA/P² (1 = a perfect circle)" };
-const METRIC_KEYS = [...Object.keys(D.metrics), "area_px", "mean_intensity", "circularity"]
+const EXTRA_TIPS = { area_um2: "Cell area in µm²", area_px: "Cell area in pixels", mean_intensity: "Mean intensity of the cell", circularity: "Circularity 4πA/P² (1 = a perfect circle)" };
+// the area in µm² (results of before it existed: in pixels, until they are re-applied)
+const METRIC_KEYS = [...Object.keys(D.metrics), IM.some(im => im.C.area_um2) ? "area_um2" : "area_px", "mean_intensity", "circularity"]
   .filter(m => IM.some(im => im.C[m] && im.C[m].some(Number.isFinite)));
 const metricTip = (m) => D.metrics[m] || EXTRA_TIPS[m] || "";
 const FLAG_LABEL = { few_cells: "few cells", low_valid: "low fraction valid", no_stimulation: "no stimulation", no_calibration: "no calibration",

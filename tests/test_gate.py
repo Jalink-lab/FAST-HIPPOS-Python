@@ -83,19 +83,19 @@ def test_find_hits_with_a_gate_and_a_threshold():
 
 
 def test_criteria_on_cell_measures():
-    """Criteria and gates can also use the measures of the segmentation (mean_intensity, area_px, circularity)."""
+    """Criteria and gates can also use the measures of the segmentation (mean_intensity, area_um2, circularity)."""
     from fast_hippos.config import CELL_MEASURES
 
     x, y = _points(400, seed=3)
-    df = pd.DataFrame({"mean_intensity": np.exp(x), "response_max_abs": y, "area_px": 100.0, "baseline_mean": 1.0})
+    df = pd.DataFrame({"mean_intensity": np.exp(x), "response_max_abs": y, "area_um2": 100.0, "baseline_mean": 1.0})
     sc = ScreeningSettings(enabled=True, baseline_calibration_diff=None, max_baseline_deviation=None, criteria=[
         Criterion("mean_intensity", "inside", metric2="response_max_abs", polygon=[(3, 1), (60, 1), (60, 3), (3, 3)],
                   log_x=True, logic="AND"),
-        Criterion("area_px", ">", 50.0, logic="AND")])
+        Criterion("area_um2", ">", 50.0, logic="AND")])
     out = screening.find_hits(df, sc, has_calibration=False)
     expected = screening.in_polygon(np.exp(x), y, [(3, 1), (60, 1), (60, 3), (3, 3)], log_x=True)
     assert (out["hit"].to_numpy() == expected).all() and expected.sum() > 10
-    assert set(CELL_MEASURES) == {"mean_intensity", "area_px", "circularity"}
+    assert set(CELL_MEASURES) == {"mean_intensity", "area_um2", "circularity"}
     with pytest.raises(ValueError, match="circularity"):  # the message names the measures too
         screening.find_hits(df, ScreeningSettings(enabled=True, baseline_calibration_diff=None, max_baseline_deviation=None,
                                                   criteria=[Criterion("nonsense", ">", 1.0)]), False)
@@ -121,3 +121,13 @@ def test_unusable_gates():
         screening.passes(_crit([(0, 0), (1, 1)]), df)
     with pytest.raises(ValueError, match="value"):
         screening.passes(Criterion("a", ">"), df)
+
+
+def test_area_in_square_micrometres():
+    from fast_hippos.pipeline import with_area_um2
+
+    base = pd.DataFrame({"cell": [1, 2], "area_px": [100, 250], "mean_intensity": [1.0, 2.0]})
+    out = with_area_um2(base, 0.5)
+    assert list(out.columns) == ["cell", "area_px", "area_um2", "mean_intensity"]
+    assert out["area_um2"].tolist() == [25.0, 62.5]
+    assert with_area_um2(out, 2.0)["area_um2"].tolist() == [25.0, 62.5]  # an existing value is kept

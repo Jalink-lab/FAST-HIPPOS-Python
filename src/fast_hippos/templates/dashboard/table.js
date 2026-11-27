@@ -5,9 +5,9 @@ function tableColumns() {
   const crit = SCR.params.criteria.flatMap(c => (FHScreen.isGate(c) ? [c.metric, c.metric2] : [c.metric]));
   return [["cell", "cell", 0], ["hit", "hit", -1], ["@value", D.is_lifetime ? "τ @ frame" : "value @ frame", 3]].concat(
     ["valid", "class_additional"].filter(k => k in C).map(k => [k, k.replace("class_additional", "class"), 0]),
-    [...new Set([...crit, "area_px", "mean_intensity", "baseline_mean", "response_mean_abs", "response_mean_diff", "response_max_diff",
+    [...new Set([...crit, "area_um2" in C ? "area_um2" : "area_px", "mean_intensity", "baseline_mean", "response_mean_abs", "response_mean_diff", "response_max_diff",
       "response_fraction", "rise_time_frames", "rapid_response_ratio", "calibration_diff", "additional_intensity", "pos_x_px", "pos_y_px", "abs_x_m", "abs_y_m"])]
-      .filter(hasValues).map(k => [k, k, k.startsWith("abs_") ? 7 : k.endsWith("_px") || k === "area_px" ? 0 : 3]));
+      .filter(hasValues).map(k => [k, k, k.startsWith("abs_") ? 7 : k.endsWith("_px") || k === "area_px" ? 0 : k === "area_um2" ? 1 : 3]));
 }
 function cellValue(key, i) { if (key === "@value") return val(S.frame, i); const v = C[key][i]; return v === null ? NaN : v; }
 function drawTable() {
