@@ -106,6 +106,26 @@ cells, with the passing cells in pink, and *… pass* counts them. Drag the blac
     cells carry a marker (the additional channel), so here you can check the result: in the scatter plot of
     `additional_intensity` (log) against the lifetime during the response, 64 of the 75 hits are marker-positive.
 
+### Gates
+
+A **gate** is a criterion on two values at once: a region of the scatter plot. Cells whose two values lie inside it
+pass (or, switched to *outside*, those outside it). It is the way to pick a population that no threshold on one value
+separates, for instance cells with a high marker intensity *and* a low response, where the two groups lie diagonally.
+
+1. In the scatter plot, choose two cell values for x and y (not a value at a frame), with *log* where the values span
+   orders of magnitude.
+2. Click **✎ Gate** and drag a box or a lasso around the cells (++l++ switches between them, ++esc++ cancels).
+3. The gate appears in the plot and in the criteria list, as an **AND** criterion. Its cells turn pink.
+
+In the criteria list a gate can be switched between AND and OR and between *inside* and *outside*, and removed (✕);
+*show in scatter* sets the plot to its two values. To change its shape, remove it and draw a new one. A gate keeps the
+axes it was drawn on: drawn on a log axis, its edges are straight on that log axis (and look curved on a linear one).
+
+Unlike the hits chosen by hand, a gate is a setting, in the units of the two values: *↻ Apply* uses it for this image,
+the window takes it over for the next images, and *Re-apply all images* uses it for every image of the experiment. In
+the window (*Screening*) a gate is listed with the other criteria, where it can be switched or removed; it is drawn in
+a dashboard.
+
 **Hits chosen by hand.** You can also change the hits by hand. Select cells (click, Shift+drag a box or lasso in the
 image or the scatter plot, or the table), then:
 

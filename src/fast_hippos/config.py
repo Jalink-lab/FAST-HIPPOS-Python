@@ -150,11 +150,17 @@ class EventSettings:
 @dataclass
 class Criterion:
     metric: str
-    op: str  # "<", ">" or "between"
-    value: float
+    op: str  # "<", ">" or "between"; for a gate "inside" or "outside"
+    value: float | None = None  # (not used by a gate)
     value2: float | None = None
     # "AND": must pass; "OR": at least one of the OR criteria must pass. None = screening.logic
     logic: str | None = None
+    # a gate: a polygon in the plane of two metrics (metric on x, metric2 on y), drawn in the scatter plot of a
+    # dashboard. Its points are in the units of the values; its edges are straight on a log axis where log_x / log_y.
+    metric2: str | None = None
+    polygon: list[tuple[float, float]] | None = None
+    log_x: bool = False
+    log_y: bool = False
 
 
 @dataclass

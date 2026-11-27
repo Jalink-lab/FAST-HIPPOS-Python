@@ -36,8 +36,55 @@ function drawScatter() {
     ctx.globalAlpha = 0.95; ctx.strokeStyle = css("--class-pos"); ctx.lineWidth = r > 2 ? 1.3 : 1;
     for (const [i, x, y] of SP.pts) if (C.class_additional[i] === 1) { ctx.beginPath(); ctx.arc(x, y, r + 1.6, 0, 7); ctx.stroke(); }
   }
+  drawGates(ctx);
   ctx.restore(); ctx.globalAlpha = 1;
   SP.map = new Map(SP.pts.map(p => [p[0], p]));
+}
+// ---- gates: hit criteria drawn as a region of this plot (fast_hippos.screening.in_polygon / FHScreen.gatePass)
+// A gate keeps its two metrics and whether each axis was logarithmic: its edges are straight in that space, so on
+// other axis settings they are drawn curved (each edge in 24 steps).
+let GATE_DRAW = false;
+const gateMetric = (k) => METRIC_KEYS.includes(k);  // only per-cell metrics can be criteria (not the values at a frame)
+function drawGates(ctx) {
+  SCR.params.criteria.forEach((c, k) => {
+    if (!FHScreen.isGate(c) || c.metric !== S.sx || c.metric2 !== S.sy) return;
+    const { px, py } = FHScreen.gatePoints(c), back = (u, log) => (log ? Math.pow(10, u) : u), pts = [];
+    for (let i = 0; i < px.length; i++) {
+      const j = (i + 1) % px.length;
+      for (let s = 0; s < 24; s++) { const f = s / 24; pts.push([SP.X(back(px[i] + f * (px[j] - px[i]), c.log_x)), SP.Y(back(py[i] + f * (py[j] - py[i]), c.log_y))]); }
+    }
+    ctx.globalAlpha = 1; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+    ctx.fillStyle = withAlpha(css("--hit"), c.op === "inside" ? 0.08 : 0.03); ctx.fill();
+    ctx.setLineDash(c.op === "inside" ? [] : [5, 4]); ctx.strokeStyle = css("--hit"); ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]);
+    const top = pts.reduce((a, q) => (q[1] < a[1] ? q : a), pts[0]);
+    ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = css("--hit"); ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+    ctx.fillText(`gate ${k + 1}${c.op === "outside" ? " (outside)" : ""}`, top[0] + 4, top[1] - 2);
+  });
+}
+function gateState() {  // the Gate button: only for two per-cell metrics
+  const ok = gateMetric(S.sx) && gateMetric(S.sy);
+  $("sgate").disabled = !ok && !GATE_DRAW;
+  $("sgate").title = ok ? "Draw a gate: a region of this plot that becomes a hit criterion (cells inside it pass). Works for any image when the screening is applied."
+    : "A gate needs two per-cell values on the axes (not a value at a frame): choose them under x and y";
+  $("sgate").classList.toggle("drawing", GATE_DRAW); $("sgate").textContent = GATE_DRAW ? "Cancel gate" : "✎ Gate";
+  $("gatehint").textContent = GATE_DRAW ? `drag a ${S.tool === "lasso" ? "lasso" : "box"} around the cells (L: box/lasso, Esc: cancel)` : "";
+  $("sch").closest(".stack").classList.toggle("drawgate", GATE_DRAW);
+}
+function setGateDraw(on) { GATE_DRAW = on; gateState(); }
+function addGate(poly) {  // poly: in pixels of the plot
+  setGateDraw(false); addGate.t = Date.now();
+  const r = (v) => +v.toPrecision(6), polygon = poly.map(([x, y]) => [r(SP.iX(x)), r(SP.iY(y))]);
+  if (polygon.some(q => !q.every(Number.isFinite))) return;
+  SCR.params.criteria.push({ metric: S.sx, metric2: S.sy, op: "inside", value: null, value2: null, logic: "AND", polygon, log_x: !!S.slogx, log_y: !!S.slogy });
+  if (SCR.mode === "selection") { SCR.mode = "criteria"; setSrc("criteria"); }  // a gate is a criterion: hits from the criteria again
+  if (!SCR.on) { SCR.on = true; setScreenOn(); }
+  renderCriteria(); recompute(); invalidate("scatter");
+}
+function showGate(c) {  // the axes of a gate, as it was drawn
+  S.sx = c.metric; S.sy = c.metric2; S.slogx = !!c.log_x; S.slogy = !!c.log_y;
+  $("sx").value = S.sx; $("sy").value = S.sy; $("slogx").checked = S.slogx; $("slogy").checked = S.slogy;
+  gateState(); invalidate("scatter", "scatterSel", "scatterHov");
+  $("sch").closest(".panel").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 function drawScatterSel() {
   const ctx = SP.clear(1); if (!SP.map) return; const many = S.sel.size > 150;
@@ -55,8 +102,12 @@ function initScatter() {
   NUMERIC.forEach(k => opts.push([k, k]));
   for (const id of ["sx", "sy"]) { const el = $(id); opts.forEach(([v, l]) => el.add(new Option(l, v))); }
   $("sx").value = S.sx; $("sy").value = S.sy;
-  $("sx").onchange = () => { S.sx = $("sx").value; invalidate("scatter", "scatterSel", "scatterHov"); };
-  $("sy").onchange = () => { S.sy = $("sy").value; invalidate("scatter", "scatterSel", "scatterHov"); };
+  $("sx").onchange = () => { S.sx = $("sx").value; gateState(); invalidate("scatter", "scatterSel", "scatterHov"); };
+  $("sy").onchange = () => { S.sy = $("sy").value; gateState(); invalidate("scatter", "scatterSel", "scatterHov"); };
+  $("sgate").onclick = () => setGateDraw(!GATE_DRAW);
+  addEventListener("keydown", (e) => { if (GATE_DRAW && e.key === "Escape") { e.stopImmediatePropagation(); setGateDraw(false); } }, true);
+  addEventListener("keydown", (e) => { if (GATE_DRAW && e.key === "l") setTimeout(gateState, 0); });
+  gateState();
   $("slogx").onchange = () => { S.slogx = $("slogx").checked; invalidate("scatter", "scatterSel", "scatterHov"); };
   if (C.class_additional) {
     $("sclassl").hidden = false;
@@ -70,7 +121,10 @@ function initScatter() {
     let best = -1, bd = 64; for (const [i, x, y] of SP.pts) { const d = (x - px) ** 2 + (y - py) ** 2; if (d < bd) { bd = d; best = i; } }
     setHover(best, e);
   });
-  c.addEventListener("click", (e) => { if (!e.shiftKey) select(S.hover, e); });
+  c.addEventListener("click", (e) => { if (!e.shiftKey && !GATE_DRAW && !(Date.now() - (addGate.t || 0) < 400)) select(S.hover, e); });  // (not the end of drawing a gate)
   c.addEventListener("pointerleave", () => setHover(-1));
-  attachSelector(c, $("ssvg"), (poly, add) => selectMany(SP.pts.filter(([, x, y]) => inPolygon(x, y, poly)).map(p => p[0]), add));
+  attachSelector(c, $("ssvg"), (poly, add) => {
+    if (GATE_DRAW) { addGate(poly); return; }
+    selectMany(SP.pts.filter(([, x, y]) => inPolygon(x, y, poly)).map(p => p[0]), add);
+  }, { draw: () => GATE_DRAW });
 }

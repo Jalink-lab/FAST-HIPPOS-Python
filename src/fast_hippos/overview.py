@@ -20,6 +20,7 @@ import pandas as pd
 
 from . import __version__
 from .config import METRICS
+from .screening import criterion_dict
 from .viewer_data import float_b64
 
 if TYPE_CHECKING:
@@ -223,8 +224,7 @@ def build_overview_data(results: list[ImageResult], settings: Settings, out: Pat
         "version": __version__, "title": out.name, "screening": sc.enabled,
         "unit": results[0].unit if results else "", "is_lifetime": bool(results) and results[0].unit.startswith("Lifetime"),
         "response_metric": metric,
-        "criteria": [{"metric": c.metric, "op": c.op, "value": c.value, "value2": c.value2,
-                      "logic": (c.logic or sc.logic).upper()} for c in sc.criteria],
+        "criteria": [criterion_dict(c, sc.logic) for c in sc.criteria],
         "max_hits_per_rgn": sc.max_hits_per_rgn, "optimize_path": sc.optimize_path,
         "metrics": METRICS, "qc": QC, "bands": list(BANDS), "max_cells": MAX_CELLS,
         "y_range": [lo, hi] if hi > lo else [lo, lo + 1],

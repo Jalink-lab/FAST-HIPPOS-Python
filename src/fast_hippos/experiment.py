@@ -132,8 +132,9 @@ def _short(value) -> str:
     if value is None:
         return "empty"
     if isinstance(value, list) and value and isinstance(value[0], dict):  # criteria
-        return "; ".join(f"{c.get('logic') or ''} {c.get('metric')} {c.get('op')} {c.get('value')}"
-                         + (f"–{c.get('value2')}" if c.get("op") == "between" else "") for c in value).strip()
+        from .screening import criterion_text
+
+        return "; ".join(f"{c.get('logic') or ''} {criterion_text(c)}" for c in value).strip()
     return json.dumps(value, default=str) if not isinstance(value, str) else value
 
 

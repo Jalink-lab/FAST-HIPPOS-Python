@@ -11,7 +11,8 @@ function gateSeed() {
 }
 // ---------------------------------------------------------------- live screening panel
 const METRIC_KEYS = Object.keys(D.screen.metrics).filter(k => k !== "additional_intensity" || KA);
-const critText = (c) => `${c.metric} ${c.op === "between" ? "between" : c.op} ${c.value}` + (c.op === "between" ? ` and ${c.value2}` : "");
+const critText = (c) => FHScreen.isGate(c) ? `${c.op} the gate on ${c.metric2} vs ${c.metric}`
+  : `${c.metric} ${c.op === "between" ? "between" : c.op} ${c.value}` + (c.op === "between" ? ` and ${c.value2}` : "");
 const screeningModified = () => JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on }) !== SCR0 || (SCR.mode === "selection" && manualKey() !== MANUAL0);
 let setScreenOn = () => {};  // shows the screen-for-hits switch (set in initScreening)
 let eventsTouched = false;
@@ -249,6 +250,7 @@ function renderCriteria() {
   $("manlabel").textContent = SCR.mode === "selection" ? "Hits chosen by hand:" : "Change these hits by hand:";
   $("mancount").style.display = $("clearmanual").style.display = SCR.mode === "selection" ? "" : "none";
   p.criteria.forEach((c, k) => {
+    if (FHScreen.isGate(c)) { box.appendChild(gateRow(c, k)); return; }
     const row = document.createElement("div"); row.className = "crit";
     row.innerHTML = `<button class="pill ${c.logic.toLowerCase()}" title="Click to switch. AND: every hit must pass this criterion. OR: a hit must pass at least one of the OR criteria">${c.logic}</button>
       <select class="m"></select>
@@ -271,6 +273,21 @@ function renderCriteria() {
   });
   updateScreenUI();
 }
+// a gate (drawn in the scatter plot): inside / outside, its two metrics, and a button that shows it there
+function gateRow(c, k) {
+  const row = document.createElement("div"); row.className = "crit gate";
+  row.innerHTML = `<button class="pill ${c.logic.toLowerCase()}" title="Click to switch. AND: every hit must pass this criterion. OR: a hit must pass at least one of the OR criteria">${c.logic}</button>
+    <span class="gname" title="A region drawn in the scatter plot: cells whose two values lie inside (or outside) it pass">gate: ${esc(c.metric2)} vs ${esc(c.metric)}</span>
+    <div class="seg op"><button data-v="inside" title="Hit when the cell lies inside the gate">inside</button><button data-v="outside" title="Hit when the cell lies outside the gate">outside</button></div>
+    <span class="muted gpts">${c.polygon.length} points${c.log_x || c.log_y ? ` · drawn on log ${[c.log_x ? "x" : "", c.log_y ? "y" : ""].filter(Boolean).join(" and ")}` : ""}</span>
+    <button class="small gshow" title="Show this gate in the scatter plot (sets its axes). To change it, remove it and draw a new one.">show in scatter</button>
+    <span class="n" title="Number of cells that pass this criterion"></span><button class="x" title="Remove this gate">✕</button>`;
+  row.querySelector(".pill").onclick = (ev) => { c.logic = c.logic === "AND" ? "OR" : "AND"; ev.target.textContent = c.logic; ev.target.className = `pill ${c.logic.toLowerCase()}`; recompute(); };
+  seg(row.querySelector(".op"), c.op, (v) => { c.op = v; recompute(); invalidate("scatter"); });
+  row.querySelector(".gshow").onclick = () => showGate(c);
+  row.querySelector(".x").onclick = () => { SCR.params.criteria.splice(k, 1); renderCriteria(); recompute(); invalidate("scatter"); };
+  row._k = k; return row;
+}
 function updateScreenUI() {
   const nh = nHits(), nv = C.valid.reduce((s, v) => s + v, 0), p = SCR.params;
   // with an optimized route the sort order only decides which hits go into which .rgn file: with one file it changes nothing
@@ -292,7 +309,7 @@ function updateScreenUI() {
   const r = SCR.route;
   $("routeinfo").textContent = SCR.routeBusy ? "computing…" : r ? `${r.chunks.length} chunk${r.chunks.length > 1 ? "s" : ""} · ${r.n} positions · ${(r.length * 1e3).toFixed(1)} ${r.unit}` + (r.stale ? " · outdated" : r.fromRun ? " · from the run" : "") : (nh ? "not computed" : "no hits");
   if ($("scrbody").classList.contains("closed")) return;
-  drawTimeline(); sliders.forEach(s => s.draw()); [...$("crits").children].forEach(row => row._slider.draw());
+  drawTimeline(); sliders.forEach(s => s.draw()); [...$("crits").children].forEach(row => row._slider && row._slider.draw());
 }
 function currentHits() { const s = new Set(); HIT.forEach((h, i) => { if (h) s.add(i); }); return s; }
 function countFail(fn) { let n = 0; for (let i = 0; i < N; i++) if (fn(i)) n++; return n; }

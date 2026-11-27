@@ -104,3 +104,11 @@ details.menu a { color: var(--text); text-decoration: none; padding: 2px 6px; bo
 
 /* the current zoom of the image (a label; the 1:1 button next to it sets 100 %) */
 .zoomlvl { font-size: 12px; color: var(--muted); min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* gates: a criterion drawn in the scatter plot */
+.crit.gate { display: flex; flex-wrap: wrap; } .crit.gate .gname { flex: 1 1 180px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crit.gate .n { min-width: 64px; text-align: right; }
+.crit.gate .gpts { font-size: 12px; }
+button.drawing { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+.gatehint { font-size: 12px; color: var(--accent); }
+.stack.drawgate canvas { cursor: crosshair; }

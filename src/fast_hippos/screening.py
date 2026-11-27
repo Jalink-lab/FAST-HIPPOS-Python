@@ -107,6 +107,68 @@ def validity(df: pd.DataFrame, settings: ScreeningSettings, has_calibration: boo
     return valid
 
 
+GATE_OPS = ("inside", "outside")
+
+
+def in_polygon(x, y, polygon, log_x: bool = False, log_y: bool = False) -> np.ndarray:
+    """Which points (x, y) are inside the polygon: even-odd rule, as inPolygon in templates/screening.js (same
+    arithmetic, so that the dashboard finds the same cells). On a log axis the edges are straight in log10; a point
+    with NaN (or a value <= 0 on a log axis) is never inside."""
+    x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+    px, py = (np.array([float(p[k]) for p in polygon]) for k in (0, 1))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        if log_x:
+            x, px = np.where(x > 0, np.log10(x), np.nan), np.log10(px)
+        if log_y:
+            y, py = np.where(y > 0, np.log10(y), np.nan), np.log10(py)
+        inside = np.zeros(x.shape, dtype=bool)
+        j = len(px) - 1
+        for i in range(len(px)):
+            crosses = (py[i] > y) != (py[j] > y)  # (then py[i] != py[j]: no division by zero where it is used)
+            inside ^= crosses & (x < (px[j] - px[i]) * (y - py[i]) / (py[j] - py[i]) + px[i])
+            j = i
+    return inside & np.isfinite(x) & np.isfinite(y)
+
+
+def is_gate(criterion: Criterion) -> bool:
+    return criterion.op in GATE_OPS
+
+
+def criterion_text(c) -> str:
+    """A criterion (or its dict) in words: 'response_max_diff > 0.3', 'inside a gate on x vs y'."""
+    get = c.get if isinstance(c, dict) else lambda k, d=None: getattr(c, k, d)
+    if get("op") in GATE_OPS:
+        return f"{get('op')} a gate on {get('metric2')} vs {get('metric')} ({len(get('polygon') or [])} points)"
+    return f"{get('metric')} {get('op')} {get('value')}" + (f" and {get('value2')}" if get("op") == "between" else "")
+
+
+def criterion_dict(c: Criterion, default_logic: str) -> dict:
+    """A criterion for the pages (dashboard, overview); a gate with its two metrics and polygon."""
+    d = {"metric": c.metric, "op": c.op, "value": c.value, "value2": c.value2, "logic": (c.logic or default_logic).upper()}
+    if is_gate(c):
+        d |= {"metric2": c.metric2, "polygon": [[float(a), float(b)] for a, b in c.polygon or []],
+              "log_x": bool(c.log_x), "log_y": bool(c.log_y)}
+    return d
+
+
+def passes(criterion: Criterion, df: pd.DataFrame) -> pd.Series:
+    """Which cells pass one criterion (NaN never passes)."""
+    c = criterion
+    if is_gate(c):
+        if not c.metric2 or not c.polygon or len(c.polygon) < 3:
+            raise ValueError(f"Gate on '{c.metric}': needs metric2 and a polygon of at least 3 points")
+        x, y = df[c.metric].to_numpy(dtype=float), df[c.metric2].to_numpy(dtype=float)
+        inside = in_polygon(x, y, c.polygon, c.log_x, c.log_y)
+        if c.op == "outside":  # outside, but with values that can be placed in the plane
+            ok_x = np.isfinite(x) & ((x > 0) if c.log_x else True)
+            ok_y = np.isfinite(y) & ((y > 0) if c.log_y else True)
+            inside = ~inside & ok_x & ok_y
+        return pd.Series(inside, index=df.index)
+    if c.value is None:
+        raise ValueError(f"Criterion on '{c.metric}': needs a value")
+    return evaluate(c, df[c.metric]).fillna(False).astype(bool)
+
+
 def evaluate(criterion: Criterion, values: pd.Series) -> pd.Series:
     if criterion.op == "<":
         return values < criterion.value
@@ -132,11 +194,12 @@ def find_hits(df: pd.DataFrame, settings: ScreeningSettings, has_calibration: bo
         return df
     and_passes, or_passes = [], []
     for k, crit in enumerate(settings.criteria):
-        if crit.metric not in df.columns:
-            known = ", ".join(METRICS)
-            raise ValueError(f"Unknown or unavailable metric '{crit.metric}'. Known metrics: {known}")
-        col = f"pass_{k + 1}_{crit.metric}"
-        df[col] = evaluate(crit, df[crit.metric]).fillna(False).astype(bool)  # NaN never passes
+        for metric in (crit.metric, crit.metric2) if is_gate(crit) else (crit.metric,):
+            if metric not in df.columns:
+                known = ", ".join(METRICS)
+                raise ValueError(f"Unknown or unavailable metric '{metric}'. Known metrics: {known}")
+        col = f"pass_{k + 1}_{crit.metric}" + (f"_{crit.metric2}_gate" if is_gate(crit) else "")
+        df[col] = passes(crit, df)  # NaN never passes
         logic = (crit.logic or settings.logic).upper()
         (and_passes if logic == "AND" else or_passes).append(df[col])
     if not and_passes and not or_passes:

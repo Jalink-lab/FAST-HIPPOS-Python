@@ -16,7 +16,7 @@ from matplotlib import colormaps
 
 from . import __version__
 from .config import METRICS
-from .screening import timed_window
+from .screening import criterion_dict, criterion_text, timed_window
 from .viewer_data import FRAMES_DIR, ViewerData, float_b64, frame_urls, labels_url, png_data_url, write_frames
 
 if TYPE_CHECKING:
@@ -144,9 +144,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
     cells = result.cells
     tw = timed_window(ev, sc)
     dmin, dmax = display_range(result, settings)
-    criteria = [
-        f"{c.metric} {c.op} {c.value}" + (f" and {c.value2}" if c.op == "between" else "") for c in sc.criteria
-    ]
+    criteria = [criterion_text(c) for c in sc.criteria]
     t, h, w = result.shape
     return {
         "version": __version__,
@@ -216,8 +214,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
                 "classify_additional_channel": sc.classify_additional_channel,
                 "classification_threshold": result.classification_threshold,
                 "logic": sc.logic.upper(),
-                "criteria": [{"metric": c.metric, "op": c.op, "value": c.value, "value2": c.value2,
-                              "logic": (c.logic or sc.logic).upper()} for c in sc.criteria],
+                "criteria": [criterion_dict(c, sc.logic) for c in sc.criteria],
                 "sort_by": sc.sort_by,
                 "sort_descending": sc.sort_descending,
                 "max_hits_per_rgn": sc.max_hits_per_rgn,

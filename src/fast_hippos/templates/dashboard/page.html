@@ -123,7 +123,8 @@
   </section>
   <section class="panel scatter">
     <div class="panel-h"><h2 data-help="guide/dashboard#distribution-and-scatter" title="Every cell as a point, for two of its values (choose x and y). Shift+drag selects cells; useful to find groups and set thresholds.">Scatter</h2><span class="sp"></span>
-      <label class="muted" id="sclassl" hidden title="Outline the cells that are positive in the additional channel (class_additional = 1)"><input type="checkbox" id="sclass"> outline <span class="swatch"></span> additional-channel positive</label></div>
+      <label class="muted" id="sclassl" hidden title="Outline the cells that are positive in the additional channel (class_additional = 1)"><input type="checkbox" id="sclass"> outline <span class="swatch"></span> additional-channel positive</label>
+      <span id="gatehint" class="gatehint"></span><button id="sgate" class="small" title="Draw a gate: a region of this plot that becomes a hit criterion (cells inside it pass). Works for any image when the screening is applied.">✎ Gate</button></div>
     <div class="axisrow"><span class="muted">x</span><select id="sx" title="Value on the horizontal axis"></select><label class="muted" title="Logarithmic horizontal axis (for values that span orders of magnitude, e.g. intensities)"><input type="checkbox" id="slogx"> log</label></div>
     <div class="axisrow"><span class="muted">y</span><select id="sy" title="Value on the vertical axis"></select><label class="muted" title="Logarithmic vertical axis"><input type="checkbox" id="slogy"> log</label></div>
     <div class="stack"><canvas id="scb"></canvas><canvas id="scs"></canvas><canvas id="sch"></canvas><svg id="ssvg" class="selsvg"></svg></div>

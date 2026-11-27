@@ -56,7 +56,9 @@ function screeningToml() {
     `classification_threshold = ${tomlValue(p.classify_additional_channel ? p.classification_threshold : null)}`,
     `sort_by = ${tomlValue(p.sort_by)}`, `sort_descending = ${p.sort_descending}`, `max_hits_per_rgn = ${p.max_hits_per_rgn}`, `optimize_path = ${p.optimize_path}`,
     'random_hits = ""', `manual_hits = ${SCR.mode === "selection" ? tomlValue(manualFile) : '""'}`, "criteria = [");
-  p.criteria.forEach(c => L.push(`  { metric = ${tomlValue(c.metric)}, op = ${tomlValue(c.op)}, value = ${tomlValue(c.value)}` + (c.op === "between" ? `, value2 = ${tomlValue(c.value2)}` : "") + `, logic = ${tomlValue(c.logic)} },`));
+  p.criteria.forEach(c => L.push(FHScreen.isGate(c)
+    ? `  { metric = ${tomlValue(c.metric)}, metric2 = ${tomlValue(c.metric2)}, op = ${tomlValue(c.op)}, logic = ${tomlValue(c.logic)}, log_x = ${!!c.log_x}, log_y = ${!!c.log_y}, polygon = [${c.polygon.map(q => tomlValue(q)).join(", ")}] },`
+    : `  { metric = ${tomlValue(c.metric)}, op = ${tomlValue(c.op)}, value = ${tomlValue(c.value)}` + (c.op === "between" ? `, value2 = ${tomlValue(c.value2)}` : "") + `, logic = ${tomlValue(c.logic)} },`));
   L.push("]", "");
   let manual = null;
   if (SCR.mode === "selection") {

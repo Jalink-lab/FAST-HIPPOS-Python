@@ -114,7 +114,7 @@ function attachSelector(el, svg, onDone, opts = {}) {
   let drag = null;
   const pt = (e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
   el.addEventListener("pointerdown", (e) => {
-    if (!e.shiftKey || e.button !== 0) return;
+    if (!(e.shiftKey || (opts.draw && opts.draw())) || e.button !== 0) return;
     e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId);
     const p = pt(e); drag = { pts: [p], tool: opts.rangeOnly ? "range" : S.tool };
   }, true);
@@ -132,6 +132,7 @@ function attachSelector(el, svg, onDone, opts = {}) {
       poly = d.tool === "range" ? [[a[0], 0], [b[0], 0], [b[0], h], [a[0], h]] : [a, [b[0], a[1]], b, [a[0], b[1]]];
     }
     if (poly.length > 2) onDone(poly, e.ctrlKey || e.metaKey);
+    else if (opts.draw && opts.draw() && opts.cancel) opts.cancel();
   }, true);
 }
 function drawShape(svg, d, el) {

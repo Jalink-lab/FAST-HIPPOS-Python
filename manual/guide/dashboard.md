@@ -107,7 +107,8 @@ makes the count axis logarithmic, so that a few cells in a tail stay visible nex
 low responders of a screen. The **scatter plot** shows
 any two values against each other, optionally on log axes, with the cells that are positive for the additional
 channel outlined. A lasso in the scatter plot (++shift++ + drag) selects a population, for instance all cells with
-a low baseline and a high response.
+a low baseline and a high response. **✎ Gate** draws such a region as a hit criterion instead, which then works for
+every image: see [Gates](choosing-hits.md#gates).
 
 ### Cell
 

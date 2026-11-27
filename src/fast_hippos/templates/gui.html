@@ -538,14 +538,20 @@ function widget(f) {
     case "readouts": return readoutsHTML();
     case "criteria": {
       const crit = v || [], metrics = [...Object.keys(SCHEMA.metrics), ...readoutMetrics()];
-      return `<div>${crit.map((c, i) => `<div class="crit" data-crit="${i}">
+      const isGate = (c) => c.op === "inside" || c.op === "outside";
+      return `<div>${crit.map((c, i) => isGate(c) ? `<div class="crit" data-crit="${i}">
+          <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
+          <span title="A region drawn in the scatter plot of a dashboard: cells whose two values lie inside (or outside) it pass">gate: ${esc(c.metric2)} vs ${esc(c.metric)}</span>
+          <select data-c="op" title="inside: cells in the gate pass · outside: cells outside it pass">${["inside", "outside"].map(k => `<option ${k === c.op ? "selected" : ""}>${k}</option>`).join("")}</select>
+          <span class="muted" title="Draw or change a gate in the scatter plot of a dashboard (✎ Gate)">${(c.polygon || []).length} points</span><span></span>
+          <button class="small" data-c="remove" title="Remove this gate">✕</button></div>` : `<div class="crit" data-crit="${i}">
           <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
           <select data-c="metric" title="${esc(SCHEMA.metrics[c.metric] || "")}">${metrics.map(m => `<option ${m === c.metric ? "selected" : ""}>${m}</option>`).join("")}</select>
           <select data-c="op" title="&lt; below the value · &gt; above the value · between: from the first to the second value">${[["<", "<"], [">", ">"], ["between", "between"]].map(([k, l]) => `<option value="${k}" ${k === c.op ? "selected" : ""}>${l}</option>`).join("")}</select>
           <input data-c="value" type="number" step="any" value="${c.value ?? ""}" title="Threshold, in the unit of the metric (e.g. ns for lifetimes)">
           ${c.op === "between" ? `<input data-c="value2" type="number" step="any" value="${c.value2 ?? ""}" title="Upper limit of the range">` : "<span></span>"}
           <button class="small" data-c="remove" title="Remove this criterion">✕</button></div>`).join("")}
-        <div class="row"><button class="small" data-addcrit title="Add a condition that hits must meet">+ criterion</button><span class="muted">${crit.length ? "hover a metric for its meaning; thresholds can be refined later in the dashboard" : "no criteria yet: add one, or set them later in the dashboard"}</span></div></div>`;
+        <div class="row"><button class="small" data-addcrit title="Add a condition that hits must meet">+ criterion</button><span class="muted">${crit.length ? "hover a metric for its meaning; thresholds can be refined later in the dashboard" : "no criteria yet: add one, or set them later in the dashboard"}; a gate (a region of two values) is drawn in the scatter plot of a dashboard</span></div></div>`;
     }
     default: return `<input id="${id}" type="text" value="${esc(v ?? "")}">`;
   }
@@ -746,7 +752,7 @@ function checks() {
     if (rows.length && !S.screening.stage_positions_file && !ff.positions) add("warn", "Not every image has stage positions: their hits are found, but left out of the .rgn files (Screening, advanced: Stage positions file)");
     if (!S.screening.criteria.length && !S.screening.manual_hits && !S.screening.random_hits) add("warn", "No hit criteria: no cell becomes a hit (add criteria here or in the dashboard)");
     if (S.screening.classify_additional_channel && !S.input.additional_channel) add("warn", "Classification needs an additional channel");
-    if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
+    if (!unusedReason(FIELD["screening.criteria"])) S.screening.criteria.forEach((c, i) => { if (c.op === "inside" || c.op === "outside") return; if (c.value == null || (c.op === "between" && c.value2 == null)) add("err", `Criterion ${i + 1} needs a value`); });
   }
   if (busy()) add("busy", "Reading the output folder and checking the images… (Run analysis waits until this is done)");
   else if (!out.some(c => c[0] !== "info") && sampleRows().length) add("ok", "Ready to run");
@@ -1105,7 +1111,7 @@ function editReadout(el) {
     const name = el.value.trim().replace(/[\\/:*?"<>|.]/g, "_");
     if (S.input.readouts.some(x => x !== r && x.name.toLowerCase() === name.toLowerCase())) { toast("Two readouts cannot have the same name", 4000); render(); return; }
     const was = r.name; r.name = name;
-    for (const c of S.screening.criteria) if (c.metric.startsWith(was + ".")) c.metric = name + c.metric.slice(was.length);  // criteria follow the name
+    for (const c of S.screening.criteria) for (const k of ["metric", "metric2"]) if (c[k] && c[k].startsWith(was + ".")) c[k] = name + c[k].slice(was.length);  // criteria follow the name
   } else r[k] = el.value === "" ? null : parseInt(el.value, 10);
   render();
 }

@@ -84,6 +84,33 @@ const FHScreen = (() => {
     return false;
   }
 
+  // ---- gates: a polygon in the plane of two metrics (crit.metric on x, crit.metric2 on y), "inside" or "outside".
+  // As fast_hippos.screening.in_polygon (even-odd rule, the same arithmetic): on a log axis the edges are straight in
+  // log10; a point with NaN, or a value <= 0 on a log axis, is never inside (nor, for "outside", outside).
+  const isGate = (c) => c.op === "inside" || c.op === "outside";
+  function gatePoints(crit) {
+    const tx = (v) => (crit.log_x ? Math.log10(v) : v), ty = (v) => (crit.log_y ? Math.log10(v) : v);
+    return { px: crit.polygon.map(p => tx(+p[0])), py: crit.polygon.map(p => ty(+p[1])), tx, ty };
+  }
+  function inPolygon(x, y, px, py) {
+    let inside = false;
+    for (let i = 0, j = px.length - 1; i < px.length; j = i++) {
+      if ((py[i] > y) !== (py[j] > y) && x < (px[j] - px[i]) * (y - py[i]) / (py[j] - py[i]) + px[i]) inside = !inside;
+    }
+    return inside;
+  }
+  function gatePass(crit, xs, ys, N) {
+    const a = new Uint8Array(N); if (!crit.polygon || crit.polygon.length < 3) return a;
+    const { px, py } = gatePoints(crit), out = crit.op === "outside";
+    for (let i = 0; i < N; i++) {
+      const xv = xs[i], yv = ys[i];
+      if (xv === null || yv === null || !Number.isFinite(xv) || !Number.isFinite(yv) || (crit.log_x && !(xv > 0)) || (crit.log_y && !(yv > 0))) continue;
+      const x = crit.log_x ? Math.log10(xv) : xv, y = crit.log_y ? Math.log10(yv) : yv;
+      a[i] = inPolygon(x, y, px, py) !== out ? 1 : 0;
+    }
+    return a;
+  }
+
   // Validity gates and criteria -> {valid, hit, pass: {metric: Uint8Array}}
   function hits(cols, N, p, hasCalibration) {
     const valid = new Uint8Array(N), hit = new Uint8Array(N), pass = {};
@@ -95,9 +122,12 @@ const FHScreen = (() => {
       valid[i] = ok ? 1 : 0;
     }
     // AND criteria must all pass; of the OR criteria at least one must pass (criterion.logic, default p.logic)
-    const crits = (p.criteria || []).map((c, k) => [c, k]).filter(([c]) => c.metric in cols);
+    const crits = (p.criteria || []).map((c, k) => [c, k]).filter(([c]) => c.metric in cols && (!isGate(c) || c.metric2 in cols));
     const isAnd = (c) => String(c.logic || p.logic).toUpperCase() === "AND";
-    crits.forEach(([c, k]) => { const a = new Uint8Array(N); for (let i = 0; i < N; i++) a[i] = evaluate(c, cols[c.metric][i]) ? 1 : 0; pass[k] = a; });
+    crits.forEach(([c, k]) => {
+      if (isGate(c)) { pass[k] = gatePass(c, cols[c.metric], cols[c.metric2], N); return; }
+      const a = new Uint8Array(N); for (let i = 0; i < N; i++) a[i] = evaluate(c, cols[c.metric][i]) ? 1 : 0; pass[k] = a;
+    });
     if (crits.length) {
       const ands = crits.filter(([c]) => isAnd(c)).map(([, k]) => pass[k]), ors = crits.filter(([c]) => !isAnd(c)).map(([, k]) => pass[k]);
       for (let i = 0; i < N; i++) {
@@ -254,6 +284,6 @@ const FHScreen = (() => {
     return r.value;
   }
 
-  return { windows, timedWindow, smooth, metrics, hits, order, otsuLog10, routeSteps, optimizePath };
+  return { windows, timedWindow, smooth, metrics, hits, order, otsuLog10, routeSteps, optimizePath, isGate, gatePoints, inPolygon, gatePass };
 })();
 if (typeof module !== "undefined") module.exports = FHScreen;
