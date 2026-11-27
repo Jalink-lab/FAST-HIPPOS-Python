@@ -28,12 +28,29 @@ SOURCE = HERE.parent  # the program: pyproject.toml, uv.lock, src
 WINDOWS, MAC = sys.platform == "win32", sys.platform == "darwin"
 # versions tested together
 TORCH = ["torch==2.6.0", "torchvision==0.21.0"]
+# Intel Macs: PyTorch stopped at 2.2.2 there, which needs NumPy 1 (both Cellpose versions resolve with it)
+TORCH_INTEL_MAC = ["torch==2.2.2", "torchvision==0.17.2", "numpy<2"]
 CELLPOSE = {3: ["cellpose==3.1.1.3"], 4: ["cellpose==4.2.1.1"]}
 LOG: Path | None = None
 # disk space in GB once installed
 SIZE_PROGRAM = 0.5
 SIZE_TORCH = {"gpu": 4.4, "cpu": 1.0}
 SIZE_CELLPOSE = 0.1
+
+
+def torch_for(system: str, machine: str) -> list[str]:
+    """The PyTorch packages for this computer (the Python of the installation decides: an Intel one on an Apple-silicon
+    Mac under Rosetta also needs the Intel build)."""
+    return TORCH_INTEL_MAC if system == "darwin" and machine == "x86_64" else TORCH
+
+
+def rosetta() -> bool:
+    """An Intel program on an Apple-silicon Mac."""
+    try:
+        return subprocess.run(["sysctl", "-n", "sysctl.proc_translated"], capture_output=True, text=True,
+                              check=False).stdout.strip() == "1"
+    except OSError:
+        return False
 
 
 class Progress:
@@ -485,6 +502,12 @@ def main(argv: list[str] | None = None) -> None:
             shutil.rmtree(target / "program", ignore_errors=True)
             shutil.copytree(SOURCE, target / "program", ignore=shutil.ignore_patterns(
                 ".git", ".github", ".venv", "__pycache__", "manual", "docs", "reference", "tests", "tools", "build"))
+    torch = torch_for(sys.platform, platform.machine())
+    if versions and torch is TORCH_INTEL_MAC:
+        say("This Mac runs FAST-HIPPOS as an Intel program: PyTorch 2.2.2 is the last version for that, on the processor only.")
+        if rosetta():
+            say("NOTE: this is an Apple-silicon Mac running the installation under Rosetta. For the newer PyTorch and the graphics "
+                "chip, install FAST-HIPPOS again from a Terminal that is not set to 'Open using Rosetta'.")
     index = [] if MAC else ["--index-url", "https://download.pytorch.org/whl/" + ("cu124" if gpu else "cpu"),
                             "--extra-index-url", "https://pypi.org/simple", "--index-strategy", "unsafe-best-match"]
     for v in versions:
@@ -493,7 +516,7 @@ def main(argv: list[str] | None = None) -> None:
         next_step(f"Cellpose {v}, running on {where}; this takes a while", f"Cellpose {v} with PyTorch")
         cenv = target / f"cellpose{v}-env"
         venv(args.uv, cenv, "3.12", env)
-        run(args.uv, "pip", "install", "--python", str(python_of(cenv)), *TORCH, *CELLPOSE[v], *index, env=env)
+        run(args.uv, "pip", "install", "--python", str(python_of(cenv)), *torch, *CELLPOSE[v], *index, env=env)
 
     if args.cellpose_only:
         say("\nReady.")

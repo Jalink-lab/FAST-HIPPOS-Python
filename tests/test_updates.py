@@ -98,3 +98,15 @@ def test_found_is_only_offered(tmp_path):
     st = cellpose_envs.CellposeSetup(tmp_path / "state").state()  # kept for the next start
     assert st["found"] == [{"python": str(python), "version": "4.2.1.1", "major": 4}]
     assert st["bundled"] == {"3": None, "4": None}  # a found installation is not used by itself
+
+
+def test_pytorch_for_intel_macs():
+    """PyTorch stopped at 2.2.2 for Intel Macs (also an Intel Python under Rosetta); everything else gets the tested pair."""
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location("install", Path(__file__).parents[1] / "installer" / "install.py")
+    install = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(install)
+    assert install.torch_for("darwin", "x86_64") == ["torch==2.2.2", "torchvision==0.17.2", "numpy<2"]
+    assert install.torch_for("darwin", "arm64") == install.torch_for("win32", "AMD64") == install.TORCH
