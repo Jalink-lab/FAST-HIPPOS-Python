@@ -41,8 +41,8 @@ def gui_shots(page: Page, url: str, want) -> Path:
     page.goto(url)
     page.wait_for_selector("#bRun")
     page.wait_for_timeout(2500)  # image information, Cellpose check, output folder
-    page.once("dialog", lambda d: d.accept())
     page.click("#bReapply")
+    page.click("dialog.fh-dialog button.primary")  # the question of the window (its own dialog: common/dialog.js)
     page.wait_for_function("document.getElementById('state').textContent.includes('Done')", timeout=120_000)
     page.wait_for_timeout(800)
     page.evaluate("window.scrollTo(0, 0)")

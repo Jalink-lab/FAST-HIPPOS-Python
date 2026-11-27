@@ -7,7 +7,7 @@ function tableColumns() {
     ["valid", "class_additional"].filter(k => k in C).map(k => [k, k === "class_additional" ? "Class" : "Valid", 0]),
     [...new Set([...crit, "area_(um2)" in C ? "area_(um2)" : "area_(px)", "mean_intensity", "baseline", "mean_during_response", "mean_response", "peak_response",
       "mean_peak_response_ratio", "rise_time_(frames)", "late_early_response_ratio", "calibration_response", "additional_channel_intensity", "position_x_(px)", "position_y_(px)", "stage_x_(m)", "stage_y_(m)"])]
-      .filter(hasValues).map(k => [k, nameOf(k), k.startsWith("stage_") ? 7 : k.endsWith("_(px)") ? 0 : k === "area_(um2)" ? 1 : 3]));
+      .filter(hasValues).map(k => [k, nameOf(k), k.startsWith("stage_") ? 7 : k.endsWith("_(px)") || k.endsWith("_(frames)") ? 0 : k === "area_(um2)" ? 1 : 3]));
 }
 function cellValue(key, i) { if (key === "@value") return val(S.frame, i); const v = C[key][i]; return v === null ? NaN : v; }
 function drawTable() {
