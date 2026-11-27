@@ -8,7 +8,7 @@ import html
 from pathlib import Path
 
 from fast_hippos import gui
-from fast_hippos.config import METRICS, metric_label
+from fast_hippos.config import CELL_MEASURES, METRICS, metric_label
 
 REF = Path(__file__).resolve().parents[2] / "manual" / "reference"
 
@@ -59,27 +59,39 @@ def settings_page() -> str:
 
 
 def metrics_page() -> str:
+    """The cell values: their names in the program, their columns in the files, and what they mean (from config)."""
+    row = lambda k, meaning: f"| {metric_label(k) if ',' not in k else LABELS_OF.get(k, '')} | `{k}` | {meaning} |"
+    head = ["| Name | Column in the files | Meaning |", "|---|---|---|"]
     out = ["---", "title: Cell values (metrics)", "---", "", "# Cell values (metrics)", "",
-           ("FAST-HIPPOS measures these values for every cell. They can be used in hit criteria, for sorting the hits, as "
-           "axes of the scatter plots and for colouring the cells in the dashboard. *Lifetime* stands for the measured "
-           "quantity: the ratio for ratio imaging, the intensity for intensity-only data."), "",
-           ("The pages and the window show the names of the first column (with this meaning as the tooltip); the files "
-            "(`cells.tsv`, the hit lists, the settings) use the column names of the second."), "",
-           "| Name | Column in the files | Meaning |", "|---|---|---|"]
-    out += [f"| {metric_label(k)} | `{k}` | {v} |" for k, v in METRICS.items()]
-    out += ["", "## Other values in the tables", "",
-            "These are in `cells.tsv` and in the Cells table of the dashboard (and can be shown in the scatter plot).", "",
-            "| Name | Column in the files | Meaning |", "|---|---|---|"]
-    out += [f"| {metric_label(k) if ',' not in k else ''} | `{k}` | {v} |" for k, v in OTHER_VALUES.items()]
+           ("FAST-HIPPOS measures these values for every cell. The program (the window, the dashboards and the overviews) "
+            "shows them by their **name**, with the meaning as a tooltip; the files (`cells.tsv`, the hit lists, the "
+            "settings and `screening_from_dashboard.toml`) use the **column**. *Lifetime* stands for the measured "
+            "quantity: the ratio for ratio imaging, the intensity for intensity-only data."), "",
+           ("A *response* is a change from the cell's own baseline; *during* means the value itself. The *response "
+            "window* (Timing, in the dashboard and the window) decides which frames the mean values use; the peak "
+            "values use the whole response, from the stimulation to the calibration."), "",
+           "## Values of the response", "",
+           ("Hit criteria and gates can use these, and they can sort the hits, colour the cells and be an axis of "
+            "the scatter plots. With several FLIM readouts, the values of another readout are shown as "
+            "*readout · name* (e.g. *cAMP · Peak response*) and are in the files as `readout.column`."), "", *head]
+    out += [row(k, v) for k, v in METRICS.items()]
+    out += ["", "## Measures of the cell", "",
+            "From the segmentation. Hit criteria and gates can use these too.", "", *head]
+    out += [row(k, OTHER_VALUES.get(k, v)) for k, v in CELL_MEASURES.items()]
+    out += ["", "## Other columns of the tables", "",
+            "In `cells.tsv` and in the Cells table of the dashboard; not for criteria.", "", *head]
+    out += [row(k, v) for k, v in OTHER_VALUES.items() if k not in CELL_MEASURES]
     return "\n".join(out) + "\n"
 
 
+LABELS_OF = {"centroid_x, centroid_y": "Centre x, y (px)", "pos_x_px, pos_y_px": "Position x, y (px)",
+             "abs_x_m, abs_y_m": "Stage x, y (m)"}
 OTHER_VALUES = {
     "area_um2": "Size of the cell in µm²: the area in pixels times the pixel size squared.",
-    "area_px": "Size of the cell in pixels.",
     "mean_intensity": "Mean pixel value of the cell per frame, over the frames used for the segmentation, in the units "
         "of the image (photon counts or amplitudes). The *Minimum cell intensity* filter uses the same value.",
     "circularity": "4π · area / perimeter²: 1 for a circle, lower for irregular shapes.",
+    "area_px": "Size of the cell in pixels.",
     "centroid_x, centroid_y": "Centre of the cell in the image (pixels).",
     "pos_x_px, pos_y_px": "The position used for the hit: the centre of the cell, or of its nucleus with a nuclei "
         "classifier (pixels).",
@@ -88,6 +100,7 @@ OTHER_VALUES = {
     "class_additional": "1 when the cell is positive for the additional channel (classification on), else 0.",
     "valid": "The cell passes the quality gates.",
     "hit": "The cell is a hit.",
+    "response_rank": "Rank of the cell in the order of mean response (0 = lowest).",
 }
 
 

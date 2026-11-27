@@ -126,7 +126,7 @@ value and whether it passes (✓). This is the place to see *why* a cell is, or 
 ![The table of cells](../images/dash_cells.png){ .shot }
 </figure>
 
-All cells with all their values. Click a column header to sort. *Rows* shows all cells, the hits, the selection or
+All cells with all their values, by their names (hover a header for its meaning and its column in `cells.tsv`; all of them are listed in [Cell values](../reference/metrics.md)). Click a column header to sort. *Rows* shows all cells, the hits, the selection or
 the valid cells. *Select hits* selects the hits.
 
 ## Exports

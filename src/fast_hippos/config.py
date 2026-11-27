@@ -390,15 +390,17 @@ METRICS = {
     "response_mean_abs": "Average lifetime of the cell in the response window (the value itself, not the change).",
     "response_mean_diff": "Average change of the lifetime in the response window, compared with the cell's own "
         "baseline (lifetime − baseline).",
-    "response_fraction": "How much of its maximal response the cell keeps in the response window: "
-        "mean response ÷ peak response (1 = sustained, near 0 = transient).",
+    "response_fraction": "Mean response (in the response window) ÷ peak response (over the whole response). 1 = "
+        "the cell is at its peak during the whole window; lower = only part of the time: a response that fades "
+        "(transient), or one that rises slowly. With the response window at the end of the response (before C) it "
+        "tells how much of its peak the cell keeps (sustained).",
     "response_max_abs": "Highest lifetime of the cell between the stimulation and the calibration.",
     "response_max_diff": "Largest change of the lifetime after the stimulation, compared with the cell's own baseline. "
         "The usual measure of how strongly a cell responds.",
     "response_max_diff_pop": "Largest lifetime after the stimulation minus the average baseline of all cells (instead "
         "of the cell's own baseline).",
     "rise_time_frames": "Number of frames of the response up to and including the first frame in which the cell "
-        "reaches the rise fraction (e.g. 75 %) of its maximal response (1 = already in the first frame after the "
+        "reaches the rise fraction (e.g. 75 %) of its peak response (1 = already in the first frame after the "
         "stimulation). Small = fast responder. Only meaningful for cells that respond: combine it with an AND "
         "criterion on the response.",
     "rapid_response_ratio": "Average response in the second half of the response period divided by that in the first "
@@ -426,7 +428,7 @@ METRIC_LABELS = {
     "response_mean_abs": "Mean during response",
     "response_max_abs": "Peak during response",
     "response_max_diff_pop": "Peak response vs. population baseline",
-    "response_fraction": "Sustained fraction",
+    "response_fraction": "Mean/peak response ratio",
     "rise_time_frames": "Rise time (frames)",
     "rapid_response_ratio": "Late/early response ratio",
     "calibration_mean": "Mean during calibration",
@@ -439,6 +441,7 @@ METRIC_LABELS = {
     "circularity": "Circularity",
     "class_additional": "Additional channel class",
     "response_rank": "Response rank",
+    "valid": "Valid", "hit": "Hit",
     "centroid_x": "Centre x (px)", "centroid_y": "Centre y (px)",
     "pos_x_px": "Position x (px)", "pos_y_px": "Position y (px)",
     "abs_x_m": "Stage x (m)", "abs_y_m": "Stage y (m)",
