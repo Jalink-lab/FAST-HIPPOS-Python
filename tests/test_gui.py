@@ -123,6 +123,24 @@ def test_apply_from_dashboard(tmp_path):
     assert job.remembered is None  # a dashboard does not change the settings the GUI starts with
 
 
+def test_window_does_not_take_over_hand_picked_hits(tmp_path, monkeypatch):
+    """After Apply in a dashboard the window uses its screening settings, but not its hand-picked hits: they name the
+    cells of that image, and would leave the next images without hits."""
+    last = tmp_path / "last_settings.toml"
+    monkeypatch.setattr(gui, "LAST_SETTINGS", last)
+    out = tmp_path / "exp" / "img"
+    start = Settings()
+    start.input.output = out
+    last.write_text(gui.to_toml(start.to_dict(), "#"), encoding="utf-8")
+    applied = Settings()
+    applied.screening.manual_hits = out / "img_manual_hits.tsv"
+    applied.screening.max_hits_per_rgn = 77
+    gui._remember_applied(out, applied.to_dict())
+    got = gui.load_toml(last)["screening"]
+    assert got["max_hits_per_rgn"] == 77  # the screening settings are taken over
+    assert not got.get("manual_hits")  # the hand-picked hits are not
+
+
 def test_reapply_from_the_gui_uses_the_run_in_the_folder(tmp_path):
     """Re-apply in the GUI: the images and segmentation of the run in the output folder, the screening of the page;
     the page's own settings are remembered."""

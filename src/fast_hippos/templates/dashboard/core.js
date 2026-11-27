@@ -13,11 +13,14 @@ const POSX = Float64Array.from(C.pos_x_px, v => v ?? NaN), POSY = Float64Array.f
 // screening state (recomputed in the browser by FHScreen = templates/screening.js, identical to Python)
 const SCR = {
   events: structuredClone(D.screen.events), params: structuredClone(D.screen.params),
-  mode: "criteria", manual: new Set(), pass: {}, route: null, routeBusy: false,
+  // hits chosen by hand in the run: the page starts with those, not with the hits of the criteria
+  mode: D.screening.manual ? "selection" : "criteria", manual: new Set(D.screening.manual ? C.hit.flatMap((h, i) => (h ? [i] : [])) : []),
+  pass: {}, route: null, routeBusy: false,
   on: !!D.screening.enabled,  // screening for hits: off = no hits at all (switched on in the pane: try criteria)
 };
 SCR.params.criteria.forEach(c => { c.logic = (c.logic || SCR.params.logic || "OR").toUpperCase(); });
 const SCR0 = JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on });
+const manualKey = () => [...SCR.manual].sort((a, b) => a - b).join(","), MANUAL0 = manualKey();
 let KS = KR, HIT = C.hit.map(Boolean), ORDER = D.order, EV = D.events;
 
 const S = {
@@ -26,6 +29,7 @@ const S = {
   isrc: "movie", layer: "lifetime", outl: "all", tsrc: SCR.params.smooth_traces > 0 ? "smoothed" : "raw",
   show: "all", tcol: D.screening.enabled ? "hit" : "cell", tmode: ["lines", "bands", "density"].includes(D.display.traces) ? D.display.traces : N > 300 ? "bands" : "lines",
   ksort: "@response", kdesc: false, kzoom: 1, kstart: 0, rows: "all", sortCol: null, sortDir: 1, sx: D.display.sx || "mean_intensity", sy: D.display.sy || "@value", slogx: !!D.display.slogx, slogy: !!D.display.slogy, sclass: false, hlog: false,
+  cllog: true,  // the histogram of the additional channel (classification) on a log axis: intensities are about log-normal
   tool: "rect", showRoute: false, fillMetric: "", showOutl: true,
   smoothxy: Math.max(0, Math.min(3, Math.round(D.display.smooth_xy ?? 1))),  // spatial smoothing of the lifetime colours
 };

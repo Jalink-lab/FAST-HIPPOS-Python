@@ -1448,7 +1448,9 @@ async function poll() {
   $("stopped").classList.remove("on");
   if (st.run_id !== JOB.run_id) {  // a run this page did not start
     JOB = { n: 0, state: st.state, run_id: st.run_id }; $("log").innerHTML = "";
-    if (st.source === "dashboard" && st.settings) { st.settings.input.experiment = S.input.experiment; st.settings.input.files = S.input.files; setSettings(st.settings); toast(st.applied || "Settings applied from a dashboard", 5000); }
+    if (st.source === "dashboard" && st.settings) { st.settings.input.experiment = S.input.experiment; st.settings.input.files = S.input.files;
+      st.settings.screening.manual_hits = (S.screening || {}).manual_hits ?? "";  // hits picked by hand belong to that image, not to the next ones
+      setSettings(st.settings); toast(st.applied || "Settings applied from a dashboard", 5000); }
     setTimeout(poll, 0); return;
   }
   const changedState = st.state !== JOB.state;

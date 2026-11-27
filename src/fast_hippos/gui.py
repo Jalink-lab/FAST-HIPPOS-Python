@@ -1079,8 +1079,11 @@ def _remember_applied(out: Path, settings: dict) -> None:
         last = load_toml(LAST_SETTINGS)
         if _key(last["input"]["output"]) != _key(out):
             return
+        mine = last.get("screening", {}).get("manual_hits", "")
         for section in ("events", "screening", "display"):
             last[section] = settings[section]
+        # hits picked by hand belong to that image: the next images of the window keep their own (normally none)
+        last["screening"] = {**last["screening"], "manual_hits": mine}
         last["image"] = settings.get("image", {})
         LAST_SETTINGS.write_text(to_toml(last, f"# FAST-HIPPOS {__version__} settings, written by the GUI"), encoding="utf-8")
     except (OSError, ValueError, KeyError):

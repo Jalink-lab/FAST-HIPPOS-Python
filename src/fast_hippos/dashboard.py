@@ -194,6 +194,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
             "n_hits": int(cells["hit"].sum()),
             "classification_threshold": result.classification_threshold,
             "random": bool(sc.random_hits),
+            "manual": bool(sc.enabled and sc.manual_hits),  # hits chosen by hand: the page keeps them (not the criteria)
         },
         # starting point for the live screening panel (recomputed in the browser by screening.js)
         "screen": {

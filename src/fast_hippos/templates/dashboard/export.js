@@ -108,11 +108,19 @@ async function applyTo(scope) {
   const owners = (sec) => Object.entries((info && info.image_settings) || {}).filter(([x, v]) => x !== D.name && v[sec] && (!n || imgs.includes(x))).map(([x]) => x);
   const list = imgs.slice(0, 12).map(x => "  • " + x).join("\n") + (n > 12 ? `\n  … and ${n - 12} more` : "");
   const all = n ? `all ${n} image${n === 1 ? "" : "s"}` : "all images";
+  // an image analyzed in a folder of its own (the usual case since 0.1.0b2): Apply only redoes this image
+  const alone = n === 1 && imgs[0] === D.name;
+  const nh = HIT.filter(Boolean).length, hitsLine = SCR.mode === "selection" ? `${nh} hits chosen by hand` : `${nh} hits from the criteria`;
+  const aloneNote = "Segmentation and traces are kept, so this takes seconds; this dashboard reloads when it is done. The other images of the "
+    + "experiment do not change: the FAST-HIPPOS window takes these settings over for the images analyzed next (and for Re-apply all images).";
   let toml, manual = null;
   if (scope === "image") {
     const own = ownSettings(), lines = describeOwn(own);
     if (!lines.length) { fhAlert("Nothing to apply to this image only: change its stimulation frames (Timing) or its response window first."); return; }
-    if (!await fhConfirm(`Use these settings for ${D.name} only?\n\n${lines.map(l => "  • " + l).join("\n")}\n\nThe other images keep their settings. `
+    if (alone) {
+      if (!await fhConfirm(`Make these settings the own settings of ${D.name}?\n\n${lines.map(l => "  • " + l).join("\n")}\n\n`
+          + `They are kept when all images are re-applied with the settings of the window. Criteria, quality gates and the other screening settings are not changed by this (use Apply for those).\n\n${aloneNote}`, { ok: "Apply as own timing" })) return;
+    } else if (!await fhConfirm(`Use these settings for ${D.name} only?\n\n${lines.map(l => "  • " + l).join("\n")}\n\nThe other images keep their settings. `
         + `Criteria, quality gates and the other screening settings are not changed by this (use 'Apply to all images' for those). `
         + `Because the hit list and the .rgn files cover all images, ${all} are re-applied (segmentation and traces are kept); this dashboard reloads when it is done.\n\nContinue?`, { ok: "Apply to this image" })) return;
     toml = ownToml(own);
@@ -126,7 +134,10 @@ async function applyTo(scope) {
     const windowNote = (kept.length ? `\n${D.name} keeps its own ${kept.map(k => `${OWN_NAMES[k]} ${ownValue(mine[k])}`).join(", ")}.` : "")
       + (replaced.length ? `\nThe ${replaced.map(k => `${OWN_NAMES[k]} ${p[k]}`).join(", ")} set here is used for all images, ${D.name} included (instead of its own).` : "")
       + (ownWindow.length ? `\nImages that keep their own response window: ${ownWindow.join(", ")}.` : "");
-    if (!await fhConfirm(`Use these screening settings for ${all} of this output folder${info ? ` (run of ${info.started})` : ""}?` + (n ? `\n\n${list}` : "")
+    if (alone) {
+      const t = !eventsTouched ? "The stimulation and calibration frames stay as they are." : `Timing: ${describeTiming(timingSettings())}.`;
+      if (!await fhConfirm(`Apply these screening settings to ${D.name}?\n\n  • ${hitsLine}\n  • ${t}\n\nIts screening, hit list, .rgn files and dashboard are made again. ${aloneNote}`, { ok: "Apply" })) return;
+    } else if (!await fhConfirm(`Use these screening settings for ${all} of this output folder${info ? ` (run of ${info.started})` : ""}?` + (n ? `\n\n${list}` : "")
         + `\n\n${timing}` + windowNote
         + "\n\nFor every image, stimulation detection, screening, hit lists, .rgn files and the dashboard are redone; segmentation and traces are kept. "
         + "This dashboard reloads when it is done.\n\nContinue?", { ok: "Apply to all images" })) return;

@@ -12,7 +12,7 @@ function gateSeed() {
 // ---------------------------------------------------------------- live screening panel
 const METRIC_KEYS = Object.keys(D.screen.metrics).filter(k => k !== "additional_intensity" || KA);
 const critText = (c) => `${c.metric} ${c.op === "between" ? "between" : c.op} ${c.value}` + (c.op === "between" ? ` and ${c.value2}` : "");
-const screeningModified = () => JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on }) !== SCR0 || SCR.mode === "selection";
+const screeningModified = () => JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on }) !== SCR0 || (SCR.mode === "selection" && manualKey() !== MANUAL0);
 let setScreenOn = () => {};  // shows the screen-for-hits switch (set in initScreening)
 let eventsTouched = false;
 SCR.version = 0;
@@ -181,7 +181,8 @@ function initScreening() {
   $("scrtoggle").onclick = () => { body.classList.toggle("closed"); $("scrtoggle").textContent = body.classList.contains("closed") ? "▸" : "▾"; updateScreenUI(); };
   setWinMode = seg($("winmode"), "full", (v) => { $("rw").disabled = v === "full"; p.response_window = v === "full" ? null : Math.max(1, numOrNull($("rw")) ?? 3); scheduleRecompute(); });
   setAnchor = seg($("anchor"), p.response_window_anchor, (v) => { p.response_window_anchor = v; scheduleRecompute(); });
-  setSrc = seg($("hitsrc"), "criteria", (v) => { SCR.mode = v; if (v === "selection" && !SCR.manual.size) SCR.manual = new Set(S.sel); renderCriteria(); recompute(); });
+  // hits by hand start from the hits there are (those of the criteria), not from nothing
+  setSrc = seg($("hitsrc"), SCR.mode, (v) => { if (v === "selection" && SCR.mode !== "selection" && !SCR.manual.size) SCR.manual = currentHits(); SCR.mode = v; $("manmsg").textContent = ""; renderCriteria(); recompute(); });
   const readEvents = () => { e.stimulation = numOrNull($("evs")); e.calibration = numOrNull($("evc")); e.margin = numOrNull($("evm")) ?? 1; e.baseline_only = $("evb").checked; e.detected = false; eventsTouched = true; scheduleRecompute(); };
   ["evs", "evc", "evm"].forEach(id => $(id).oninput = readEvents); $("evb").onchange = readEvents;
   $("evauto").onclick = () => { Object.assign(e, structuredClone(D.screen.events)); eventsTouched = false; fillEventInputs(); recompute(); };
@@ -203,18 +204,28 @@ function initScreening() {
     set: (a, b) => { $("g1a").value = a; $("g1b").value = b; $("g1").checked = true; readGates(); }, passColor: () => css("--ok") }));
   sliders.push(new HistSlider($("g2h"), { values: () => C.baseline_dev_pop, mode: () => "abs", get: () => [p.max_baseline_deviation ?? +$("g2v").value],
     set: (a) => { $("g2v").value = a; $("g2").checked = true; readGates(); }, passColor: () => css("--ok") }));
-  if (KA) sliders.push(new HistSlider($("clh"), { values: () => C.additional_intensity, mode: () => "gt", log: true, get: () => [p.classification_threshold ?? NaN],
-    set: (a) => { $("clt").value = a; $("cls").checked = true; readGates(); }, passColor: () => css("--accent") }));
+  if (KA) sliders.push(new HistSlider($("clh"), { values: () => C.additional_intensity, mode: () => "gt", get log() { return S.cllog; }, get: () => [p.classification_threshold ?? NaN],
+    set: (a) => { $("clt").value = +a.toPrecision(4); $("cls").checked = true; readGates(); }, passColor: () => css("--accent") }));
+  $("cllog").checked = S.cllog; $("cllog").onchange = () => { S.cllog = $("cllog").checked; updateScreenUI(); };
   $("addcrit").onclick = () => {
     const metric = METRIC_KEYS.includes("response_max_diff") ? "response_max_diff" : METRIC_KEYS[0], s = finiteSorted(metric);
     p.criteria.push({ metric, op: ">", value: s.length ? +s[Math.floor(s.length / 2)].toPrecision(3) : 0, value2: null, logic: p.criteria.length ? "AND" : "OR" });
     renderCriteria(); recompute();
   };
-  $("usesel").onclick = () => { SCR.manual = new Set(S.sel); SCR.mode = "selection"; setSrc("selection"); renderCriteria(); recompute(); };
-  $("addsel").onclick = () => { S.sel.forEach(i => SCR.manual.add(i)); recompute(); };
-  $("remsel").onclick = () => { S.sel.forEach(i => SCR.manual.delete(i)); recompute(); };
-  $("clearmanual").onclick = () => { SCR.manual.clear(); recompute(); };
-  $("scrreset").onclick = () => { const o = JSON.parse(SCR0); Object.assign(e, o.events); Object.assign(p, o.params); SCR.mode = o.mode; SCR.on = o.on; setScreenOn(); eventsTouched = false; fillParams(); recompute(); };
+  // the selection becomes hits (or stops being hits), from the hits of the criteria when hits were not chosen by hand yet.
+  // The selection is cleared afterwards: it is drawn over the hits, so the new hits would not show while selected.
+  const byHand = (change) => {
+    if (!S.sel.size) { $("manmsg").textContent = "Select cells first: Shift+drag in the image or the scatter plot, or click them"; return; }
+    const before = SCR.mode === "selection" ? SCR.manual.size : HIT.filter(Boolean).length;
+    if (SCR.mode !== "selection") { SCR.manual = currentHits(); SCR.mode = "selection"; setSrc("selection"); renderCriteria(); }
+    change(); selectMany([], false); recompute();
+    $("manmsg").textContent = `hits ${before} → ${SCR.manual.size}`;
+  };
+  $("usesel").onclick = () => byHand(() => { SCR.manual = new Set(S.sel); });
+  $("addsel").onclick = () => byHand(() => S.sel.forEach(i => SCR.manual.add(i)));
+  $("remsel").onclick = () => byHand(() => S.sel.forEach(i => SCR.manual.delete(i)));
+  $("clearmanual").onclick = () => { const n = SCR.manual.size; SCR.manual.clear(); recompute(); $("manmsg").textContent = `hits ${n} → 0`; };
+  $("scrreset").onclick = () => { const o = JSON.parse(SCR0); Object.assign(e, o.events); Object.assign(p, o.params); SCR.mode = o.mode; SCR.on = o.on; SCR.manual = new Set(MANUAL0 ? MANUAL0.split(",").map(Number) : []); setSrc(SCR.mode); renderCriteria(); $("manmsg").textContent = ""; setScreenOn(); eventsTouched = false; fillParams(); recompute(); };
   const readOut = () => { p.sort_by = $("sortby").value || null; p.sort_descending = $("sortdir").value === "1"; p.max_hits_per_rgn = Math.max(1, numOrNull($("chunk")) ?? 1000); p.optimize_path = $("optpath").checked;
     if (SCR.route) { SCR.route.stale = true; clearTimeout(readOut.t); readOut.t = setTimeout(() => computeRoute(false), 500); }  // a new route right away
     updateScreenUI(); invalidate("viewerHov"); };
@@ -234,7 +245,9 @@ function finiteSorted(metric) { const a = []; for (const v of C[metric] || []) i
 
 function renderCriteria() {
   const box = $("crits"), p = SCR.params; box.innerHTML = "";
-  box.classList.toggle("disabled", SCR.mode === "selection"); $("manualbox").style.display = SCR.mode === "selection" ? "" : "none";
+  box.classList.toggle("disabled", SCR.mode === "selection");
+  $("manlabel").textContent = SCR.mode === "selection" ? "Hits chosen by hand:" : "Change these hits by hand:";
+  $("mancount").style.display = $("clearmanual").style.display = SCR.mode === "selection" ? "" : "none";
   p.criteria.forEach((c, k) => {
     const row = document.createElement("div"); row.className = "crit";
     row.innerHTML = `<button class="pill ${c.logic.toLowerCase()}" title="Click to switch. AND: every hit must pass this criterion. OR: a hit must pass at least one of the OR criteria">${c.logic}</button>
@@ -281,6 +294,7 @@ function updateScreenUI() {
   if ($("scrbody").classList.contains("closed")) return;
   drawTimeline(); sliders.forEach(s => s.draw()); [...$("crits").children].forEach(row => row._slider.draw());
 }
+function currentHits() { const s = new Set(); HIT.forEach((h, i) => { if (h) s.add(i); }); return s; }
 function countFail(fn) { let n = 0; for (let i = 0; i < N; i++) if (fn(i)) n++; return n; }
 layer("screenSel", () => { $("usesel").textContent = `Use selection (${S.sel.size})`; });
 

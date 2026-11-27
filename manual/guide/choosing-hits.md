@@ -75,6 +75,11 @@ With an additional channel (for instance a marker of transfection, or of one cel
 cells are split in two classes on its intensity. Drag the threshold, or click *Otsu* to let the histogram decide. The
 class (*ch+* or *ch−*) is shown per cell, and can be used in criteria and in the scatter plot.
 
+Fluorescence intensities are about log-normally distributed, so the threshold is found on the logarithm of the
+intensity: Otsu's method (also the automatic threshold of the analysis) works on log10 of the intensities, and the
+histogram has a logarithmic axis (*log*, on by default), where the two classes show as two peaks. The threshold itself
+is an intensity, as in the table.
+
 ## Hit criteria
 
 <figure markdown>
@@ -101,11 +106,21 @@ cells, with the passing cells in pink, and *… pass* counts them. Drag the blac
     cells carry a marker (the additional channel), so here you can check the result: in the scatter plot of
     `additional_intensity` (log) against the lifetime during the response, 64 of the 75 hits are marker-positive.
 
-**Hits from *selection*.** Instead of criteria, you can also pick the hits by hand: select cells (click, lasso,
-table), switch *Hits from* to *selection* and click *Use selection*. *Add selection* adds more cells,
-*Remove selection* takes the selected cells out of the hits, and *Clear* removes them all. To start from the hits of
-the criteria, show them in the table (*Rows: hits*), select them, and then switch to *selection* and click *Use
-selection*.
+**Hits chosen by hand.** You can also change the hits by hand. Select cells (click, Shift+drag a box or lasso in the
+image or the scatter plot, or the table), then:
+
+- *Add selection* adds them to the hits;
+- *Remove selection* takes them out of the hits;
+- *Use selection* makes them the hits (and only them);
+- *Clear* removes all hits.
+
+The first change starts from the hits of the criteria and switches *Hits from* to *selection*; switching back to
+*criteria* gives the hits of the criteria again. The selection is cleared after each change, so that the new hits show
+in pink (selected cells are drawn as the selection). *↻ Apply* makes the hits chosen by hand those of the image (its hit
+list and `.rgn` files), and its dashboard opens with them.
+
+The hits chosen by hand are a list of cells of this image: they do not carry over to other images, and the window
+does not use them for the images it analyzes next.
 
 ## Output
 
