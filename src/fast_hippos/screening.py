@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from skimage.filters import threshold_otsu
 
-from .config import METRICS, Criterion, ScreeningSettings
+from .config import CELL_MEASURES, METRICS, Criterion, ScreeningSettings
 from .events import Events
 
 log = logging.getLogger(__name__)
@@ -196,7 +196,7 @@ def find_hits(df: pd.DataFrame, settings: ScreeningSettings, has_calibration: bo
     for k, crit in enumerate(settings.criteria):
         for metric in (crit.metric, crit.metric2) if is_gate(crit) else (crit.metric,):
             if metric not in df.columns:
-                known = ", ".join(METRICS)
+                known = ", ".join([*METRICS, *CELL_MEASURES])
                 raise ValueError(f"Unknown or unavailable metric '{metric}'. Known metrics: {known}")
         col = f"pass_{k + 1}_{crit.metric}" + (f"_{crit.metric2}_gate" if is_gate(crit) else "")
         df[col] = passes(crit, df)  # NaN never passes

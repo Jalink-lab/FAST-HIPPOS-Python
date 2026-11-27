@@ -44,7 +44,7 @@ function drawScatter() {
 // A gate keeps its two metrics and whether each axis was logarithmic: its edges are straight in that space, so on
 // other axis settings they are drawn curved (each edge in 24 steps).
 let GATE_DRAW = false;
-const gateMetric = (k) => METRIC_KEYS.includes(k);  // only per-cell metrics can be criteria (not the values at a frame)
+const gateMetric = (k) => CRIT_KEYS.includes(k);  // only values of the cell can be criteria (not the values at a frame)
 function drawGates(ctx) {
   SCR.params.criteria.forEach((c, k) => {
     if (!FHScreen.isGate(c) || c.metric !== S.sx || c.metric2 !== S.sy) return;
@@ -65,7 +65,7 @@ function gateState() {  // the Gate button: only for two per-cell metrics
   const ok = gateMetric(S.sx) && gateMetric(S.sy);
   $("sgate").disabled = !ok && !GATE_DRAW;
   $("sgate").title = ok ? "Draw a gate: a region of this plot that becomes a hit criterion (cells inside it pass). Works for any image when the screening is applied."
-    : "A gate needs two per-cell values on the axes (not a value at a frame): choose them under x and y";
+    : `A gate needs two values that criteria can use on the axes (not a value at a frame, nor a position): ${CRIT_KEYS.join(", ")}`;
   $("sgate").classList.toggle("drawing", GATE_DRAW); $("sgate").textContent = GATE_DRAW ? "Cancel gate" : "✎ Gate";
   $("gatehint").textContent = GATE_DRAW ? `drag a ${S.tool === "lasso" ? "lasso" : "box"} around the cells (L: box/lasso, Esc: cancel)` : "";
   $("sch").closest(".stack").classList.toggle("drawgate", GATE_DRAW);

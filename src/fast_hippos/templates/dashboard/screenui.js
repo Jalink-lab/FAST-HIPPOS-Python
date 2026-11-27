@@ -11,6 +11,9 @@ function gateSeed() {
 }
 // ---------------------------------------------------------------- live screening panel
 const METRIC_KEYS = Object.keys(D.screen.metrics).filter(k => k !== "additional_intensity" || KA);
+// what hit criteria and gates can use: those metrics, and the measures of the cells from the segmentation
+const CRIT_KEYS = [...METRIC_KEYS, ...Object.keys(D.screen.measures || {}).filter(k => k in C)];
+const critTip = (k) => D.screen.metrics[k] || (D.screen.measures || {})[k] || "";
 const critText = (c) => FHScreen.isGate(c) ? `${c.op} the gate on ${c.metric2} vs ${c.metric}`
   : `${c.metric} ${c.op === "between" ? "between" : c.op} ${c.value}` + (c.op === "between" ? ` and ${c.value2}` : "");
 const screeningModified = () => JSON.stringify({ events: SCR.events, params: SCR.params, mode: SCR.mode, on: SCR.on }) !== SCR0 || (SCR.mode === "selection" && manualKey() !== MANUAL0);
@@ -257,14 +260,14 @@ function renderCriteria() {
       <div class="seg op"><button data-v="&lt;" title="Hit when the value is lower than the threshold">&lt;</button><button data-v="&gt;" title="Hit when the value is higher than the threshold">&gt;</button><button data-v="between" title="Hit when the value lies between the two values">↔</button></div>
       <span class="vals"><input class="v" type="number" step="any" title="Threshold, in the unit of the metric (e.g. ns); or drag in the histogram"><input class="v2" type="number" step="any" title="Upper limit of the range"></span>
       <canvas class="hs" title="Histogram of this value over all cells; drag to set the threshold"></canvas><span class="n" title="Number of cells that pass this criterion"></span><button class="x" title="Remove this criterion">✕</button>`;
-    const ms = row.querySelector(".m"); METRIC_KEYS.forEach(m => ms.add(new Option(m, m))); ms.value = c.metric; ms.title = D.screen.metrics[c.metric] || "";
+    const ms = row.querySelector(".m"); CRIT_KEYS.forEach(m => { const o = new Option(m, m); o.title = critTip(m); ms.add(o); }); ms.value = c.metric; ms.title = critTip(c.metric);
     const v1 = row.querySelector(".v"), v2 = row.querySelector(".v2");
     const showV2 = () => { v2.style.display = c.op === "between" ? "" : "none"; };
     v1.value = c.value; v2.value = c.value2 ?? ""; showV2();
     const changed = () => { c.value = numOrNull(v1) ?? 0; c.value2 = c.op === "between" ? (numOrNull(v2) ?? c.value) : null; showV2(); scheduleRecompute(40); };
     row.querySelector(".pill").onclick = (ev) => { c.logic = c.logic === "AND" ? "OR" : "AND"; ev.target.textContent = c.logic; ev.target.className = `pill ${c.logic.toLowerCase()}`; recompute(); };
     seg(row.querySelector(".op"), c.op, (v) => { c.op = v; if (v === "between" && c.value2 === null) { const s = finiteSorted(c.metric); v2.value = s.length ? +s[Math.floor(s.length * 0.9)].toPrecision(3) : c.value; } changed(); });
-    ms.onchange = () => { c.metric = ms.value; ms.title = D.screen.metrics[c.metric] || ""; const s = finiteSorted(c.metric); if (s.length) { v1.value = +s[Math.floor(s.length / 2)].toPrecision(3); v2.value = +s[Math.floor(s.length * 0.9)].toPrecision(3); } changed(); };
+    ms.onchange = () => { c.metric = ms.value; ms.title = critTip(c.metric); const s = finiteSorted(c.metric); if (s.length) { v1.value = +s[Math.floor(s.length / 2)].toPrecision(3); v2.value = +s[Math.floor(s.length * 0.9)].toPrecision(3); } changed(); };
     v1.oninput = changed; v2.oninput = changed;
     row.querySelector(".x").onclick = () => { p.criteria.splice(k, 1); renderCriteria(); recompute(); };
     row._slider = new HistSlider(row.querySelector(".hs"), { values: () => C[c.metric] || [], mode: () => c.op === ">" ? "gt" : c.op === "<" ? "lt" : "between", get: () => [c.value, c.value2],

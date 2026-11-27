@@ -82,6 +82,25 @@ def test_find_hits_with_a_gate_and_a_threshold():
     assert (out["hit"].to_numpy() == expected).all() and expected.sum() > 10
 
 
+def test_criteria_on_cell_measures():
+    """Criteria and gates can also use the measures of the segmentation (mean_intensity, area_px, circularity)."""
+    from fast_hippos.config import CELL_MEASURES
+
+    x, y = _points(400, seed=3)
+    df = pd.DataFrame({"mean_intensity": np.exp(x), "response_max_abs": y, "area_px": 100.0, "baseline_mean": 1.0})
+    sc = ScreeningSettings(enabled=True, baseline_calibration_diff=None, max_baseline_deviation=None, criteria=[
+        Criterion("mean_intensity", "inside", metric2="response_max_abs", polygon=[(3, 1), (60, 1), (60, 3), (3, 3)],
+                  log_x=True, logic="AND"),
+        Criterion("area_px", ">", 50.0, logic="AND")])
+    out = screening.find_hits(df, sc, has_calibration=False)
+    expected = screening.in_polygon(np.exp(x), y, [(3, 1), (60, 1), (60, 3), (3, 3)], log_x=True)
+    assert (out["hit"].to_numpy() == expected).all() and expected.sum() > 10
+    assert set(CELL_MEASURES) == {"mean_intensity", "area_px", "circularity"}
+    with pytest.raises(ValueError, match="circularity"):  # the message names the measures too
+        screening.find_hits(df, ScreeningSettings(enabled=True, baseline_calibration_diff=None, max_baseline_deviation=None,
+                                                  criteria=[Criterion("nonsense", ">", 1.0)]), False)
+
+
 def test_gate_settings_round_trip(tmp_path):
     from fast_hippos.gui import to_toml
 

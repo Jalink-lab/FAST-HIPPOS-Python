@@ -409,3 +409,10 @@ METRICS = {
     "baseline_dev_pop": "How much the baseline of the cell differs from the average baseline of all cells.",
     "additional_intensity": "Intensity of the additional channel in the cell (mean over time, or the first frame).",
 }
+
+# measures of the cell from the segmentation (not from its trace), which hit criteria and gates can use as well
+CELL_MEASURES = {
+    "mean_intensity": "Mean intensity of the cell: the mean pixel value per frame, in the units of the image.",
+    "area_px": "Area of the cell in pixels (depends on the pixel size: compare images of the same magnification).",
+    "circularity": "Roundness of the cell, 4πA/P²: 1 for a circle, lower for elongated or irregular cells.",
+}

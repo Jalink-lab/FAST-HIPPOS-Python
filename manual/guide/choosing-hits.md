@@ -90,7 +90,8 @@ Each criterion is a cell value, *<*, *>* or *between* (↔), and a threshold. Th
 cells, with the passing cells in pink, and *… pass* counts them. Drag the black marker to change the threshold.
 
 - **+ criterion** adds a criterion. Hover over a value in the list for its meaning, or see
-  [Cell values](../reference/metrics.md).
+  [Cell values](../reference/metrics.md). Besides the values of the response, the list has the measures of the cell
+  from the segmentation: `mean_intensity`, `area_px` (which depends on the pixel size) and `circularity`.
 - **AND / OR**: click the label of a criterion to switch. **AND** criteria are all required; of the **OR** criteria at
   least one must pass. For example *AND baseline < 2.4*, *OR response < 0.5*, *OR rise time > 5* gives cells with a
   low baseline that either respond weakly or slowly. (The rise time is only meaningful for cells that respond:
@@ -112,8 +113,9 @@ A **gate** is a criterion on two values at once: a region of the scatter plot. C
 pass (or, switched to *outside*, those outside it). It is the way to pick a population that no threshold on one value
 separates, for instance cells with a high marker intensity *and* a low response, where the two groups lie diagonally.
 
-1. In the scatter plot, choose two cell values for x and y (not a value at a frame), with *log* where the values span
-   orders of magnitude.
+1. In the scatter plot, choose two cell values for x and y, with *log* where the values span orders of magnitude.
+   These can be the values of the response (as for the other criteria) and the measures of the cell from the
+   segmentation: `mean_intensity`, `area_px` and `circularity`. Not a value at a frame, nor a position.
 2. Click **✎ Gate** and drag a box or a lasso around the cells (++l++ switches between them, ++esc++ cancels).
 3. The gate appears in the plot and in the criteria list, as an **AND** criterion. Its cells turn pink.
 

@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import get_args, get_origin, get_type_hints
 
 from . import __version__, cellpose_envs, updates
-from .config import METRICS, Criterion, Modality, Settings, _from_dict
+from .config import CELL_MEASURES, METRICS, Criterion, Modality, Settings, _from_dict
 
 log = logging.getLogger(__name__)
 
@@ -617,7 +617,8 @@ def schema() -> dict:
                "advanced": [{"title": a[0], "keys": a[1], "show": a[2] if len(a) > 2 else None,
                              "column": len(a) > 3 and a[3] == "column"} for a in c["advanced"]]}
               for c in LAYOUT]
-    return {"version": __version__, "sections": sections, "layout": layout, "metrics": METRICS, "reasons": REASONS}
+    return {"version": __version__, "sections": sections, "layout": layout, "metrics": METRICS, "measures": CELL_MEASURES,
+            "reasons": REASONS}
 
 
 # ---------------------------------------------------------------- TOML

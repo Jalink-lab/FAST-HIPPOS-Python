@@ -537,7 +537,8 @@ function widget(f) {
     case "files": return imagesHTML();
     case "readouts": return readoutsHTML();
     case "criteria": {
-      const crit = v || [], metrics = [...Object.keys(SCHEMA.metrics), ...readoutMetrics()];
+      const crit = v || [], metrics = [...Object.keys(SCHEMA.metrics), ...Object.keys(SCHEMA.measures || {}), ...readoutMetrics()];
+      const tip = (m) => SCHEMA.metrics[m] || (SCHEMA.measures || {})[m] || "";
       const isGate = (c) => c.op === "inside" || c.op === "outside";
       return `<div>${crit.map((c, i) => isGate(c) ? `<div class="crit" data-crit="${i}">
           <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
@@ -546,7 +547,7 @@ function widget(f) {
           <span class="muted" title="Draw or change a gate in the scatter plot of a dashboard (✎ Gate)">${(c.polygon || []).length} points</span><span></span>
           <button class="small" data-c="remove" title="Remove this gate">✕</button></div>` : `<div class="crit" data-crit="${i}">
           <button class="pill ${c.logic || S.screening.logic}" data-c="logic" title="AND: must pass · OR: at least one of the OR criteria must pass">${c.logic || S.screening.logic}</button>
-          <select data-c="metric" title="${esc(SCHEMA.metrics[c.metric] || "")}">${metrics.map(m => `<option ${m === c.metric ? "selected" : ""}>${m}</option>`).join("")}</select>
+          <select data-c="metric" title="${esc(tip(c.metric))}">${metrics.map(m => `<option ${m === c.metric ? "selected" : ""} title="${esc(tip(m))}">${m}</option>`).join("")}</select>
           <select data-c="op" title="&lt; below the value · &gt; above the value · between: from the first to the second value">${[["<", "<"], [">", ">"], ["between", "between"]].map(([k, l]) => `<option value="${k}" ${k === c.op ? "selected" : ""}>${l}</option>`).join("")}</select>
           <input data-c="value" type="number" step="any" value="${c.value ?? ""}" title="Threshold, in the unit of the metric (e.g. ns for lifetimes)">
           ${c.op === "between" ? `<input data-c="value2" type="number" step="any" value="${c.value2 ?? ""}" title="Upper limit of the range">` : "<span></span>"}

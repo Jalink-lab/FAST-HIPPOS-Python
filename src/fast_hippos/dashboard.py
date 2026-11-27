@@ -15,7 +15,7 @@ import pandas as pd
 from matplotlib import colormaps
 
 from . import __version__
-from .config import METRICS
+from .config import CELL_MEASURES, METRICS
 from .screening import criterion_dict, criterion_text, timed_window
 from .viewer_data import FRAMES_DIR, ViewerData, float_b64, frame_urls, labels_url, png_data_url, write_frames
 
@@ -221,6 +221,7 @@ def build_image_data(result: ImageResult, viewer: ViewerData, settings: Settings
                 "optimize_path": sc.optimize_path,
             },
             "metrics": METRICS,
+            "measures": CELL_MEASURES,  # criteria can also use these (from the segmentation)
         },
         # visiting order of the hits per .rgn chunk, as optimized by the run (row indices); None = not computed
         "route": route if route and any(route) else None,
