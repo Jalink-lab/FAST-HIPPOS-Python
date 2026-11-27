@@ -2,6 +2,33 @@
 
 The notes of a version (`## <version>`) are shown by FAST-HIPPOS when it offers that version as an update.
 
+## 0.1.0b3
+
+Gates, hits by hand that behave, and readable names.
+
+- **Gates.** Draw a region in the scatter plot of a dashboard (*✎ Gate*, then a box or lasso): cells inside it (or
+  outside) are hits. A gate is a hit criterion like the others, so *Re-apply all images* uses it for every image.
+- **Readable names.** Cell values are shown as *Peak response*, *Baseline*, *Area (µm²)*… with their meaning as a
+  tooltip. Hit criteria and gates can also use *Mean intensity*, *Area (µm²)* and *Circularity*.
+- **New column names in the tables** (`cells.tsv`, hit lists), e.g. `peak_response` (was `response_max_diff`) and
+  `area_(um2)`. Settings and results of earlier versions are read with the new names; scripts of your own that read the
+  tables need them too. The list is in the manual: *Reference → Cell values*.
+- **Hits chosen by hand.** *Add selection* and *Remove selection* start from the hits of the criteria, show the new
+  hits at once, and are kept when the dashboard is opened again.
+- **Curve fits** in the scatter plot of the overview: linear, exponential, logarithmic and sigmoid, with parameters,
+  standard errors and R², and an export.
+- The classification of the additional channel has a logarithmic histogram (on by default).
+- Questions and messages appear in a FAST-HIPPOS dialog instead of the browser's.
+- *Apply* in a dashboard asks about that image only.
+
+Known limitations of this beta:
+
+- **Check the stage positions of hits in stitched `.lif` tile scans on real cells.** FAST-HIPPOS places 512-pixel tiles
+  512 pixels apart, while LAS X measures from centre to centre (511).
+- The experiment overview shows the first readout only.
+- Several readouts work for `.lif` files with a LAS X fit, not yet for TIFFs.
+- Cell values differ from the Fiji macro, which averages a cell in another way.
+
 ## 0.1.0b2
 
 A simpler way of working, and FLIM directly from the `.lif`.
