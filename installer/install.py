@@ -30,6 +30,8 @@ WINDOWS, MAC = sys.platform == "win32", sys.platform == "darwin"
 TORCH = ["torch==2.6.0", "torchvision==0.21.0"]
 # Intel Macs: PyTorch stopped at 2.2.2 there, which needs NumPy 1 (both Cellpose versions resolve with it)
 TORCH_INTEL_MAC = ["torch==2.2.2", "torchvision==0.17.2", "numpy<2"]
+# and many packages stopped making ready-made versions for Intel Macs (llvmlite 0.50 has none): only those, never a build
+WHEELS_ONLY = ["--only-binary", ":all:"]
 CELLPOSE = {3: ["cellpose==3.1.1.3"], 4: ["cellpose==4.2.1.1"]}
 LOG: Path | None = None
 # disk space in GB once installed
@@ -516,7 +518,8 @@ def main(argv: list[str] | None = None) -> None:
         next_step(f"Cellpose {v}, running on {where}; this takes a while", f"Cellpose {v} with PyTorch")
         cenv = target / f"cellpose{v}-env"
         venv(args.uv, cenv, "3.12", env)
-        run(args.uv, "pip", "install", "--python", str(python_of(cenv)), *torch, *CELLPOSE[v], *index, env=env)
+        wheels = WHEELS_ONLY if torch is TORCH_INTEL_MAC else []
+        run(args.uv, "pip", "install", "--python", str(python_of(cenv)), *torch, *CELLPOSE[v], *index, *wheels, env=env)
 
     if args.cellpose_only:
         say("\nReady.")

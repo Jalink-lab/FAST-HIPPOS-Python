@@ -2,6 +2,11 @@
 
 The notes of a version (`## <version>`) are shown by FAST-HIPPOS when it offers that version as an update.
 
+## 0.1.0b5
+
+- **Cellpose on Intel Macs, second part.** Some packages that Cellpose needs (e.g. `llvmlite`) no longer come ready-made
+  for Intel Macs, and building them failed. FAST-HIPPOS now takes the last ready-made versions there.
+
 ## 0.1.0b4
 
 - **Cellpose on Intel Macs.** Installing Cellpose failed there, because PyTorch 2.6.0 has no version for Intel Macs.
