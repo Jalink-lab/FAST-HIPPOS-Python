@@ -74,17 +74,17 @@ def test_cell_noise_floor_keeps_real_steps():
 def test_screening_finds_responders(synthetic):
     _, truth = synthetic
     ev = events.Events(truth.lifetimes.shape[0], truth.stimulation, truth.calibration)
-    sc = ScreeningSettings(enabled=True, criteria=[Criterion("response_max_diff", ">", 0.2)])
+    sc = ScreeningSettings(enabled=True, criteria=[Criterion("peak_response", ">", 0.2)])
     df = screening.compute_metrics(truth.lifetimes, ev, sc)
     df = screening.find_hits(df, sc, has_calibration=True)
     assert (df["hit"].to_numpy() == truth.responders).mean() > 0.95
 
 
 def test_and_logic_with_zero_metric():
-    df = pd.DataFrame({"baseline_mean": [0.0, 1.0], "calibration_diff": [0.7, 0.7], "baseline_dev_pop": [0, 0],
-                       "response_max_diff": [0.5, 0.5]})
+    df = pd.DataFrame({"baseline": [0.0, 1.0], "calibration_response": [0.7, 0.7], "baseline_offset_from_population": [0, 0],
+                       "peak_response": [0.5, 0.5]})
     sc = ScreeningSettings(enabled=True, logic="AND", max_baseline_deviation=None, criteria=[
-        Criterion("baseline_mean", "<", 0.5), Criterion("response_max_diff", ">", 0.2)])
+        Criterion("baseline", "<", 0.5), Criterion("peak_response", ">", 0.2)])
     out = screening.find_hits(df, sc, has_calibration=True)
     assert out["hit"].tolist() == [True, False]  # a true value of 0 must not fail (issue I7)
 
@@ -127,7 +127,7 @@ def test_full_run(tmp_path, synthetic):
     settings.segmentation.diameter = 18
     settings.segmentation.min_cell_size = 30
     settings.screening.enabled = True
-    settings.screening.criteria = [Criterion("response_max_diff", ">", 0.2)]
+    settings.screening.criteria = [Criterion("peak_response", ">", 0.2)]
     settings.screening.stage_positions_file = positions
     settings.screening.classify_additional_channel = True
     results = run(settings)
@@ -137,7 +137,7 @@ def test_full_run(tmp_path, synthetic):
     assert abs(r.n_cells - truth.labels.max()) <= 3
     # hits should be the responders: look up the true label at each cell's centroid
     cells = r.cells
-    true_label = truth.labels[cells["centroid_y"].round().astype(int), cells["centroid_x"].round().astype(int)]
+    true_label = truth.labels[cells["centroid_y_(px)"].round().astype(int), cells["centroid_x_(px)"].round().astype(int)]
     agreement = (cells["hit"].to_numpy() == truth.responders[true_label - 1]).mean()
     assert agreement > 0.9
     out = tmp_path / "out"
@@ -150,7 +150,7 @@ def test_full_run(tmp_path, synthetic):
     route = _routes(results, out)[r.name]
     assert sorted(i for chunk in route for i in chunk) == np.flatnonzero(cells["hit"].to_numpy()).tolist()
     # re-apply with a different criterion uses the saved data
-    settings.screening.criteria = [Criterion("response_max_diff", ">", 0.6)]
+    settings.screening.criteria = [Criterion("peak_response", ">", 0.6)]
     stale = out / "HITS_synthetic_9001-9999.rgn"
     stale.write_text("")
     again = run(settings, reapply=True)
@@ -168,7 +168,7 @@ def test_hits_without_stage_position_are_not_sent_to_the_microscope(tmp_path, sy
     settings.segmentation.method = "threshold"
     settings.segmentation.diameter = 18
     settings.screening.enabled = True
-    settings.screening.criteria = [Criterion("response_max_diff", ">", 0.2)]
+    settings.screening.criteria = [Criterion("peak_response", ">", 0.2)]
     results = run(settings)
     assert not any(r.stage_known for r in results)
     n = [int(r.cells["hit"].sum()) for r in results]
@@ -256,23 +256,23 @@ def test_new_run_never_moves_its_own_inputs(tmp_path, synthetic, monkeypatch):
 def test_settings_override(tmp_path):
     base = tmp_path / "config.toml"
     base.write_text('[input]\nfiles = ["a.tif"]\n[events]\nstimulation_frame = 6\n[screening]\nenabled = false\n'
-                    'criteria = [{ metric = "baseline_mean", op = "<", value = 2.5 }]\n')
+                    'criteria = [{ metric = "baseline", op = "<", value = 2.5 }]\n')
     override = tmp_path / "screening.toml"
     override.write_text('[events]\nstimulation_frame = ""\n[screening]\nenabled = true\nbaseline_calibration_diff = []\n'
-                        'criteria = [{ metric = "response_max_diff", op = ">", value = 0.3 }]\n')
+                        'criteria = [{ metric = "peak_response", op = ">", value = 0.3 }]\n')
     s = Settings.from_toml(base, overrides=[override])
     assert s.events.stimulation_frame is None  # "" clears a value
     assert s.screening.enabled and s.screening.baseline_calibration_diff is None
-    assert [c.metric for c in s.screening.criteria] == ["response_max_diff"]  # lists are replaced
+    assert [c.metric for c in s.screening.criteria] == ["peak_response"]  # lists are replaced
     assert s.input.files[0].name == "a.tif"  # untouched sections are kept
 
 
 def test_mixed_and_or_criteria():
-    df = pd.DataFrame({"baseline_mean": [2.0, 2.0, 2.0, 3.0], "calibration_diff": 0.7, "baseline_dev_pop": 0.0,
-                       "response_max_diff": [0.5, 0.1, 0.1, 0.5], "rise_time_frames": [9, 2, 9, 2]})
+    df = pd.DataFrame({"baseline": [2.0, 2.0, 2.0, 3.0], "calibration_response": 0.7, "baseline_offset_from_population": 0.0,
+                       "peak_response": [0.5, 0.1, 0.1, 0.5], "rise_time_(frames)": [9, 2, 9, 2]})
     sc = ScreeningSettings(enabled=True, logic="OR", max_baseline_deviation=None, criteria=[
-        Criterion("baseline_mean", "<", 2.5, logic="AND"),
-        Criterion("response_max_diff", ">", 0.3), Criterion("rise_time_frames", "<", 5)])
+        Criterion("baseline", "<", 2.5, logic="AND"),
+        Criterion("peak_response", ">", 0.3), Criterion("rise_time_(frames)", "<", 5)])
     out = screening.find_hits(df, sc, has_calibration=True)
     # baseline required; then fast OR large response
     assert out["hit"].tolist() == [True, True, False, False]

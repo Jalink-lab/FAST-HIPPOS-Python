@@ -55,9 +55,9 @@ are not in it (Getting started, command line) open the online manual.
 - The screen: Cos7 cells with the cAMP sensor EpacH250, ~5 % ADRB2 knock-out cells (marked with PA-JF646, channel 3)
   among wild-type cells; isoproterenol in frame 5, forskolin calibration in frame 25; hits = low responders
   (paper: Mukherjee et al., bioRxiv 2025, doi:10.1101/2025.07.11.664338).
-- Settings (the user's choice): criteria `response_max_abs < 3.1` AND `baseline_mean` between 2.0 and 2.7; gate
+- Settings (the user's choice): criteria `peak_during_response < 3.1` AND `baseline` between 2.0 and 2.7; gate
   calibration − baseline 0.5–1.2, |baseline − population| gate off; dashboard views: traces as lines, scatter
-  `additional_intensity` (log) against `value_at_frame`; colour range 2.0–3.6 ns.
+  `additional_channel_intensity` (log) against `value_at_frame`; colour range 2.0–3.6 ns.
 
 **Numbers quoted in the text** (recount after a change to the example or the analysis):
 

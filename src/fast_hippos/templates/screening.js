@@ -47,31 +47,31 @@ const FHScreen = (() => {
     const win = windows(T, ev), [b0, b1] = win.baseline, [r0, r1] = win.response, [c0, c1] = win.calibration;
     const [w0, w1] = timedWindow(win.response, p);
     const col = () => new Float64Array(N).fill(nan);
-    const c = {}; for (const k of ["baseline_mean", "baseline_dev_pop", "response_mean_abs", "response_mean_diff", "response_max_abs",
-      "response_max_diff", "response_max_diff_pop", "response_fraction", "rise_time_frames", "rapid_response_ratio",
-      "calibration_mean", "calibration_diff"]) c[k] = col();
+    const c = {}; for (const k of ["baseline", "baseline_offset_from_population", "mean_during_response", "mean_response", "peak_during_response",
+      "peak_response", "peak_response_vs_population", "mean_peak_response_ratio", "rise_time_(frames)", "late_early_response_ratio",
+      "mean_during_calibration", "calibration_response"]) c[k] = col();
     let ps = 0, pn = 0;
-    for (let i = 0; i < N; i++) { const b = colMean(K, N, i, b0, b1); c.baseline_mean[i] = b; if (!Number.isNaN(b)) { ps += b; pn++; } }
+    for (let i = 0; i < N; i++) { const b = colMean(K, N, i, b0, b1); c.baseline[i] = b; if (!Number.isNaN(b)) { ps += b; pn++; } }
     const pop = pn ? ps / pn : nan;
     const frac = p.rise_time_fraction, half = Math.floor((r1 - r0) / 2);
     for (let i = 0; i < N; i++) {
-      const base = c.baseline_mean[i];
-      c.baseline_dev_pop[i] = base - pop;
+      const base = c.baseline[i];
+      c.baseline_offset_from_population[i] = base - pop;
       if (r1 > r0) {
         const abs = colMean(K, N, i, w0, w1), mx = colMax(K, N, i, r0, r1);
-        c.response_mean_abs[i] = abs; c.response_mean_diff[i] = abs - base;
-        c.response_max_abs[i] = mx; c.response_max_diff[i] = mx - base; c.response_max_diff_pop[i] = mx - pop;
-        c.response_fraction[i] = (abs - base) / (mx - base);
+        c.mean_during_response[i] = abs; c.mean_response[i] = abs - base;
+        c.peak_during_response[i] = mx; c.peak_response[i] = mx - base; c.peak_response_vs_population[i] = mx - pop;
+        c.mean_peak_response_ratio[i] = (abs - base) / (mx - base);
         const thr = frac * (mx - base); let rise = nan;
         for (let t = r0; t < r1; t++) { const v = K[t * N + i]; const d = Number.isNaN(v) ? -Infinity : v - base; if (d >= thr) { rise = t - r0 + 1; break; } }
-        c.rise_time_frames[i] = rise;
-        if (half) c.rapid_response_ratio[i] = (colMean(K, N, i, r0 + half, r1) - base) / (colMean(K, N, i, r0, r0 + half) - base);
+        c["rise_time_(frames)"][i] = rise;
+        if (half) c.late_early_response_ratio[i] = (colMean(K, N, i, r0 + half, r1) - base) / (colMean(K, N, i, r0, r0 + half) - base);
       }
-      if (c1 > c0) { const cm = colMean(K, N, i, c0, c1); c.calibration_mean[i] = cm; c.calibration_diff[i] = cm - base; }
+      if (c1 > c0) { const cm = colMean(K, N, i, c0, c1); c.mean_during_calibration[i] = cm; c.calibration_response[i] = cm - base; }
     }
     if (additional) {
-      c.additional_intensity = col();
-      for (let i = 0; i < N; i++) c.additional_intensity[i] = p.additional_channel_metric === "first" ? additional[i] : colMean(additional, N, i, 0, T);
+      c.additional_channel_intensity = col();
+      for (let i = 0; i < N; i++) c.additional_channel_intensity[i] = p.additional_channel_metric === "first" ? additional[i] : colMean(additional, N, i, 0, T);
     }
     return { cols: c, population_baseline: pop, windows: win, timed_window: [w0, w1] };
   }
@@ -116,9 +116,9 @@ const FHScreen = (() => {
     const valid = new Uint8Array(N), hit = new Uint8Array(N), pass = {};
     const gate = p.baseline_calibration_diff, dev = p.max_baseline_deviation;
     for (let i = 0; i < N; i++) {
-      let ok = !Number.isNaN(cols.baseline_mean[i]);
-      if (gate && hasCalibration) { const d = cols.calibration_diff[i]; ok = ok && d >= gate[0] && d <= gate[1]; }
-      if (dev !== null && dev !== undefined) ok = ok && Math.abs(cols.baseline_dev_pop[i]) <= dev;
+      let ok = !Number.isNaN(cols.baseline[i]);
+      if (gate && hasCalibration) { const d = cols.calibration_response[i]; ok = ok && d >= gate[0] && d <= gate[1]; }
+      if (dev !== null && dev !== undefined) ok = ok && Math.abs(cols.baseline_offset_from_population[i]) <= dev;
       valid[i] = ok ? 1 : 0;
     }
     // AND criteria must all pass; of the OR criteria at least one must pass (criterion.logic, default p.logic)

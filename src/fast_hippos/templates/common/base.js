@@ -3,7 +3,7 @@
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // Readable names of the cell values and what they mean (config.METRIC_LABELS / METRIC_TIPS, in D.names). The keys
-// (response_max_diff) stay the names in the files; a value of another readout is shown as 'cAMP · Peak response'.
+// (peak_response) stay the names in the files; a value of another readout is shown as 'cAMP · Peak response'.
 const FH_NAMES = { labels: {}, tips: {} };
 function useNames(n) { if (n) { Object.assign(FH_NAMES.labels, n.labels || {}); Object.assign(FH_NAMES.tips, n.tips || {}); } }
 function nameOf(key) {

@@ -189,17 +189,17 @@ def test_run_on_tile_folder(tmp_path):
     s.segmentation.method = "threshold"
     s.segmentation.diameter = 18
     s.screening.enabled = True
-    s.screening.criteria = [Criterion("response_max_diff", ">", 0.2)]
+    s.screening.criteria = [Criterion("peak_response", ">", 0.2)]
     (r,) = run(s)
     assert r.name == "scan_STITCHED" and r.shape[1:] == (128, 128)
     assert (tmp_path / "out" / "scan_STITCHED.tif").exists()
     # with these flags image x runs along Leica PosX and y along PosY; the stitched image starts at the first tile
     cells = r.cells
-    np.testing.assert_allclose(cells["abs_x_m"], 0.06 - tile / 2 * 1e-6 + cells["pos_x_px"] * 1e-6, atol=1e-12)
-    np.testing.assert_allclose(cells["abs_y_m"], 0.04 - tile / 2 * 1e-6 + cells["pos_y_px"] * 1e-6, atol=1e-12)
+    np.testing.assert_allclose(cells["stage_x_(m)"], 0.06 - tile / 2 * 1e-6 + cells["position_x_(px)"] * 1e-6, atol=1e-12)
+    np.testing.assert_allclose(cells["stage_y_(m)"], 0.04 - tile / 2 * 1e-6 + cells["position_y_(px)"] * 1e-6, atol=1e-12)
     assert len(r.tiles) == 4
     (again,) = run(s, reapply=True)  # the saved results keep the stage geometry
-    np.testing.assert_allclose(again.cells["abs_x_m"], cells["abs_x_m"])
+    np.testing.assert_allclose(again.cells["stage_x_(m)"], cells["stage_x_(m)"])
 
 
 def test_single_tiff_position_from_lasx_metadata(tmp_path):

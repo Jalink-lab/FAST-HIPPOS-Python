@@ -3,14 +3,14 @@
 function gateSeed() {
   if (D.is_lifetime) return { g1: [0.5, 1], g2: 0.2 };
   const fin = (a) => a.filter(v => typeof v === "number" && Number.isFinite(v));
-  const cal = fin(C.calibration_diff || []), dev = fin(C.baseline_dev_pop || []).map(Math.abs);
+  const cal = fin(C.calibration_response || []), dev = fin(C.baseline_offset_from_population || []).map(Math.abs);
   const r = (v) => +v.toPrecision(3);
   if (!cal.length) return { g1: [0, 1], g2: dev.length ? r(Math.max(...dev) * 1.02) : 1 };
   const lo = Math.min(...cal), hi = Math.max(...cal), pad = 0.02 * (hi - lo || Math.abs(hi) || 1);  // all cells pass
   return { g1: [r(lo - pad), r(hi + pad)], g2: dev.length ? r(Math.max(...dev) * 1.02) : 1 };
 }
 // ---------------------------------------------------------------- live screening panel
-const METRIC_KEYS = Object.keys(D.screen.metrics).filter(k => k !== "additional_intensity" || KA);
+const METRIC_KEYS = Object.keys(D.screen.metrics).filter(k => k !== "additional_channel_intensity" || KA);
 // what hit criteria and gates can use: those metrics, and the measures of the cells from the segmentation
 const CRIT_KEYS = [...METRIC_KEYS, ...Object.keys(D.screen.measures || {}).filter(k => k in C)];
 const critText = (c) => FHScreen.isGate(c) ? `${c.op} the gate on ${nameOf(c.metric2)} vs ${nameOf(c.metric)}`
@@ -41,7 +41,7 @@ function recompute() {
   else HIT = Array.from(h.hit, Boolean);
   C.hit = HIT.map(Number);
   if (KA && p.classify_additional_channel && Number.isFinite(p.classification_threshold))
-    C.class_additional = Array.from(C.additional_intensity, v => v > p.classification_threshold ? 1 : 0);
+    C.class_additional = Array.from(C.additional_channel_intensity, v => v > p.classification_threshold ? 1 : 0);
   else delete C.class_additional;
   ORDER = FHScreen.order(KR, T, N, m.windows);
   C.response_rank = new Array(N); ORDER.forEach((c, r) => C.response_rank[c] = r);
@@ -203,17 +203,17 @@ function initScreening() {
     scheduleRecompute();
   };
   ["g1a", "g1b", "g2v", "clt"].forEach(id => $(id).oninput = readGates); ["g1", "g2", "am", "cls"].forEach(id => $(id).onchange = readGates);
-  $("clotsu").onclick = () => { const t = FHScreen.otsuLog10(C.additional_intensity); if (Number.isFinite(t)) { $("clt").value = +t.toPrecision(4); $("cls").checked = true; readGates(); } };
+  $("clotsu").onclick = () => { const t = FHScreen.otsuLog10(C.additional_channel_intensity); if (Number.isFinite(t)) { $("clt").value = +t.toPrecision(4); $("cls").checked = true; readGates(); } };
   if (!KA) $("gate3").style.display = "none";
-  sliders.push(new HistSlider($("g1h"), { values: () => C.calibration_diff, mode: () => "between", get: () => p.baseline_calibration_diff || [+$("g1a").value, +$("g1b").value],
+  sliders.push(new HistSlider($("g1h"), { values: () => C.calibration_response, mode: () => "between", get: () => p.baseline_calibration_diff || [+$("g1a").value, +$("g1b").value],
     set: (a, b) => { $("g1a").value = a; $("g1b").value = b; $("g1").checked = true; readGates(); }, passColor: () => css("--ok") }));
-  sliders.push(new HistSlider($("g2h"), { values: () => C.baseline_dev_pop, mode: () => "abs", get: () => [p.max_baseline_deviation ?? +$("g2v").value],
+  sliders.push(new HistSlider($("g2h"), { values: () => C.baseline_offset_from_population, mode: () => "abs", get: () => [p.max_baseline_deviation ?? +$("g2v").value],
     set: (a) => { $("g2v").value = a; $("g2").checked = true; readGates(); }, passColor: () => css("--ok") }));
-  if (KA) sliders.push(new HistSlider($("clh"), { values: () => C.additional_intensity, mode: () => "gt", get log() { return S.cllog; }, get: () => [p.classification_threshold ?? NaN],
+  if (KA) sliders.push(new HistSlider($("clh"), { values: () => C.additional_channel_intensity, mode: () => "gt", get log() { return S.cllog; }, get: () => [p.classification_threshold ?? NaN],
     set: (a) => { $("clt").value = +a.toPrecision(4); $("cls").checked = true; readGates(); }, passColor: () => css("--accent") }));
   $("cllog").checked = S.cllog; $("cllog").onchange = () => { S.cllog = $("cllog").checked; updateScreenUI(); };
   $("addcrit").onclick = () => {
-    const metric = METRIC_KEYS.includes("response_max_diff") ? "response_max_diff" : METRIC_KEYS[0], s = finiteSorted(metric);
+    const metric = METRIC_KEYS.includes("peak_response") ? "peak_response" : METRIC_KEYS[0], s = finiteSorted(metric);
     p.criteria.push({ metric, op: ">", value: s.length ? +s[Math.floor(s.length / 2)].toPrecision(3) : 0, value2: null, logic: p.criteria.length ? "AND" : "OR" });
     renderCriteria(); recompute();
   };
@@ -305,8 +305,8 @@ function updateScreenUI() {
   $("funnel").title = "All cells → valid cells (pass the quality gates) → hits (valid cells that meet the criteria)";
   $("funnel").innerHTML = `<span class="frow">${bar(N, "f0", `${N} cells`)}</span><span class="frow">${bar(nv, "f1", `${nv} valid`)}</span><span class="frow">${bar(nh, "f2", `<b>${nh}</b> hits`)}</span>`;
   $("scrmod").textContent = screeningModified() ? "changed — not yet in the run output" : "";
-  $("g1n").textContent = p.baseline_calibration_diff && SCR.hasCal ? `${countFail(i => !(C.calibration_diff[i] >= p.baseline_calibration_diff[0] && C.calibration_diff[i] <= p.baseline_calibration_diff[1]))} fail` : (p.baseline_calibration_diff ? "no calibration" : "off");
-  $("g2n").textContent = p.max_baseline_deviation !== null && p.max_baseline_deviation !== undefined ? `${countFail(i => !(Math.abs(C.baseline_dev_pop[i]) <= p.max_baseline_deviation))} fail` : "off";
+  $("g1n").textContent = p.baseline_calibration_diff && SCR.hasCal ? `${countFail(i => !(C.calibration_response[i] >= p.baseline_calibration_diff[0] && C.calibration_response[i] <= p.baseline_calibration_diff[1]))} fail` : (p.baseline_calibration_diff ? "no calibration" : "off");
+  $("g2n").textContent = p.max_baseline_deviation !== null && p.max_baseline_deviation !== undefined ? `${countFail(i => !(Math.abs(C.baseline_offset_from_population[i]) <= p.max_baseline_deviation))} fail` : "off";
   if (KA) $("cln").textContent = C.class_additional ? `${C.class_additional.reduce((s, v) => s + v, 0)} positive` : "off";
   $("mancount").textContent = `${SCR.manual.size} cells`; $("usesel").textContent = `Use selection (${S.sel.size})`;
   [...$("crits").children].forEach(row => { const pass = SCR.pass[row._k]; row.querySelector(".n").textContent = pass ? `${pass.reduce((s, v) => s + v, 0)} pass` : "—"; });
@@ -332,8 +332,8 @@ async function optimizeAsync(pts, maxMs, start) {
   return r.value;
 }
 function routeLength(chunks) {
-  const useAbs = HAS_ABS && chunks.every(ch => ch.every(i => C.abs_x_m[i] !== null));
-  const pt = (i) => useAbs ? [C.abs_x_m[i], C.abs_y_m[i]] : [POSX[i], POSY[i]];
+  const useAbs = HAS_ABS && chunks.every(ch => ch.every(i => C["stage_x_(m)"][i] !== null));
+  const pt = (i) => useAbs ? [C["stage_x_(m)"][i], C["stage_y_(m)"][i]] : [POSX[i], POSY[i]];
   let length = 0;
   for (const ch of chunks) for (let j = 1; j < ch.length; j++) { const [x0, y0] = pt(ch[j - 1]), [x1, y1] = pt(ch[j]); length += Math.hypot(x1 - x0, y1 - y0); }
   return useAbs ? length : length * D.pixel_size * 1e-6;
@@ -351,8 +351,8 @@ async function computeRoute(show = true) {
   const ids = sortedHits(); if (!ids.length) { SCR.route = null; updateScreenUI(); return null; }
   SCR.routeBusy = true; updateScreenUI();
   const p = SCR.params, size = p.max_hits_per_rgn || ids.length, chunks = [];
-  const useAbs = HAS_ABS && ids.every(i => C.abs_x_m[i] !== null);
-  const pt = (i) => useAbs ? [C.abs_x_m[i], C.abs_y_m[i]] : [POSX[i], POSY[i]];
+  const useAbs = HAS_ABS && ids.every(i => C["stage_x_(m)"][i] !== null);
+  const pt = (i) => useAbs ? [C["stage_x_(m)"][i], C["stage_y_(m)"][i]] : [POSX[i], POSY[i]];
   let length = 0;
   // chained as in the run: the first route starts near the first tile of the scan, every next one near the end of the previous one
   let start = useAbs && D.route_start ? D.route_start : null;

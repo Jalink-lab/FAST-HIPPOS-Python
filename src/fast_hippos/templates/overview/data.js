@@ -16,9 +16,9 @@ const imgColor = (k) => css(`--img-${k % 8}`);
 const UNIT = D.is_lifetime ? "ns" : "";
 const hasStim = IM.some(im => im.events.stimulation !== null), hasCal = IM.some(im => im.events.calibration !== null);
 const hasPositions = SCREEN && IM.some(im => im.has_positions || im.hits.length);
-const EXTRA_TIPS = { area_um2: "Cell area in µm²", area_px: "Cell area in pixels", mean_intensity: "Mean intensity of the cell", circularity: "Circularity 4πA/P² (1 = a perfect circle)" };
+const EXTRA_TIPS = { "area_(um2)": "Cell area in µm²", "area_(px)": "Cell area in pixels", mean_intensity: "Mean intensity of the cell", circularity: "Circularity 4πA/P² (1 = a perfect circle)" };
 // the area in µm² (results of before it existed: in pixels, until they are re-applied)
-const METRIC_KEYS = [...Object.keys(D.metrics), IM.some(im => im.C.area_um2) ? "area_um2" : "area_px", "mean_intensity", "circularity"]
+const METRIC_KEYS = [...Object.keys(D.metrics), IM.some(im => im.C["area_(um2)"]) ? "area_(um2)" : "area_(px)", "mean_intensity", "circularity"]
   .filter(m => IM.some(im => im.C[m] && im.C[m].some(Number.isFinite)));
 const metricTip = (m) => tipOf(m, D.metrics[m] || EXTRA_TIPS[m] || "");
 const FLAG_LABEL = { few_cells: "few cells", low_valid: "low fraction valid", no_stimulation: "no stimulation", no_calibration: "no calibration",
@@ -26,7 +26,7 @@ const FLAG_LABEL = { few_cells: "few cells", low_valid: "low fraction valid", no
 
 const S = {
   sel: new Set(IM.slice(0, 6).map(im => im.k)), hidden: new Set(), hover: -1, last: -1, sortCol: "index", sortDir: 1,
-  metric: METRIC_KEYS.includes(D.response_metric) ? D.response_metric : (METRIC_KEYS[0] || ""), metricY: METRIC_KEYS.includes("baseline_mean") ? "baseline_mean" : (METRIC_KEYS[0] || ""),
+  metric: METRIC_KEYS.includes(D.response_metric) ? D.response_metric : (METRIC_KEYS[0] || ""), metricY: METRIC_KEYS.includes("baseline") ? "baseline" : (METRIC_KEYS[0] || ""),
   cmode: "dist", fit: "", logx: false, logy: false, align: hasStim, hitsOnly: false, sameScale: false, hitsOpen: false,
 };
 // the selected images, in the order of the table; 'shown' leaves out the curves switched off in the legend

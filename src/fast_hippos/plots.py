@@ -73,7 +73,7 @@ def hit_positions(path: Path, chunks: list[pd.DataFrame], tiles: list[tuple[floa
     colors = plt.get_cmap("tab10")
     for k, chunk in enumerate(chunks):
         ax.plot(
-            chunk["abs_x_m"] * 1e3, -chunk["abs_y_m"] * 1e3, "-o", ms=3, lw=0.6, color=colors(k % 10),
+            chunk["stage_x_(m)"] * 1e3, -chunk["stage_y_(m)"] * 1e3, "-o", ms=3, lw=0.6, color=colors(k % 10),
             label=f"hits {chunk['rank'].min()}-{chunk['rank'].max()}",
         )
     ax.set_xlabel("X (mm)")

@@ -43,9 +43,9 @@ Give each readout a name, and untick one to leave it out.
   own settings* keeps a timing for that readout of that one image.
 - **Dashboards.** *Readout* in the top bar of a dashboard switches to the other readout, at the same frame. The cell panel
   shows the trace of the other readout as a dashed line on its own scale, and the scatter plot can use its values
-  (`Calcium.response_max_diff`, or *Calcium @ frame*).
+  (`Calcium.peak_response`, or *Calcium @ frame*).
 - **Hits.** Hit criteria belong to the first readout and can use the metrics of the other one, for instance
-  `response_max_diff > 0.3` AND `Calcium.response_max_diff < 0.1`. There is one hit list and one set of `.rgn` files, and
+  `peak_response > 0.3` AND `Calcium.peak_response < 0.1`. There is one hit list and one set of `.rgn` files, and
   every readout shows the same hits.
 - **Files.** The first readout is directly in the folder of the image, a further readout in a subfolder with its name
   (`plate 1\Calcium\`). `cells.tsv` and `hits.tsv` of the first readout also hold the metrics of the other readout.

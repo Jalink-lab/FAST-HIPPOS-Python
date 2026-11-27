@@ -8,8 +8,8 @@ const KR = b64f32(D.kymo), KA = b64f32(D.additional), KOTHER = D.partner ? b64f3
 for (const k of Object.keys(C)) if (k.includes(".")) C[k] = C[k].map(v => v === null ? NaN : v);  // metrics of another readout: no value never passes
 const LUTS = {}; for (const [k, v] of Object.entries(D.luts)) LUTS[k] = b64bytes(v);
 Object.keys(C).filter(k => k.startsWith("pass_")).forEach(k => delete C[k]);  // recomputed live
-const HAS_ABS = (C.abs_x_m || []).some(v => v !== null);
-const POSX = Float64Array.from(C.pos_x_px, v => v ?? NaN), POSY = Float64Array.from(C.pos_y_px, v => v ?? NaN);
+const HAS_ABS = (C["stage_x_(m)"] || []).some(v => v !== null);
+const POSX = Float64Array.from(C["position_x_(px)"], v => v ?? NaN), POSY = Float64Array.from(C["position_y_(px)"], v => v ?? NaN);
 
 // screening state (recomputed in the browser by FHScreen = templates/screening.js, identical to Python)
 const SCR = {
@@ -82,7 +82,7 @@ function showTip(i, ev) {
   if (i < 0 || !ev) { tip.style.display = "none"; return; }
   const v = val(S.frame, i);
   tip.innerHTML = `<b>Cell ${C.cell[i]}</b> · ${fmt(v)} ${D.is_lifetime ? "ns" : ""}` + (HIT[i] ? ` · <span class="h">hit</span>` : "") +
-    (C.response_max_diff ? `<br><span class="muted">${nameOf("response_max_diff").toLowerCase()} ${fmt(C.response_max_diff[i])} · baseline ${fmt(C.baseline_mean[i])}</span>` : "");
+    (C.peak_response ? `<br><span class="muted">${nameOf("peak_response").toLowerCase()} ${fmt(C.peak_response[i])} · baseline ${fmt(C.baseline[i])}</span>` : "");
   tip.style.display = "block";
   tip.style.left = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
   tip.style.top = Math.min(ev.clientY + 14, innerHeight - tip.offsetHeight - 8) + "px";

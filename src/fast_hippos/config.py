@@ -159,8 +159,8 @@ class Criterion:
     # dashboard. Its points are in the units of the values; its edges are straight on a log axis where log_x / log_y.
     metric2: str | None = None
     polygon: list[tuple[float, float]] | None = None
-    log_x: bool = False
-    log_y: bool = False
+    log_x: bool | None = None  # (None: not a gate, or a linear axis)
+    log_y: bool | None = None
 
 
 @dataclass
@@ -168,7 +168,7 @@ class ScreeningSettings:
     enabled: bool = False
     logic: str = "OR"  # "OR" or "AND"
     criteria: list[Criterion] = field(default_factory=list)
-    # timed response window (for response_mean_abs / response_mean_diff / response_fraction)
+    # timed response window (for mean_during_response / mean_response / mean_peak_response_ratio)
     response_window: int | None = None  # frames; None (empty) = the whole response (-1 in older settings files)
     response_window_anchor: str = "before_calibration"  # or "after_stimulation"
     response_window_margin: int = 0
@@ -301,6 +301,32 @@ def _gates_for_image_type(settings: Settings, data: dict) -> Settings:
 
 
 # settings of older versions that no longer do anything: accepted in settings files, and ignored
+# The columns of the cell table (and the values in settings that name them) before 0.1.0b3: settings files and
+# results of earlier versions are read with the new names.
+RENAMED_COLUMNS = {
+    "baseline_mean": "baseline", "response_mean_diff": "mean_response", "response_max_diff": "peak_response",
+    "response_mean_abs": "mean_during_response", "response_max_abs": "peak_during_response",
+    "response_max_diff_pop": "peak_response_vs_population", "response_fraction": "mean_peak_response_ratio",
+    "rise_time_frames": "rise_time_(frames)", "rapid_response_ratio": "late_early_response_ratio",
+    "calibration_mean": "mean_during_calibration", "calibration_diff": "calibration_response",
+    "baseline_dev_pop": "baseline_offset_from_population", "additional_intensity": "additional_channel_intensity",
+    "area_um2": "area_(um2)", "area_px": "area_(px)", "centroid_x": "centroid_x_(px)", "centroid_y": "centroid_y_(px)",
+    "pos_x_px": "position_x_(px)", "pos_y_px": "position_y_(px)", "abs_x_m": "stage_x_(m)", "abs_y_m": "stage_y_(m)",
+}
+
+
+def new_column(name):
+    """The current name of a cell value named in an older file (also 'cAMP.response_max_diff')."""
+    if not isinstance(name, str):
+        return name
+    readout, dot, base = name.rpartition(".")
+    return f"{readout}.{RENAMED_COLUMNS.get(base, base)}" if dot else RENAMED_COLUMNS.get(base, base)
+
+
+# settings that name a cell value, per settings class
+_NAMES_A_COLUMN = {"Criterion": ("metric", "metric2"), "ScreeningSettings": ("sort_by",),
+                   "DisplaySettings": ("scatter_x", "scatter_y")}
+
 RETIRED = {"overlay_smooth_t"}  # the dashboard image follows the smoothing of the traces since 0.3
 
 
@@ -308,6 +334,7 @@ def _from_dict(cls, data: dict[str, Any]):
     hints = get_type_hints(cls)
     known = {f.name for f in fields(cls)}
     data = {k: v for k, v in data.items() if k not in RETIRED}
+    data |= {k: new_column(data[k]) for k in _NAMES_A_COLUMN.get(cls.__name__, ()) if data.get(k)}  # older names
     unknown = set(data) - known
     if unknown:
         section = {get_type_hints(Settings).get(f.name): f.name for f in fields(Settings)}.get(cls, cls.__name__)
@@ -386,76 +413,76 @@ def _to_plain(obj):
 
 
 METRICS = {
-    "baseline_mean": "Average lifetime of the cell before the stimulation (its baseline).",
-    "response_mean_abs": "Average lifetime of the cell in the response window (the value itself, not the change).",
-    "response_mean_diff": "Average change of the lifetime in the response window, compared with the cell's own "
+    "baseline": "Average lifetime of the cell before the stimulation (its baseline).",
+    "mean_during_response": "Average lifetime of the cell in the response window (the value itself, not the change).",
+    "mean_response": "Average change of the lifetime in the response window, compared with the cell's own "
         "baseline (lifetime − baseline).",
-    "response_fraction": "Mean response (in the response window) ÷ peak response (over the whole response). 1 = "
+    "mean_peak_response_ratio": "Mean response (in the response window) ÷ peak response (over the whole response). 1 = "
         "the cell is at its peak during the whole window; lower = only part of the time: a response that fades "
         "(transient), or one that rises slowly. With the response window at the end of the response (before C) it "
         "tells how much of its peak the cell keeps (sustained).",
-    "response_max_abs": "Highest lifetime of the cell between the stimulation and the calibration.",
-    "response_max_diff": "Largest change of the lifetime after the stimulation, compared with the cell's own baseline. "
+    "peak_during_response": "Highest lifetime of the cell between the stimulation and the calibration.",
+    "peak_response": "Largest change of the lifetime after the stimulation, compared with the cell's own baseline. "
         "The usual measure of how strongly a cell responds.",
-    "response_max_diff_pop": "Largest lifetime after the stimulation minus the average baseline of all cells (instead "
+    "peak_response_vs_population": "Largest lifetime after the stimulation minus the average baseline of all cells (instead "
         "of the cell's own baseline).",
-    "rise_time_frames": "Number of frames of the response up to and including the first frame in which the cell "
+    "rise_time_(frames)": "Number of frames of the response up to and including the first frame in which the cell "
         "reaches the rise fraction (e.g. 75 %) of its peak response (1 = already in the first frame after the "
         "stimulation). Small = fast responder. Only meaningful for cells that respond: combine it with an AND "
         "criterion on the response.",
-    "rapid_response_ratio": "Average response in the second half of the response period divided by that in the first "
+    "late_early_response_ratio": "Average response in the second half of the response period divided by that in the first "
         "half. Above 1 = still rising, below 1 = fading.",
-    "calibration_mean": "Average lifetime of the cell during the calibration (maximal stimulation).",
-    "calibration_diff": "Response to the calibration: mean during calibration − baseline. Shows whether the sensor works "
+    "mean_during_calibration": "Average lifetime of the cell during the calibration (maximal stimulation).",
+    "calibration_response": "Response to the calibration: mean during calibration − baseline. Shows whether the sensor works "
         "in this cell.",
-    "baseline_dev_pop": "How much the baseline of the cell differs from the average baseline of all cells.",
-    "additional_intensity": "Intensity of the additional channel in the cell (mean over time, or the first frame).",
+    "baseline_offset_from_population": "How much the baseline of the cell differs from the average baseline of all cells.",
+    "additional_channel_intensity": "Intensity of the additional channel in the cell (mean over time, or the first frame).",
 }
 
 # measures of the cell from the segmentation (not from its trace), which hit criteria and gates can use as well
 CELL_MEASURES = {
     "mean_intensity": "Mean intensity of the cell: the mean pixel value per frame, in the units of the image.",
-    "area_um2": "Area of the cell in µm² (its area in pixels times the pixel size squared).",
+    "area_(um2)": "Area of the cell in µm² (its area in pixels times the pixel size squared).",
     "circularity": "Roundness of the cell, 4πA/P²: 1 for a circle, lower for elongated or irregular cells.",
 }
 
 # The names shown in the pages and the window. The keys stay the names in the files (cells.tsv, settings): a
 # "response" is a change from the cell's own baseline, "during" means the value itself (e.g. the lifetime).
 METRIC_LABELS = {
-    "baseline_mean": "Baseline",
-    "response_mean_diff": "Mean response",
-    "response_max_diff": "Peak response",
-    "response_mean_abs": "Mean during response",
-    "response_max_abs": "Peak during response",
-    "response_max_diff_pop": "Peak response vs. population baseline",
-    "response_fraction": "Mean/peak response ratio",
-    "rise_time_frames": "Rise time (frames)",
-    "rapid_response_ratio": "Late/early response ratio",
-    "calibration_mean": "Mean during calibration",
-    "calibration_diff": "Calibration response",
-    "baseline_dev_pop": "Baseline offset from population",
-    "additional_intensity": "Additional channel intensity",
+    "baseline": "Baseline",
+    "mean_response": "Mean response",
+    "peak_response": "Peak response",
+    "mean_during_response": "Mean during response",
+    "peak_during_response": "Peak during response",
+    "peak_response_vs_population": "Peak response vs. population baseline",
+    "mean_peak_response_ratio": "Mean/peak response ratio",
+    "rise_time_(frames)": "Rise time (frames)",
+    "late_early_response_ratio": "Late/early response ratio",
+    "mean_during_calibration": "Mean during calibration",
+    "calibration_response": "Calibration response",
+    "baseline_offset_from_population": "Baseline offset from population",
+    "additional_channel_intensity": "Additional channel intensity",
     "mean_intensity": "Mean intensity",
-    "area_um2": "Area (µm²)",
-    "area_px": "Area (pixels)",
+    "area_(um2)": "Area (µm²)",
+    "area_(px)": "Area (pixels)",
     "circularity": "Circularity",
     "class_additional": "Additional channel class",
     "response_rank": "Response rank",
     "valid": "Valid", "hit": "Hit",
-    "centroid_x": "Centre x (px)", "centroid_y": "Centre y (px)",
-    "pos_x_px": "Position x (px)", "pos_y_px": "Position y (px)",
-    "abs_x_m": "Stage x (m)", "abs_y_m": "Stage y (m)",
+    "centroid_x_(px)": "Centre x (px)", "centroid_y_(px)": "Centre y (px)",
+    "position_x_(px)": "Position x (px)", "position_y_(px)": "Position y (px)",
+    "stage_x_(m)": "Stage x (m)", "stage_y_(m)": "Stage y (m)",
 }
 # what the labels mean, for the tooltips (the metrics and measures above, and the other columns of the cell table)
 METRIC_TIPS = {**METRICS, **CELL_MEASURES,
-               "area_px": "Area of the cell in pixels.",
+               "area_(px)": "Area of the cell in pixels.",
                "class_additional": "1 when the cell is positive for the additional channel (classification on), else 0.",
                "response_rank": "Rank of the cell in the order of mean response (0 = lowest).",
-               "centroid_x": "Centre of the cell in the image (pixels).", "centroid_y": "Centre of the cell in the image (pixels).",
-               "pos_x_px": "The position used for the hit: the centre of the cell, or of its nucleus (pixels).",
-               "pos_y_px": "The position used for the hit: the centre of the cell, or of its nucleus (pixels).",
-               "abs_x_m": "The position of the hit as a stage position (metres), as in the .rgn files.",
-               "abs_y_m": "The position of the hit as a stage position (metres), as in the .rgn files."}
+               "centroid_x_(px)": "Centre of the cell in the image (pixels).", "centroid_y_(px)": "Centre of the cell in the image (pixels).",
+               "position_x_(px)": "The position used for the hit: the centre of the cell, or of its nucleus (pixels).",
+               "position_y_(px)": "The position used for the hit: the centre of the cell, or of its nucleus (pixels).",
+               "stage_x_(m)": "The position of the hit as a stage position (metres), as in the .rgn files.",
+               "stage_y_(m)": "The position of the hit as a stage position (metres), as in the .rgn files."}
 
 
 def page_names() -> dict:

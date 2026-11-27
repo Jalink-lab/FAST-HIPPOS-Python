@@ -27,8 +27,8 @@ cellpose_model = "cyto3"       # or "cpsam" (Cellpose 4)
 [screening]
 enabled = true
 criteria = [
-  { metric = "response_mean_diff", op = "<", value = 0.6, logic = "AND" },
-  { metric = "baseline_mean",      op = "<", value = 2.6, logic = "AND" },
+  { metric = "mean_response", op = "<", value = 0.6, logic = "AND" },
+  { metric = "baseline",      op = "<", value = 2.6, logic = "AND" },
 ]
 ```
 

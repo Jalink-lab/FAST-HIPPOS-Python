@@ -106,9 +106,9 @@ def test_reapply_uses_changed_rgn_axes(tmp_path):
     s.screening.enabled = True
     s.screening.stage_positions_file = tmp_path / "pos.txt"
     s.screening.stage_positions_file.write_text("0.001 0.002\n")
-    a = run(s)[0].cells[["abs_x_m", "abs_y_m"]].to_numpy()
+    a = run(s)[0].cells[["stage_x_(m)", "stage_y_(m)"]].to_numpy()
     s.screening.rgn_swap_xy = False
-    b = run(s, reapply=True)[0].cells[["abs_x_m", "abs_y_m"]].to_numpy()
+    b = run(s, reapply=True)[0].cells[["stage_x_(m)", "stage_y_(m)"]].to_numpy()
     assert np.nanmean(a[:, 0]) < -0.0015 and np.nanmean(b[:, 0]) < -0.0005 and np.nanmean(b[:, 0]) > -0.0015
 
 

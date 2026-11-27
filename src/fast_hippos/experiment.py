@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import __version__
-from .config import page_names
+from .config import new_column, page_names
 from .overview import QC, _flags, _level, summary_table
 
 log = logging.getLogger(__name__)
@@ -99,7 +99,23 @@ def read_overview_data(index_html: Path) -> dict:
     m = re.search(r'<script id="fh-data" type="application/json">(.*?)</script>', page, re.DOTALL)
     if not m:
         raise ValueError(f"{index_html}: no overview data")
-    return json.loads(m.group(1).replace("<\\/", "</"))
+    return _current_names(json.loads(m.group(1).replace("<\\/", "</")))
+
+
+def _current_names(data: dict) -> dict:
+    """Overview data of an earlier version: its cell values under their current names (config.RENAMED_COLUMNS)."""
+    for im in data.get("images", []):
+        if isinstance(im.get("cells"), dict):
+            im["cells"] = {new_column(k): v for k, v in im["cells"].items()}
+    if isinstance(data.get("metrics"), dict):
+        data["metrics"] = {new_column(k): v for k, v in data["metrics"].items()}
+    if data.get("response_metric"):
+        data["response_metric"] = new_column(data["response_metric"])
+    for c in data.get("criteria", []):
+        for k in ("metric", "metric2"):
+            if c.get(k):
+                c[k] = new_column(c[k])
+    return data
 
 
 def comparable_settings(settings: dict) -> dict[str, object]:
@@ -232,7 +248,7 @@ def build_experiment_data(experiment: Path, failed: list[str] | None = None) -> 
     return {
         "version": __version__, "names": page_names(), "kind": "experiment", "title": experiment.name, "screening": screening,
         "unit": base.get("unit", ""), "is_lifetime": base.get("is_lifetime", False),
-        "response_metric": base.get("response_metric", "response_max_diff"), "criteria": base.get("criteria", []),
+        "response_metric": base.get("response_metric", "peak_response"), "criteria": base.get("criteria", []),
         "max_hits_per_rgn": base.get("max_hits_per_rgn", 1000), "optimize_path": base.get("optimize_path", True),
         "metrics": base.get("metrics", {}), "qc": QC, "bands": base.get("bands", []), "max_cells": base.get("max_cells"),
         "y_range": [min(y_lo), max(y_hi)] if y_lo else [0, 1],

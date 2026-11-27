@@ -456,7 +456,7 @@ function zoomAt(mx, my, f) {
 }
 function cellBox(i) {
   if (C.bbox_x0 && C.bbox_x0[i] !== null) return [C.bbox_x0[i], C.bbox_y0[i], C.bbox_x1[i], C.bbox_y1[i]];
-  const r = Math.sqrt((C.area_px[i] || 100) / Math.PI) * 1.2; return [POSX[i] - r, POSY[i] - r, POSX[i] + r, POSY[i] + r];
+  const r = Math.sqrt((C["area_(px)"][i] || 100) / Math.PI) * 1.2; return [POSX[i] - r, POSY[i] - r, POSX[i] + r, POSY[i] + r];
 }
 function zoomTo(ids) {
   if (!ids.length) return;

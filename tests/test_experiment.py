@@ -34,7 +34,7 @@ def experiment(tmp_path_factory):
         s.segmentation.diameter = 18
         s.segmentation.min_cell_size = 30
         s.screening.enabled = True
-        s.screening.criteria = [Criterion("response_max_diff", ">", threshold)]
+        s.screening.criteria = [Criterion("peak_response", ">", threshold)]
         run(s)
     return exp
 
@@ -82,7 +82,7 @@ def test_in_experiment(tmp_path):
 def test_reapply_to_all_samples_makes_them_the_same(experiment):
     s = Settings()
     s.screening.enabled = True
-    s.screening.criteria = [Criterion("response_max_diff", ">", 0.25)]
+    s.screening.criteria = [Criterion("peak_response", ">", 0.25)]
     assert reapply_experiment(experiment, s.to_dict()) == []
     data = read_overview_data(experiment / "index.html")
     assert data["differences"] == [] and not any("same settings" in n for n in data["notes"])
@@ -144,7 +144,7 @@ def test_reapply_keeps_the_gates_of_another_image_type(experiment, tmp_path):
     used["screening"]["max_baseline_deviation"] = None
     (ratio / "settings_used.json").write_text(json.dumps(used))
     s = Settings()  # tcspc, with the default lifetime gates
-    s.screening.criteria = [Criterion("response_max_diff", ">", 0.4)]
+    s.screening.criteria = [Criterion("peak_response", ">", 0.4)]
     merged = reapply_settings(ratio, s.to_dict())
     assert merged["screening"]["baseline_calibration_diff"] is None and merged["screening"]["max_baseline_deviation"] is None
     assert merged["screening"]["criteria"] == used["screening"]["criteria"]  # in the units of the ratio sample
@@ -303,7 +303,7 @@ def _two_readouts(monkeypatch, tmp_path):
     s.screening.enabled = True
     s.screening.baseline_calibration_diff = None
     s.screening.max_baseline_deviation = None
-    s.screening.criteria = [Criterion("Calcium.response_max_diff", ">", 0.1)]
+    s.screening.criteria = [Criterion("Calcium.peak_response", ">", 0.1)]
     return s, [{"file": str(file), "series": None, "name": "image", "label": None}], tmp_path / "screen" / "image"
 
 
@@ -318,7 +318,7 @@ def test_two_readouts_share_cells_and_hits(tmp_path, monkeypatch):
     assert run_samples(s, samples) == []
     first, second = (pd.read_csv(d / "cells.tsv", sep="\t") for d in (image, image / "Calcium"))
     assert len(first) == len(second) and first["hit"].any() and (first["hit"] == second["hit"]).all()
-    assert np.allclose(first["Calcium.response_max_diff"], second["response_max_diff"], equal_nan=True)
+    assert np.allclose(first["Calcium.peak_response"], second["peak_response"], equal_nan=True)
     assert json.loads((image / "Calcium" / "events.json").read_text())["stimulation"] == 30
     assert [i["folder"] for i in run_info(image)["images"]] == ["."]  # the readout is not another image
     assert "Calcium" in clear_plan(image)["folders"]
@@ -327,7 +327,7 @@ def test_two_readouts_share_cells_and_hits(tmp_path, monkeypatch):
     assert '"overview_href":"../../index.html"' in page and '"href":"../dashboard.html"' in page
 
     assert reapply_experiment(s.input.experiment, {"screening": {"criteria": [
-        {"metric": "Calcium.response_max_diff", "op": ">", "value": 99.0}]}}) == []
+        {"metric": "Calcium.peak_response", "op": ">", "value": 99.0}]}}) == []
     assert not pd.read_csv(image / "cells.tsv", sep="\t")["hit"].any()
     assert not pd.read_csv(image / "Calcium" / "cells.tsv", sep="\t")["hit"].any()
 

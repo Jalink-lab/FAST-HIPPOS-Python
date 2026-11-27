@@ -68,19 +68,19 @@ response_window_margin = 0
 baseline_calibration_diff = [0.5, 1.0]          # gate: calibration - baseline (ns); [] = off
 max_baseline_deviation = 0.2                    # ("" = off) gate: |baseline - population baseline| (ns)
 classify_additional_channel = false
-sort_by = "response_max_diff"
+sort_by = "peak_response"
 sort_descending = true
 # stage_positions_file = "experiment.lif"       # or a text file with x0 y0 x1 y1 ... (m)
 max_hits_per_rgn = 1000
 optimize_path = true
 max_optimization_time = 5.0
 
-# Metrics: baseline_mean, response_mean_abs, response_mean_diff, response_fraction, response_max_abs,
-# response_max_diff, response_max_diff_pop, rise_time_frames, rapid_response_ratio, calibration_mean,
-# calibration_diff, additional_intensity
+# Metrics: baseline, mean_during_response, mean_response, mean_peak_response_ratio, peak_during_response,
+# peak_response, peak_response_vs_population, rise_time_(frames), late_early_response_ratio, mean_during_calibration,
+# calibration_response, additional_channel_intensity
 # Each criterion: AND = required; OR = at least one of the OR criteria must pass.
 [[screening.criteria]]
-metric = "response_max_diff"
+metric = "peak_response"
 op = ">"                              # < | > | between (with value2)
 value = 0.3
 logic = "AND"

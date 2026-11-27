@@ -8,7 +8,7 @@ import html
 from pathlib import Path
 
 from fast_hippos import gui
-from fast_hippos.config import CELL_MEASURES, METRICS, metric_label
+from fast_hippos.config import CELL_MEASURES, METRICS, RENAMED_COLUMNS, metric_label
 
 REF = Path(__file__).resolve().parents[2] / "manual" / "reference"
 
@@ -81,21 +81,27 @@ def metrics_page() -> str:
     out += ["", "## Other columns of the tables", "",
             "In `cells.tsv` and in the Cells table of the dashboard; not for criteria.", "", *head]
     out += [row(k, v) for k, v in OTHER_VALUES.items() if k not in CELL_MEASURES]
+    out += ["", "## Column names of earlier versions", "",
+            ("Before version 0.1.0b3 the columns had other names. FAST-HIPPOS reads settings files and results of earlier "
+             "versions with the new names (re-applying an image writes its tables with them); scripts of your own that "
+             "read the tables need the new names."), "",
+            "| Before 0.1.0b3 | Now |", "|---|---|"]
+    out += [f"| `{old}` | `{new}` |" for old, new in RENAMED_COLUMNS.items()]
     return "\n".join(out) + "\n"
 
 
-LABELS_OF = {"centroid_x, centroid_y": "Centre x, y (px)", "pos_x_px, pos_y_px": "Position x, y (px)",
-             "abs_x_m, abs_y_m": "Stage x, y (m)"}
+LABELS_OF = {"centroid_x_(px), centroid_y_(px)": "Centre x, y (px)", "position_x_(px), position_y_(px)": "Position x, y (px)",
+             "stage_x_(m), stage_y_(m)": "Stage x, y (m)"}
 OTHER_VALUES = {
-    "area_um2": "Size of the cell in µm²: the area in pixels times the pixel size squared.",
+    "area_(um2)": "Size of the cell in µm²: the area in pixels times the pixel size squared.",
     "mean_intensity": "Mean pixel value of the cell per frame, over the frames used for the segmentation, in the units "
         "of the image (photon counts or amplitudes). The *Minimum cell intensity* filter uses the same value.",
     "circularity": "4π · area / perimeter²: 1 for a circle, lower for irregular shapes.",
-    "area_px": "Size of the cell in pixels.",
-    "centroid_x, centroid_y": "Centre of the cell in the image (pixels).",
-    "pos_x_px, pos_y_px": "The position used for the hit: the centre of the cell, or of its nucleus with a nuclei "
+    "area_(px)": "Size of the cell in pixels.",
+    "centroid_x_(px), centroid_y_(px)": "Centre of the cell in the image (pixels).",
+    "position_x_(px), position_y_(px)": "The position used for the hit: the centre of the cell, or of its nucleus with a nuclei "
         "classifier (pixels).",
-    "abs_x_m, abs_y_m": "That position as a stage position (metres), as written to the .rgn files: in the frame of "
+    "stage_x_(m), stage_y_(m)": "That position as a stage position (metres), as written to the .rgn files: in the frame of "
         "the LAS X Navigator (see [Back to the microscope](../guide/microscope.md#stage-coordinates-and-the-rgn-frame)).",
     "class_additional": "1 when the cell is positive for the additional channel (classification on), else 0.",
     "valid": "The cell passes the quality gates.",

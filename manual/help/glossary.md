@@ -12,7 +12,7 @@ Calibration
     quality gates.
 
 Criterion
-:   A condition on a cell value, such as `response_mean_diff < 0.6`. AND criteria must all pass; of the OR criteria
+:   A condition on a cell value, such as `mean_response < 0.6`. AND criteria must all pass; of the OR criteria
     one is enough.
 
 Dashboard

@@ -71,7 +71,7 @@ UNUSED_TILES = ("not used by the Python version: the tile layout and overlap com
 # what the scatter plot of the dashboard can show on an axis
 SCATTER_AXES = {"value_at_frame": "lifetime (or ratio) at the current frame",
                 "additional_at_frame": "additional channel at the current frame",
-                **{k: metric_label(k) for k in (*METRICS, "mean_intensity", "area_um2", "area_px", "circularity")}}
+                **{k: metric_label(k) for k in (*METRICS, "mean_intensity", "area_(um2)", "area_(px)", "circularity")}}
 
 # label, help, level ("basic" or "advanced"), optional: widget, choices, show (field -> allowed values).
 # Settings that are not listed here are shown in the advanced tab with a generated label.
@@ -379,7 +379,7 @@ TIPS: dict[str, str] = {
     "screening.enabled": "Leica data only (.lif, or TIFFs and tiles exported from LAS X). "
         "Select hit cells with the criteria and write their stage positions to .rgn files for "
         "LAS X, to revisit them on the microscope.",
-    "screening.criteria": "Conditions that a cell must meet to be a hit, e.g. response_max_diff > 0.3. AND: must "
+    "screening.criteria": "Conditions that a cell must meet to be a hit, e.g. peak_response > 0.3. AND: must "
         "pass. OR: at least one of the OR criteria must pass. Hover over a metric for its meaning; thresholds can be "
         "tuned later in the dashboard.",
     "screening.stage_positions_file": "For images without stage positions of their own. A text file with the stage "

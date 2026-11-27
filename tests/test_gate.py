@@ -74,7 +74,7 @@ def test_log_edges_are_straight_in_log_space():
 
 def test_find_hits_with_a_gate_and_a_threshold():
     x, y = _points(500, seed=2)
-    df = pd.DataFrame({"a": x, "b": y, "baseline_mean": 1.0, "calibration_diff": 0.8, "baseline_dev_pop": 0.0})
+    df = pd.DataFrame({"a": x, "b": y, "baseline": 1.0, "calibration_response": 0.8, "baseline_offset_from_population": 0.0})
     sc = ScreeningSettings(enabled=True, baseline_calibration_diff=None, max_baseline_deviation=None,
                            criteria=[_crit(SQUARE), Criterion("a", ">", 2, logic="AND")])
     out = screening.find_hits(df, sc, has_calibration=False)
@@ -83,19 +83,19 @@ def test_find_hits_with_a_gate_and_a_threshold():
 
 
 def test_criteria_on_cell_measures():
-    """Criteria and gates can also use the measures of the segmentation (mean_intensity, area_um2, circularity)."""
+    """Criteria and gates can also use the measures of the segmentation (mean_intensity, area_(um2), circularity)."""
     from fast_hippos.config import CELL_MEASURES
 
     x, y = _points(400, seed=3)
-    df = pd.DataFrame({"mean_intensity": np.exp(x), "response_max_abs": y, "area_um2": 100.0, "baseline_mean": 1.0})
+    df = pd.DataFrame({"mean_intensity": np.exp(x), "peak_during_response": y, "area_(um2)": 100.0, "baseline": 1.0})
     sc = ScreeningSettings(enabled=True, baseline_calibration_diff=None, max_baseline_deviation=None, criteria=[
-        Criterion("mean_intensity", "inside", metric2="response_max_abs", polygon=[(3, 1), (60, 1), (60, 3), (3, 3)],
+        Criterion("mean_intensity", "inside", metric2="peak_during_response", polygon=[(3, 1), (60, 1), (60, 3), (3, 3)],
                   log_x=True, logic="AND"),
-        Criterion("area_um2", ">", 50.0, logic="AND")])
+        Criterion("area_(um2)", ">", 50.0, logic="AND")])
     out = screening.find_hits(df, sc, has_calibration=False)
     expected = screening.in_polygon(np.exp(x), y, [(3, 1), (60, 1), (60, 3), (3, 3)], log_x=True)
     assert (out["hit"].to_numpy() == expected).all() and expected.sum() > 10
-    assert set(CELL_MEASURES) == {"mean_intensity", "area_um2", "circularity"}
+    assert set(CELL_MEASURES) == {"mean_intensity", "area_(um2)", "circularity"}
     with pytest.raises(ValueError, match="circularity"):  # the message names the measures too
         screening.find_hits(df, ScreeningSettings(enabled=True, baseline_calibration_diff=None, max_baseline_deviation=None,
                                                   criteria=[Criterion("nonsense", ">", 1.0)]), False)
@@ -126,11 +126,11 @@ def test_unusable_gates():
 def test_area_in_square_micrometres():
     from fast_hippos.pipeline import with_area_um2
 
-    base = pd.DataFrame({"cell": [1, 2], "area_px": [100, 250], "mean_intensity": [1.0, 2.0]})
+    base = pd.DataFrame({"cell": [1, 2], "area_(px)": [100, 250], "mean_intensity": [1.0, 2.0]})
     out = with_area_um2(base, 0.5)
-    assert list(out.columns) == ["cell", "area_px", "area_um2", "mean_intensity"]
-    assert out["area_um2"].tolist() == [25.0, 62.5]
-    assert with_area_um2(out, 2.0)["area_um2"].tolist() == [25.0, 62.5]  # an existing value is kept
+    assert list(out.columns) == ["cell", "area_(px)", "area_(um2)", "mean_intensity"]
+    assert out["area_(um2)"].tolist() == [25.0, 62.5]
+    assert with_area_um2(out, 2.0)["area_(um2)"].tolist() == [25.0, 62.5]  # an existing value is kept
 
 
 def test_readable_names():
@@ -140,6 +140,51 @@ def test_readable_names():
     for key in [*METRICS, *CELL_MEASURES]:
         assert key in METRIC_LABELS and key in METRIC_TIPS, key
     assert not [n for n in METRIC_LABELS.values() if "_" in n]
-    assert metric_label("area_um2") == "Area (µm²)"
-    assert metric_label("cAMP.response_max_diff") == "cAMP · Peak response"
+    assert metric_label("area_(um2)") == "Area (µm²)"
+    assert metric_label("cAMP.peak_response") == "cAMP · Peak response"
     assert metric_label("something_new") == "something new"
+
+
+def test_settings_of_older_versions_get_the_new_column_names(tmp_path):
+    """Before 0.1.0b3 the columns had other names (response_max_diff, area_um2): settings files that name them are
+    read with the current names, also in gates, readout values and the sort / scatter choices."""
+    path = tmp_path / "old.toml"
+    path.write_text("""
+[screening]
+sort_by = "response_max_diff"
+criteria = [
+  { metric = "response_max_abs", op = "<", value = 3.1, logic = "AND" },
+  { metric = "additional_intensity", metric2 = "cAMP.response_max_diff", op = "inside", logic = "AND", polygon = [[1, 1], [2, 1], [2, 2]] },
+]
+[display]
+scatter_x = "area_um2"
+scatter_y = "value_at_frame"
+""", encoding="utf-8")
+    s = Settings.from_toml(path)
+    assert [c.metric for c in s.screening.criteria] == ["peak_during_response", "additional_channel_intensity"]
+    assert s.screening.criteria[1].metric2 == "cAMP.peak_response"
+    assert s.screening.sort_by == "peak_response"
+    assert (s.display.scatter_x, s.display.scatter_y) == ("area_(um2)", "value_at_frame")
+
+
+def test_results_of_older_versions_get_the_new_column_names(tmp_path):
+    from fast_hippos.config import RENAMED_COLUMNS
+    from fast_hippos.experiment import _current_names
+    from fast_hippos.pipeline import with_area_um2
+
+    base = pd.DataFrame({"cell": [1], "area_px": [100], "pos_x_px": [5.0], "abs_x_m": [0.01]}).rename(columns=RENAMED_COLUMNS)
+    assert list(with_area_um2(base, 0.5).columns) == ["cell", "area_(px)", "area_(um2)", "position_x_(px)", "stage_x_(m)"]
+    data = _current_names({"images": [{"cells": {"baseline_mean": "x", "hit": "y"}}], "response_metric": "response_max_diff",
+                           "criteria": [{"metric": "rise_time_frames", "op": ">", "value": 2}], "metrics": {"calibration_diff": "d"}})
+    assert set(data["images"][0]["cells"]) == {"baseline", "hit"}
+    assert data["response_metric"] == "peak_response" and data["criteria"][0]["metric"] == "rise_time_(frames)"
+    assert list(data["metrics"]) == ["calibration_response"]
+
+
+def test_no_column_name_has_a_space():
+    """Column names in the files: no spaces, units in brackets (rise_time_(frames)); the old names all map to one."""
+    from fast_hippos.config import CELL_MEASURES, METRICS, RENAMED_COLUMNS
+
+    for name in [*METRICS, *CELL_MEASURES, *RENAMED_COLUMNS.values()]:
+        assert " " not in name, name
+    assert set(METRICS) <= set(RENAMED_COLUMNS.values())  # every value of the response had an older name

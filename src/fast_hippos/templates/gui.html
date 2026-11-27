@@ -889,7 +889,7 @@ document.addEventListener("click", async (e) => {
     if (S.input.output) api("unown", { output: S.input.output, image: name }).catch(() => {});
     toast(`Own settings of ${name} removed: Re-apply screening or Run analysis to use the settings above for it`, 4500); return;
   }
-  if (b.hasAttribute("data-addcrit")) { S.screening.criteria.push({ metric: "response_max_diff", op: ">", value: 0.3, value2: null, logic: "AND" }); render(); return; }
+  if (b.hasAttribute("data-addcrit")) { S.screening.criteria.push({ metric: "peak_response", op: ">", value: 0.3, value2: null, logic: "AND" }); render(); return; }
   const crit = b.closest("[data-crit]");
   if (crit) {
     const i = +crit.dataset.crit, c = S.screening.criteria[i];
@@ -1081,7 +1081,7 @@ function readoutMetrics() {  // metrics of the further readouts, for the hit cri
   const used = (S.input.readouts || []).filter(r => r.use);
   return used.slice(1).flatMap(r => READOUT_METRICS.map(m => `${r.name || "ch" + r.channel}.${m}`));
 }
-const READOUT_METRICS = ["baseline_mean", "response_mean_abs", "response_mean_diff", "response_max_abs", "response_max_diff", "response_fraction", "rise_time_frames", "rapid_response_ratio", "calibration_mean", "calibration_diff"];
+const READOUT_METRICS = ["baseline", "mean_during_response", "mean_response", "peak_during_response", "peak_response", "mean_peak_response_ratio", "rise_time_(frames)", "late_early_response_ratio", "mean_during_calibration", "calibration_response"];
 // the table follows the fits of the ticked images; τ₁ and τ₂ show those of the first readout, and come back afterwards
 let TAU_BEFORE = null;
 function syncReadouts() {

@@ -204,7 +204,7 @@ def _demo(out: Path) -> int:
     s.segmentation.diameter = 18
     s.display.smooth_traces = 1
     s.screening.enabled = True
-    s.screening.criteria = [Criterion("response_max_diff", ">", 0.2)]
+    s.screening.criteria = [Criterion("peak_response", ">", 0.2)]
     s.screening.stage_positions_file = out / "stage_positions.txt"
     s.screening.classify_additional_channel = True
     results = run(s)

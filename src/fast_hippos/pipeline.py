@@ -17,15 +17,15 @@ import numpy as np
 import pandas as pd
 
 from . import __version__, events, kymograph, modalities, plots, preprocess, screening, segmentation, stage
-from .config import GATES, Modality, Settings
+from .config import GATES, RENAMED_COLUMNS, Modality, Settings
 from .io import ImageData, iter_images, safe_name, write_tiff
 from .viewer_data import ViewerData, prepare
 
 log = logging.getLogger("fast_hippos")
 
 BASE_COLUMNS = [
-    "image", "tile", "cell", "area_px", "area_um2", "mean_intensity", "circularity", "centroid_x", "centroid_y",
-    "pos_x_px", "pos_y_px", "abs_x_m", "abs_y_m",
+    "image", "tile", "cell", "area_(px)", "area_(um2)", "mean_intensity", "circularity", "centroid_x_(px)", "centroid_y_(px)",
+    "position_x_(px)", "position_y_(px)", "stage_x_(m)", "stage_y_(m)",
 ]
 
 
@@ -673,7 +673,7 @@ def process_image(
         additional = kymograph.mean_intensity(image.channel(s_in.additional_channel), labels)
 
     # positions
-    centroids = stats[["centroid_x", "centroid_y"]].to_numpy()
+    centroids = stats[["centroid_x_(px)", "centroid_y_(px)"]].to_numpy()
     positions = centroids
     if s_seg.classifier:
         from .pixel_classifier import predict_probability
@@ -692,14 +692,14 @@ def process_image(
     _stage_geometry(result, image, positions_all, settings, override)
     base = pd.DataFrame({
         "image": image.name, "tile": index, "cell": stats["label"].to_numpy(),
-        "area_px": stats["area_px"].to_numpy(), "mean_intensity": stats["mean_intensity"].to_numpy(),
+        "area_(px)": stats["area_(px)"].to_numpy(), "mean_intensity": stats["mean_intensity"].to_numpy(),
         "circularity": stats["circularity"].to_numpy(),
-        "centroid_x": centroids[:, 0], "centroid_y": centroids[:, 1],
-        "pos_x_px": positions[:, 0], "pos_y_px": positions[:, 1],
+        "centroid_x_(px)": centroids[:, 0], "centroid_y_(px)": centroids[:, 1],
+        "position_x_(px)": positions[:, 0], "position_y_(px)": positions[:, 1],
         **{c: stats[c].to_numpy() for c in ("bbox_x0", "bbox_y0", "bbox_x1", "bbox_y1")},
     })
     base = with_area_um2(base, pixel_size)
-    base["abs_x_m"] = base["abs_y_m"] = np.nan  # filled in by analyze (stage_to_rgn)
+    base["stage_x_(m)"] = base["stage_y_(m)"] = np.nan  # filled in by analyze (stage_to_rgn)
     result.base = base
     further = []  # (result, its images): the further readouts, on the same cells
     if readouts:
@@ -807,8 +807,8 @@ def _further_settings(settings: Settings) -> Settings:
     return s
 
 
-READOUT_METRICS = ("baseline_mean", "response_mean_abs", "response_mean_diff", "response_max_abs", "response_max_diff",
-                   "response_fraction", "rise_time_frames", "rapid_response_ratio", "calibration_mean", "calibration_diff")
+READOUT_METRICS = ("baseline", "mean_during_response", "mean_response", "peak_during_response", "peak_response",
+                   "mean_peak_response_ratio", "rise_time_(frames)", "late_early_response_ratio", "mean_during_calibration", "calibration_response")
 
 
 def _metrics_of(result: ImageResult) -> pd.DataFrame:
@@ -860,16 +860,16 @@ def _stage_geometry(result: ImageResult, image: ImageData, positions_all: np.nda
 
 
 def stage_to_rgn(result: ImageResult, sc) -> None:
-    """The stage positions of the cells (abs_x_m, abs_y_m, the coordinates of the .rgn files), from their pixel
+    """The stage positions of the cells (stage_x_(m), stage_y_(m), the coordinates of the .rgn files), from their pixel
     positions and the stage position of the image, with the axis convention of the settings."""
     base = result.base
-    if result.stage_xy is None or result.tile_size is None or "pos_x_px" not in base:
-        base["abs_x_m"] = base["abs_y_m"] = np.nan
+    if result.stage_xy is None or result.tile_size is None or "position_x_(px)" not in base:
+        base["stage_x_(m)"] = base["stage_y_(m)"] = np.nan
         return
-    xy = base[["pos_x_px", "pos_y_px"]].to_numpy(dtype=float)
+    xy = base[["position_x_(px)", "position_y_(px)"]].to_numpy(dtype=float)
     absolute = stage.absolute_positions(xy, np.asarray(result.stage_xy), result.tile_size, result.pixel_size,
                                         sc.rgn_swap_xy, sc.rgn_invert_x, sc.rgn_invert_y)
-    base["abs_x_m"], base["abs_y_m"] = absolute[:, 0], absolute[:, 1]
+    base["stage_x_(m)"], base["stage_y_(m)"] = absolute[:, 0], absolute[:, 1]
 
 
 def analyze(result: ImageResult, settings: Settings) -> None:
@@ -906,7 +906,7 @@ def _analyze_one(result: ImageResult, settings: Settings, linked: pd.DataFrame |
         cells = pd.concat([cells, linked], axis=1)
     if result.additional is not None and sc.classify_additional_channel:
         cells["class_additional"], result.classification_threshold = screening.classify_additional(
-            cells["additional_intensity"], sc.classification_threshold
+            cells["additional_channel_intensity"], sc.classification_threshold
         )
     has_cal = ev.calibration_window.stop > ev.calibration_window.start
     if sc.enabled and sc.manual_hits:
@@ -973,10 +973,10 @@ def save_tables(result: ImageResult, settings: Settings) -> None:
 
 
 def with_area_um2(base: pd.DataFrame, pixel_size: float) -> pd.DataFrame:
-    """The cell area in µm² (area_px x pixel size²) next to area_px; also for results saved before it existed."""
-    if "area_px" in base and "area_um2" not in base:
+    """The cell area in µm² (area_(px) x pixel size²) next to area_(px); also for results saved before it existed."""
+    if "area_(px)" in base and "area_(um2)" not in base:
         base = base.copy()
-        base.insert(base.columns.get_loc("area_px") + 1, "area_um2", base["area_px"] * float(pixel_size) ** 2)
+        base.insert(base.columns.get_loc("area_(px)") + 1, "area_(um2)", base["area_(px)"] * float(pixel_size) ** 2)
     return base
 
 
@@ -989,7 +989,7 @@ def load_result(d: Path) -> ImageResult:
         name=meta["name"], out_dir=d, index=meta["index"], pixel_size=meta["pixel_size_um"],
         frame_interval=meta["frame_interval_s"], shape=tuple(meta["shape"]), unit=meta["unit"],
         kymo=kymo, kymo_smoothed=kymo, additional=additional,
-        base=with_area_um2(pd.read_csv(d / "cells_base.tsv", sep="\t"), meta["pixel_size_um"]),
+        base=with_area_um2(pd.read_csv(d / "cells_base.tsv", sep="\t").rename(columns=RENAMED_COLUMNS), meta["pixel_size_um"]),
         stage_xy=tuple(meta["stage_xy_m"]) if meta["stage_xy_m"] else None,
         tile_size=tuple(meta["tile_size_m"]) if meta["tile_size_m"] else None,
         tiles=[tuple(t) for t in meta["tiles"]], stage_info_block=meta["stage_info_block"],
@@ -1035,7 +1035,7 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
             p.unlink()
     all_cells = pd.concat([r.cells for r in results], ignore_index=True)
     coord_cols = [c for c in BASE_COLUMNS if c in all_cells.columns] + (
-        ["additional_intensity"] if "additional_intensity" in all_cells else []
+        ["additional_channel_intensity"] if "additional_channel_intensity" in all_cells else []
     ) + (["class_additional"] if "class_additional" in all_cells else [])
     all_cells[coord_cols].to_csv(out / "cell_coordinates.tsv", sep="\t", index=False, float_format="%.10g")
 
@@ -1054,10 +1054,10 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
                 log.warning("No stage position for %s: its %d hit%s are not in the .rgn files", name, n, "s" if n > 1 else "")
         hits = hits[~left_out]
     known = [r for r in results if r.stage_known] or results
-    have_positions = hits[["abs_x_m", "abs_y_m"]].notna().all(axis=None) if len(hits) else False
+    have_positions = hits[["stage_x_(m)", "stage_y_(m)"]].notna().all(axis=None) if len(hits) else False
     chunks: list[pd.DataFrame] = []
     if len(hits) and have_positions:
-        stage.write_rgn(out / f"HITS_{run_name}.rgn", hits[["abs_x_m", "abs_y_m"]].to_numpy())
+        stage.write_rgn(out / f"HITS_{run_name}.rgn", hits[["stage_x_(m)", "stage_y_(m)"]].to_numpy())
         size = max(1, sc.max_hits_per_rgn)
         # the routes are chained: the first starts near the first tile of the scan, every next one near the end
         # of the previous one
@@ -1067,13 +1067,13 @@ def write_screening_outputs(results: list[ImageResult], settings: Settings, out:
             chunk = hits.iloc[k * size : (k + 1) * size]
             a, b = k * size + 1, k * size + len(chunk)
             if sc.optimize_path and len(chunk) > 2:
-                order = stage.optimize_path(chunk[["abs_x_m", "abs_y_m"]].to_numpy(), sc.max_optimization_time, start)
+                order = stage.optimize_path(chunk[["stage_x_(m)", "stage_y_(m)"]].to_numpy(), sc.max_optimization_time, start)
                 chunk = chunk.iloc[order]  # whole rows are reordered (fixes issue I9)
-                start = chunk[["abs_x_m", "abs_y_m"]].to_numpy()[-1]
+                start = chunk[["stage_x_(m)", "stage_y_(m)"]].to_numpy()[-1]
             chunk = chunk.copy()
             chunk.insert(1, "visit_order", np.arange(1, len(chunk) + 1))
             chunk.to_csv(out / f"hits_{a}-{b}.tsv", sep="\t", index=False, float_format="%.10g")
-            xy = chunk[["abs_x_m", "abs_y_m"]].to_numpy()
+            xy = chunk[["stage_x_(m)", "stage_y_(m)"]].to_numpy()
             stage.write_rgn(out / f"HITS_{run_name}_{a}-{b}.rgn", xy)
             log.info("HITS_%s_%d-%d.rgn: %d positions, route %.1f mm%s", run_name, a, b, len(chunk),
                      1e3 * stage.path_length(xy, np.arange(len(xy))), " (optimized)" if sc.optimize_path and len(chunk) > 2 else "")

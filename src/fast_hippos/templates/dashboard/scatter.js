@@ -12,7 +12,7 @@ function scatterValues(key) {
   const a = C[key]; for (let i = 0; i < N; i++) o[i] = a[i] === null || a[i] === undefined ? NaN : a[i]; return o;
 }
 // per-cell quantities in the same unit as the traces (lifetime or ratio)
-const VALUE_METRICS = ["baseline_mean", "response_mean_abs", "response_max_abs", "calibration_mean"];
+const VALUE_METRICS = ["baseline", "mean_during_response", "peak_during_response", "mean_during_calibration"];
 const isValueAxis = (k) => k === "@value" || VALUE_METRICS.includes(k);
 const scatterLabel = (k) => k === "@value" ? VALUE_LABEL : k === "@additional" ? "additional channel @ frame" : k === "@partner" ? `${D.partner.name} @ frame` : nameOf(k);
 function drawScatter() {

@@ -12,15 +12,15 @@ function exportHitsTSV() {
   download(`${D.name}_hits.tsv`, lines.join("\n"), "text/tab-separated-values");
 }
 function exportRGN() {
-  const ids = [...S.sel].filter(i => C.abs_x_m[i] !== null); if (!ids.length) { fhAlert("Select cells first (with stage positions)."); return; }
-  download(`SELECTED_${D.name}.rgn`, rgnXml(ids.map(i => [C.abs_x_m[i], C.abs_y_m[i], `Cell_${C.cell[i]}`]), "selection"), "application/xml");
+  const ids = [...S.sel].filter(i => C["stage_x_(m)"][i] !== null); if (!ids.length) { fhAlert("Select cells first (with stage positions)."); return; }
+  download(`SELECTED_${D.name}.rgn`, rgnXml(ids.map(i => [C["stage_x_(m)"][i], C["stage_y_(m)"][i], `Cell_${C.cell[i]}`]), "selection"), "application/xml");
 }
 async function exportHitsRGN() {
   if (!nHits()) { fhAlert("No hits."); return; }
   const route = SCR.route && !SCR.route.stale ? SCR.route : await computeRoute();
   let a = 1;
   route.chunks.forEach((chunk, k) => {
-    const items = chunk.filter(i => C.abs_x_m[i] !== null).map(i => [C.abs_x_m[i], C.abs_y_m[i], `Cell_${C.cell[i]}`]);
+    const items = chunk.filter(i => C["stage_x_(m)"][i] !== null).map(i => [C["stage_x_(m)"][i], C["stage_y_(m)"][i], `Cell_${C.cell[i]}`]);
     const name = `HITS_${D.name}_${a}-${a + items.length - 1}.rgn`; a += items.length;
     setTimeout(() => download(name, rgnXml(items, "hits"), "application/xml"), 350 * k);
   });

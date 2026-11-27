@@ -39,17 +39,17 @@ function drawCell() {
     c.fillStyle = css("--muted"); c.font = "10.5px system-ui"; c.fillText(`- - ${D.partner.name} (${fmt(p0)}–${fmt(p1)} ns)`, CP.m.l + 5, CP.m.t + 11);
   }
   line(t => K()[t * N + i], HIT[i] ? css("--hit") : css("--accent"), 2.2);
-  if (Number.isFinite(C.baseline_mean[i])) { c.setLineDash([3, 3]); c.strokeStyle = css("--text"); c.lineWidth = 1; c.beginPath(); c.moveTo(CP.m.l, CP.Y(C.baseline_mean[i])); c.lineTo(CP.m.l + CP.pw, CP.Y(C.baseline_mean[i])); c.stroke(); c.setLineDash([]); }
+  if (Number.isFinite(C.baseline[i])) { c.setLineDash([3, 3]); c.strokeStyle = css("--text"); c.lineWidth = 1; c.beginPath(); c.moveTo(CP.m.l, CP.Y(C.baseline[i])); c.lineTo(CP.m.l + CP.pw, CP.Y(C.baseline[i])); c.stroke(); c.setLineDash([]); }
   const fx = CP.X(S.frame * FI); c.strokeStyle = css("--accent"); c.lineWidth = 1; c.beginPath(); c.moveTo(fx, CP.m.t); c.lineTo(fx, CP.m.t + CP.ph); c.stroke();
   c.restore();
   // checklist
   const p = SCR.params, rows = [];
   const mark = (ok) => ok ? `<span class="ok">✓</span>` : `<span class="bad">✗</span>`;
-  if (p.baseline_calibration_diff) { const v = C.calibration_diff[i]; rows.push([mark(v >= p.baseline_calibration_diff[0] && v <= p.baseline_calibration_diff[1]), "gate: calibration − baseline", fmt(v)]); }
-  if (p.max_baseline_deviation !== null && p.max_baseline_deviation !== undefined) { const v = C.baseline_dev_pop[i]; rows.push([mark(Math.abs(v) <= p.max_baseline_deviation), "gate: |baseline − population|", fmt(Math.abs(v))]); }
+  if (p.baseline_calibration_diff) { const v = C.calibration_response[i]; rows.push([mark(v >= p.baseline_calibration_diff[0] && v <= p.baseline_calibration_diff[1]), "gate: calibration − baseline", fmt(v)]); }
+  if (p.max_baseline_deviation !== null && p.max_baseline_deviation !== undefined) { const v = C.baseline_offset_from_population[i]; rows.push([mark(Math.abs(v) <= p.max_baseline_deviation), "gate: |baseline − population|", fmt(Math.abs(v))]); }
   p.criteria.forEach((cr, k) => { const v = C[cr.metric] ? C[cr.metric][i] : NaN, v2 = FHScreen.isGate(cr) && C[cr.metric2] ? C[cr.metric2][i] : null;
     rows.push([SCR.pass[k] ? mark(SCR.pass[k][i]) : "", `<span class="pill ${cr.logic.toLowerCase()}">${cr.logic}</span> ${critText(cr)}`, v2 === null ? fmt(v) : `${fmt(v)}, ${fmt(v2)}`]); });
-  for (const m of ["baseline_mean", "response_max_diff", "rise_time_frames", "additional_intensity"]) if (C[m] && !p.criteria.some(cr => cr.metric === m)) rows.push(["", `<span title="${esc(tipOf(m))}">${esc(nameOf(m))}</span>`, fmt(C[m][i])]);
+  for (const m of ["baseline", "peak_response", "rise_time_(frames)", "additional_channel_intensity"]) if (C[m] && !p.criteria.some(cr => cr.metric === m)) rows.push(["", `<span title="${esc(tipOf(m))}">${esc(nameOf(m))}</span>`, fmt(C[m][i])]);
   $("cclist").innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
 }
 let cellTimer = null;

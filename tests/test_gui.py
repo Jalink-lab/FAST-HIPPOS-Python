@@ -40,8 +40,8 @@ def test_toml_round_trip(tmp_path):
     s.input.additional_channel = 3
     s.screening.enabled = True
     s.screening.baseline_calibration_diff = None  # default is a tuple: written as []
-    s.screening.criteria = [Criterion("response_max_diff", ">", 0.6, logic="AND"),
-                            Criterion("baseline_mean", "between", 2.0, 2.4)]
+    s.screening.criteria = [Criterion("peak_response", ">", 0.6, logic="AND"),
+                            Criterion("baseline", "between", 2.0, 2.4)]
     s.segmentation.cellpose3_python = tmp_path / "cp3" / "python.exe"  # absolute on every system
     path = tmp_path / "settings.toml"
     path.write_text(gui.to_toml(s.to_dict()), encoding="utf-8")
@@ -107,16 +107,16 @@ def test_apply_from_dashboard(tmp_path):
     base = Settings()
     base.input.files = [tmp_path / "img.tif"]
     base.input.output = out
-    base.screening.criteria = [Criterion("baseline_mean", "<", 2.5)]
+    base.screening.criteria = [Criterion("baseline", "<", 2.5)]
     base.segmentation.cellpose3_python = tmp_path / "cp3" / "python.exe"
     (out / "settings_used.json").write_text(json.dumps(base.to_dict()))
     toml = ('[screening]\nenabled = true\nmanual_hits = "img_manual_hits.tsv"\n'
-            'criteria = [ { metric = "response_max_diff", op = ">", value = 0.6, logic = "AND" } ]\n')
+            'criteria = [ { metric = "peak_response", op = ">", value = 0.6, logic = "AND" } ]\n')
     job = FakeJob()
     gui.apply_from_dashboard(job, str(out / "img" / "dashboard.html"), toml, "image\tcell\nimg\t3")
     settings, reapply, source = job.started
     assert reapply and source == "dashboard"
-    assert settings["screening"]["criteria"][0]["metric"] == "response_max_diff"
+    assert settings["screening"]["criteria"][0]["metric"] == "peak_response"
     assert settings["segmentation"]["cellpose3_python"] == str(tmp_path / "cp3" / "python.exe")  # rest kept
     assert Path(settings["screening"]["manual_hits"]) == out / "img_manual_hits.tsv"
     assert (out / "img_manual_hits.tsv").read_text().endswith("img\t3")
@@ -155,7 +155,7 @@ def test_reapply_from_the_gui_uses_the_run_in_the_folder(tmp_path):
     page.input.files = [tmp_path / "other.tif"]  # the Images list now holds something else
     page.input.output = out
     page.segmentation.diameter = 12
-    page.screening.criteria = [Criterion("baseline_mean", ">", 2.7)]
+    page.screening.criteria = [Criterion("baseline", ">", 2.7)]
     page.display.dashboard_tiles = not run.display.dashboard_tiles  # only takes effect in a full run: the run's value stays
     job = FakeJob()
     gui.start_reapply(job, page.to_dict())

@@ -61,7 +61,7 @@ about this before the run. A stage positions file is only read by *Run analysis*
 ### Stage coordinates and the .rgn frame
 
 The positions file holds the stage X and Y as LAS X stores them in the image metadata (the same as Bio-Formats
-shows). The positions in the `.rgn` files and in the tables (`abs_x_m`, `abs_y_m`, in metres) are in the frame of the
+shows). The positions in the `.rgn` files and in the tables (`stage_x_(m)`, `stage_y_(m)`, in metres) are in the frame of the
 LAS X Navigator, measured to the cell. By default, the .rgn X is the negative stage Y, and the .rgn Y the negative
 stage X, as on the Leica Stellaris where this was validated. So don't be surprised that they look swapped and
 negative.

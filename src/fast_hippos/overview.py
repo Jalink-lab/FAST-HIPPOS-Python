@@ -30,10 +30,10 @@ if TYPE_CHECKING:
 MAX_CELLS = 5000  # per image in the page (a subsample that keeps every hit); counts and medians use all cells
 BANDS = (10, 25, 50, 75, 90)  # percentiles of the response over time
 THUMB = 128  # px, longest side of the thumbnail
-CELL_COLUMNS = ["cell", "hit", "valid", "abs_x_m", "abs_y_m", "area_px", "area_um2", "mean_intensity", "circularity",
+CELL_COLUMNS = ["cell", "hit", "valid", "stage_x_(m)", "stage_y_(m)", "area_(px)", "area_(um2)", "mean_intensity", "circularity",
                 "class_additional", *METRICS]
-RESPONSE_METRICS = ("response_mean_diff", "response_max_diff", "response_mean_abs", "response_max_abs",
-                    "response_max_diff_pop", "response_fraction")
+RESPONSE_METRICS = ("mean_response", "peak_response", "mean_during_response", "peak_during_response",
+                    "peak_response_vs_population", "mean_peak_response_ratio")
 SUMMARY_FILE = "run_summary.tsv"
 
 # QC flags: warnings only (they never filter anything); every threshold is stated in the text shown on hover
@@ -58,11 +58,11 @@ def _median(values) -> float | None:
 
 
 def response_metric(settings: Settings) -> str:
-    """The response metric of the table: that of the first criterion that uses one, else response_max_diff."""
+    """The response metric of the table: that of the first criterion that uses one, else peak_response."""
     for c in settings.screening.criteria:
         if c.metric in RESPONSE_METRICS:
             return c.metric
-    return "response_max_diff"
+    return "peak_response"
 
 
 def _bands(kymo: np.ndarray, columns: np.ndarray) -> str | None:
@@ -172,7 +172,7 @@ def build_overview_data(results: list[ImageResult], settings: Settings, out: Pat
         dash = r.out_dir / "dashboard.html"
         tiles = r.tiles or []
         has_positions = (r.stage_known and bool(len(cells))
-                         and bool(np.isfinite(pd.to_numeric(cells["abs_x_m"], errors="coerce")).any()))
+                         and bool(np.isfinite(pd.to_numeric(cells["stage_x_(m)"], errors="coerce")).any()))
         sub = _subsample(cells, seed=r.index)
         hit_rows = cells[hit]
         img = {
@@ -181,11 +181,11 @@ def build_overview_data(results: list[ImageResult], settings: Settings, out: Pat
             "source": r.source, "n_cells": r.n_cells, "n_valid": int(valid.sum()), "n_hits": int(hit.sum()),
             "frames": r.shape[0], "frame_interval": r.frame_interval, "unit": r.unit,
             "events": ev.to_dict(),
-            "baseline": _median(cells.loc[valid, "baseline_mean"]) if valid.any() else None,
+            "baseline": _median(cells.loc[valid, "baseline"]) if valid.any() else None,
             "response": _median(cells.loc[valid, metric]) if valid.any() and metric in cells else None,
             "hit_response": _median(hit_rows[metric]) if len(hit_rows) and metric in cells else None,
-            "cal_delta": _median(cells.loc[valid, "calibration_diff"]) if valid.any() else None,
-            "baseline_spread": _median(np.abs(pd.to_numeric(cells["baseline_dev_pop"], errors="coerce"))),
+            "cal_delta": _median(cells.loc[valid, "calibration_response"]) if valid.any() else None,
+            "baseline_spread": _median(np.abs(pd.to_numeric(cells["baseline_offset_from_population"], errors="coerce"))),
             "intensity": _median(cells["mean_intensity"]),
             "class_pos": float(np.nanmean(cells["class_additional"])) * 100 if "class_additional" in cells and len(cells) else None,
             "tiles": tiles, "n_tiles": len(tiles),
@@ -194,8 +194,8 @@ def build_overview_data(results: list[ImageResult], settings: Settings, out: Pat
             "bands": _bands(r.kymo_smoothed, valid if valid.any() else np.ones(r.n_cells, bool)),
             "bands_hits": _bands(r.kymo_smoothed, hit) if hit.any() else None,
             "cells": _cell_columns(sub), "n_shown": len(sub),
-            "hits": [{"cell": int(h["cell"]), "x": float(h["abs_x_m"]) if pd.notna(h["abs_x_m"]) else None,
-                      "y": float(h["abs_y_m"]) if pd.notna(h["abs_y_m"]) else None,
+            "hits": [{"cell": int(h["cell"]), "x": float(h["stage_x_(m)"]) if pd.notna(h["stage_x_(m)"]) else None,
+                      "y": float(h["stage_y_(m)"]) if pd.notna(h["stage_y_(m)"]) else None,
                       **hit_info.get((r.name, int(h["cell"])), {"rank": None, "chunk": None, "visit": None})}
                      for _, h in hit_rows.iterrows()],
             "thumb": (thumbs or {}).get(r.name),
@@ -246,7 +246,7 @@ def summary_table(data: dict) -> pd.DataFrame:
             **({"hits": i["n_hits"], "hit_pct_of_valid": round(100 * i["n_hits"] / i["n_valid"], 3) if i["n_valid"] else math.nan}
                if data["screening"] else {}),
             "median_baseline": i["baseline"], f"median_{data['response_metric']}": i["response"],
-            "median_calibration_diff": i["cal_delta"], "frames": i["frames"], "frame_interval_s": i["frame_interval"],
+            "median_calibration_response": i["cal_delta"], "frames": i["frames"], "frame_interval_s": i["frame_interval"],
             "stimulation_frame": ev["stimulation"], "calibration_frame": ev["calibration"],
             "events_detected": ev["detected"], "baseline_only": ev["baseline_only"],
             "qc_flags": ",".join(f["key"] for f in i["flags"]),

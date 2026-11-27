@@ -54,40 +54,40 @@ def compute_metrics(
     base = _nan(np.nanmean, kymo[events.baseline])
     pop_baseline = float(_nan(np.nanmean, base, axis=None)) if n else np.nan
     df = pd.DataFrame({"cell": np.arange(1, n + 1)})
-    df["baseline_mean"] = base
-    df["baseline_dev_pop"] = base - pop_baseline
+    df["baseline"] = base
+    df["baseline_offset_from_population"] = base - pop_baseline
 
     resp = kymo[events.response]
     if resp.shape[0] > 0:
         timed = kymo[timed_window(events, settings)]
         diff = resp - base
-        df["response_mean_abs"] = _nan(np.nanmean, timed)
-        df["response_mean_diff"] = df["response_mean_abs"] - base
-        df["response_max_abs"] = _nan(np.nanmax, resp)
-        df["response_max_diff"] = df["response_max_abs"] - base
-        df["response_max_diff_pop"] = df["response_max_abs"] - pop_baseline
+        df["mean_during_response"] = _nan(np.nanmean, timed)
+        df["mean_response"] = df["mean_during_response"] - base
+        df["peak_during_response"] = _nan(np.nanmax, resp)
+        df["peak_response"] = df["peak_during_response"] - base
+        df["peak_response_vs_population"] = df["peak_during_response"] - pop_baseline
         with np.errstate(divide="ignore", invalid="ignore"):
-            df["response_fraction"] = df["response_mean_diff"] / df["response_max_diff"]
-        reached = np.nan_to_num(diff, nan=-np.inf) >= settings.rise_time_fraction * df["response_max_diff"].to_numpy()
+            df["mean_peak_response_ratio"] = df["mean_response"] / df["peak_response"]
+        reached = np.nan_to_num(diff, nan=-np.inf) >= settings.rise_time_fraction * df["peak_response"].to_numpy()
         first = np.argmax(reached, axis=0).astype(float) + 1
         first[~reached.any(axis=0)] = np.nan
-        df["rise_time_frames"] = first
+        df["rise_time_(frames)"] = first
         half = resp.shape[0] // 2
         with np.errstate(divide="ignore", invalid="ignore"):
-            df["rapid_response_ratio"] = _nan(np.nanmean, diff[half:]) / _nan(np.nanmean, diff[:half]) if half else np.nan
+            df["late_early_response_ratio"] = _nan(np.nanmean, diff[half:]) / _nan(np.nanmean, diff[:half]) if half else np.nan
     else:
-        for col in ["response_mean_abs", "response_mean_diff", "response_max_abs", "response_max_diff", "response_max_diff_pop", "response_fraction", "rise_time_frames", "rapid_response_ratio"]:
+        for col in ["mean_during_response", "mean_response", "peak_during_response", "peak_response", "peak_response_vs_population", "mean_peak_response_ratio", "rise_time_(frames)", "late_early_response_ratio"]:
             df[col] = np.nan
 
     cal = kymo[events.calibration_window]
-    df["calibration_mean"] = _nan(np.nanmean, cal) if cal.shape[0] else np.nan
-    df["calibration_diff"] = df["calibration_mean"] - base
+    df["mean_during_calibration"] = _nan(np.nanmean, cal) if cal.shape[0] else np.nan
+    df["calibration_response"] = df["mean_during_calibration"] - base
 
     if additional is not None:
         if settings.additional_channel_metric == "first":
-            df["additional_intensity"] = additional[0]
+            df["additional_channel_intensity"] = additional[0]
         else:
-            df["additional_intensity"] = _nan(np.nanmean, additional)
+            df["additional_channel_intensity"] = _nan(np.nanmean, additional)
     df.attrs["population_baseline"] = pop_baseline
     return df
 
@@ -98,12 +98,12 @@ def validity(df: pd.DataFrame, settings: ScreeningSettings, has_calibration: boo
     if settings.baseline_calibration_diff is not None:
         if has_calibration:
             lo, hi = settings.baseline_calibration_diff
-            valid &= df["calibration_diff"].between(lo, hi)
+            valid &= df["calibration_response"].between(lo, hi)
         else:
             log.warning("No calibration window: baseline-calibration gate skipped")
     if settings.max_baseline_deviation is not None:
-        valid &= df["baseline_dev_pop"].abs() <= settings.max_baseline_deviation
-    valid &= df["baseline_mean"].notna()
+        valid &= df["baseline_offset_from_population"].abs() <= settings.max_baseline_deviation
+    valid &= df["baseline"].notna()
     return valid
 
 
@@ -135,7 +135,7 @@ def is_gate(criterion: Criterion) -> bool:
 
 
 def criterion_text(c) -> str:
-    """A criterion (or its dict) in words: 'response_max_diff > 0.3', 'inside a gate on x vs y'."""
+    """A criterion (or its dict) in words: 'peak_response > 0.3', 'inside a gate on x vs y'."""
     get = c.get if isinstance(c, dict) else lambda k, d=None: getattr(c, k, d)
     if get("op") in GATE_OPS:
         return (f"{get('op')} a gate on {metric_label(get('metric2'))} vs {metric_label(get('metric'))} "

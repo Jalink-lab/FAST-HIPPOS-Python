@@ -33,7 +33,7 @@ example_screen_1/               one image: its folder in the experiment folder
 └── tiles/                     full-resolution parts of large images, for the dashboard
 ```
 
-The `.tsv` files are tab-separated tables: open them in Excel, or in Python or R. Their columns have short names without spaces (`response_max_diff`); [Cell values](../reference/metrics.md) gives for each the name that the program shows (*Peak response*) and its meaning. The TIFF images open in Fiji.
+The `.tsv` files are tab-separated tables: open them in Excel, or in Python or R. Their columns have short names without spaces (`peak_response`); [Cell values](../reference/metrics.md) gives for each the name that the program shows (*Peak response*) and its meaning. The TIFF images open in Fiji.
 
 Results of an earlier version have the image files one level deeper (`plate 1\plate 1\dashboard.html`). They keep
 working as they are; analyzing such an image again writes it in the layout above.

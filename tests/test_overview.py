@@ -41,7 +41,7 @@ def run_two(tmp_path_factory):
     s.segmentation.method = "threshold"
     s.segmentation.diameter = 18
     s.screening.enabled = True
-    s.screening.criteria = [Criterion("response_max_diff", ">", 0.2)]
+    s.screening.criteria = [Criterion("peak_response", ">", 0.2)]
     results = run(s)
     return s, results, tmp / "out"
 
@@ -50,7 +50,7 @@ def test_overview_page_and_summary(run_two):
     _, results, out = run_two
     data = _payload(out / "index.html")
     assert [i["name"] for i in data["images"]] == ["sample0", "sample1"]
-    assert data["screening"] and data["response_metric"] == "response_max_diff" and data["started"]
+    assert data["screening"] and data["response_metric"] == "peak_response" and data["started"]
     hits = pd.read_csv(out / "hits.tsv", sep="\t")
     for img, r in zip(data["images"], results, strict=True):
         assert img["n_hits"] == len(img["hits"]) == int((hits["image"] == r.name).sum())

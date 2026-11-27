@@ -29,7 +29,7 @@ def js():
         const has = m.windows.calibration[1] > m.windows.calibration[0];
         const h = FHScreen.hits(m.cols, a.N, a.p, has);
         const order = FHScreen.order(K, a.T, a.N, m.windows);
-        return plain({ cols: m.cols, valid: h.valid, hit: h.hit, order, otsu: A ? FHScreen.otsuLog10(m.cols.additional_intensity) : null,
+        return plain({ cols: m.cols, valid: h.valid, hit: h.hit, order, otsu: A ? FHScreen.otsuLog10(m.cols.additional_channel_intensity) : null,
                        smooth: Array.from(Ks.slice(0, 5 * a.N)) });
       }""")
     return ctx
@@ -70,8 +70,8 @@ def test_js_matches_python(js, data, ev, window, anchor, wmargin, smooth, logic)
     sc = ScreeningSettings(
         enabled=True, logic=logic, response_window=window, response_window_anchor=anchor,
         response_window_margin=wmargin, baseline_calibration_diff=(0.4, 1.0), max_baseline_deviation=0.15,
-        criteria=[Criterion("response_max_diff", ">", 0.2, logic=per[0]), Criterion("rise_time_frames", "<", 6, logic=per[1]),
-                  Criterion("additional_intensity", "between", 50, 1000, logic=per[2])],
+        criteria=[Criterion("peak_response", ">", 0.2, logic=per[0]), Criterion("rise_time_(frames)", "<", 6, logic=per[1]),
+                  Criterion("additional_channel_intensity", "between", 50, 1000, logic=per[2])],
     )
     e = events.Events(t, stim, cal, baseline_only, margin=1)
     ks = kymograph.smooth_time(kymo, smooth)
@@ -94,7 +94,7 @@ def test_js_matches_python(js, data, ev, window, anchor, wmargin, smooth, logic)
     assert out["valid"] == df["valid"].astype(int).tolist()
     assert out["hit"] == df["hit"].astype(int).tolist()
     assert out["order"] == order.tolist()
-    _, thr = screening.classify_additional(df["additional_intensity"])
+    _, thr = screening.classify_additional(df["additional_channel_intensity"])
     assert out["otsu"] == pytest.approx(thr, rel=1e-9)
 
 
@@ -125,8 +125,8 @@ def test_dashboard_payload_reproduces_python_hits(js, tmp_path):
     s.display.smooth_traces = 1
     s.screening.enabled = True
     s.screening.logic = "OR"
-    s.screening.criteria = [Criterion("response_max_diff", ">", 0.2, logic="AND"),
-                            Criterion("rise_time_frames", "<", 4), Criterion("additional_intensity", ">", 50)]
+    s.screening.criteria = [Criterion("peak_response", ">", 0.2, logic="AND"),
+                            Criterion("rise_time_(frames)", "<", 4), Criterion("additional_channel_intensity", ">", 50)]
     r = run(s)[0]
     d = build_image_data(r, ViewerData.load(r.out_dir / "viewer.npz"), s)
     arg = {"K": [None if np.isnan(v) else float(v) for v in r.kymo.ravel()], "A": r.additional.ravel().tolist(),

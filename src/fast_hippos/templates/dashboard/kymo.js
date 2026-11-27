@@ -83,7 +83,7 @@ function initKymo() {
   // sort menu: mean response (default), cell number, the screening metrics and the other per-cell values
   const ks = $("ksort");
   ks.add(new Option("mean response", "@response")); ks.add(new Option("cell number", ""));
-  [...METRIC_KEYS, ...[("area_um2" in C ? "area_um2" : "area_px"), "mean_intensity", "circularity"].filter(k => k in C)].forEach(k => ks.add(nameOpt(k)));
+  [...METRIC_KEYS, ...[("area_(um2)" in C ? "area_(um2)" : "area_(px)"), "mean_intensity", "circularity"].filter(k => k in C)].forEach(k => ks.add(nameOpt(k)));
   const resort = () => { S.ksort = ks.value; S.kdesc = $("kdir").value === "1"; S.kstart = 0; invalidate("kymo", "kymoOvl"); };
   ks.onchange = resort; $("kdir").onchange = resort;
   // zoom slider (logarithmic): zooms around the selected cells if they are in view, else around the middle

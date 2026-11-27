@@ -57,8 +57,8 @@ def best_window(hits: pd.DataFrame, shape) -> tuple[int, int]:
     best, corner = -1, (0, 0)
     for y in range(0, shape[0] - H, 20):
         for x in range(0, shape[1] - W, 20):
-            n = ((hits.centroid_x > x + 20) & (hits.centroid_x < x + W - 20) & (hits.centroid_y > y + 20)
-                 & (hits.centroid_y < y + H - 20)).sum()
+            n = ((hits["centroid_x_(px)"] > x + 20) & (hits["centroid_x_(px)"] < x + W - 20) & (hits["centroid_y_(px)"] > y + 20)
+                 & (hits["centroid_y_(px)"] < y + H - 20)).sum()
             if n > best:
                 best, corner = n, (y, x)
     return corner
@@ -105,7 +105,7 @@ def main(example: Path) -> None:
         "still": next((k for k, t in enumerate(v.frames) if t >= REVEAL + 4), n - 1),  # without animation: hits found
     }, indent=1))
     print(f"landing/: {n} frames, {size // 1024} kB,",
-          f"{len(hits[(hits.centroid_x > x0) & (hits.centroid_x < x0 + W) & (hits.centroid_y > y0) & (hits.centroid_y < y0 + H)])} hits")
+          f"{len(hits[(hits["centroid_x_(px)"] > x0) & (hits["centroid_x_(px)"] < x0 + W) & (hits["centroid_y_(px)"] > y0) & (hits["centroid_y_(px)"] < y0 + H)])} hits")
 
 
 def experiment_closeup() -> None:

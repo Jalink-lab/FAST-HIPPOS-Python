@@ -192,10 +192,10 @@ def cell_statistics(labels: np.ndarray, intensity: np.ndarray) -> pd.DataFrame:
     )
     df = pd.DataFrame(props).rename(
         columns={
-            "area": "area_px",
+            "area": "area_(px)",
             "intensity_mean": "mean_intensity",
-            "centroid-0": "centroid_y",
-            "centroid-1": "centroid_x",
+            "centroid-0": "centroid_y_(px)",
+            "centroid-1": "centroid_x_(px)",
             "bbox-0": "bbox_y0",
             "bbox-1": "bbox_x0",
             "bbox-2": "bbox_y1",
@@ -203,5 +203,5 @@ def cell_statistics(labels: np.ndarray, intensity: np.ndarray) -> pd.DataFrame:
         }
     )
     with np.errstate(divide="ignore", invalid="ignore"):
-        df["circularity"] = np.clip(4 * np.pi * df["area_px"] / df.pop("perimeter_crofton") ** 2, 0, 1)
+        df["circularity"] = np.clip(4 * np.pi * df["area_(px)"] / df.pop("perimeter_crofton") ** 2, 0, 1)
     return df.set_index("label", drop=False)
