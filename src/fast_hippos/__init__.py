@@ -3,5 +3,5 @@
 Python port of the FAST-HIPPOS Fiji macro (reference: v0.9.5, see ``reference/fiji_v0.9.5``).
 """
 
-__version__ = "0.1.0b3"  # the one place of the version number (pyproject.toml reads it)
+__version__ = "0.1.0b4"  # the one place of the version number (pyproject.toml reads it)
 REFERENCE_MACRO_VERSION = "0.9.5"
